@@ -1,0 +1,44 @@
+# GitHub Actions CI - har push par API ko build karta hai.
+# Free tier: private repos ke liye 2000 minutes/month (Linux builds fast hain).
+name: SmartSchool API CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/SmartSchool.API/**'
+      - 'src/SmartSchool.Core/**'
+      - 'src/SmartSchool.Infrastructure/**'
+      - 'src/SmartSchool.Shared/**'
+      - 'SmartSchool.sln'
+      - '.github/workflows/api-ci.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore SmartSchool.sln
+
+      - name: Build (Release)
+        run: dotnet build SmartSchool.sln --configuration Release --no-restore
+
+      - name: EF Core model check (migrations script must generate)
+        run: |
+          dotnet tool install --global dotnet-ef --version 8.0.*
+          dotnet ef migrations script --idempotent \
+            --project src/SmartSchool.Infrastructure \
+            --startup-project src/SmartSchool.API \
+            --output /tmp/ef-check.sql
+          echo "EF model OK"
+
+# Phase 2 note: WPF app aane par doosri workflow 'windows-latest' runner par add hogi -
+# GitHub khud aap ke liye WPF .exe / installer build kar ke artifact dega (PC par VS na bhi ho).
