@@ -1,0 +1,44 @@
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+.vsidx
+*.user
+*.suo
+*.userprefs
+TestResults/
+publish/
+*.publishsettings
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Secrets - never commit real credentials
+appsettings.*.Local.json
+secrets.json
+
+# OS noise
+Thumbs.db
+.DS_Store
+
+# Flutter / Dart (for the mobile apps when we scaffold them)
+**/flutter/.dart_tool/
+**/flutter/.flutter-plugins
+**/flutter/.flutter-plugins-dependencies
+**/flutter/.packages
+**/flutter/build/
+**/flutter/.pub-cache/
+**/flutter/pubspec.lock
+**/driver_app/.dart_tool/
+**/driver_app/build/
+**/parent_app/.dart_tool/
+**/parent_app/build/
+
+# SQL local artifacts
+*.bacpac
+*.dacpac
+
+# Logs
+logs/
+*.log
