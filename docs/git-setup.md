@@ -27,12 +27,21 @@ Agar pehli martaba — Arena se project folder download kar ke PC par rakhein, p
 ```powershell
 cd SmartSchoolPro
 
-git remote add origin https://github.com/<AAPKA-USERNAME>/smartschool-pro.git
+git remote add origin https://github.com/johnpaul210488-lgtm/smartschool-pro.git
 git branch -M main
 git push -u origin main
 ```
 
-> Repo pehle se `git init` ho chukka hai aur pehla commit bana hua hai — sirf remote add kar ke push karna hai.
+> Agar Arena se `smartschool-pro.bundle` file download ki hai (plain folder ki jagah), to yeh 3 commands kaafi hain — full history ke saath repo aa jayega, remote phir se set kar ke push kar do:
+>
+> ```powershell
+> git clone smartschool-pro.bundle smartschool-pro
+> cd smartschool-pro
+> git remote set-url origin https://github.com/johnpaul210488-lgtm/smartschool-pro.git
+> git push -u origin main
+> ```
+
+> Repo pehle se `git init` ho chukka hai aur commit bane hue hain — sirf remote + push karna hai.
 
 Baad ka roz ka cycle:
 
