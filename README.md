@@ -1,5 +1,7 @@
 # SmartSchool Pro
 
+[![SmartSchool API CI](https://github.com/johnpaul210488-lgtm/smartschool-pro/actions/workflows/api-ci.yml/badge.svg)](https://github.com/johnpaul210488-lgtm/smartschool-pro/actions/workflows/api-ci.yml)
+
 Complete school management system: **WPF admin desktop app** (no browser, pure Windows .exe),
 **Flutter driver & parent apps**, **ASP.NET Core 8 Web API**, **SignalR real-time alerts** and
 **Twilio WhatsApp notifications** — all timestamps in **Pakistan Standard Time (UTC+5)**.

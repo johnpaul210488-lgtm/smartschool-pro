@@ -187,8 +187,8 @@ try
     app.MapGet("/health", () => Results.Ok(new
     {
         status = "ok",
-        serverTimeUtc = DateTime.UtcNow,
-        serverTimePakistan = PkTime.NowPk
+        serverTimeUtc = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss 'UTC'"),
+        serverTimePakistan = PkTime.NowPk.ToString("yyyy-MM-dd hh:mm:ss tt 'PST'")
     })).AllowAnonymous();
 
     app.Run();
