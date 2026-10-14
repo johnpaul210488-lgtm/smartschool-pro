@@ -10,7 +10,7 @@ Complete school management system: **WPF admin desktop app** (no browser, pure W
 |---|---|---|
 | Backend API (layered) | ASP.NET Core 8, EF Core, SQL Server, JWT, SignalR, FluentValidation, Serilog | ✅ Phase 1 built |
 | Database schema | T-SQL scripts + EF migrations | ✅ Phase 1 built |
-| Admin Desktop App | C# .NET 8 WPF (MahApps styling, SignalR popups + sound) | ⏳ Phase 2 |
+| Admin Desktop App | C# .NET 8 WPF (MaterialDesign, MVVM, SignalR toasts+sound, live map) | ✅ DONE |
 | Driver App | Flutter (Android/iOS), background GPS, offline queue | ⏳ Phase 3 |
 | Parent App | Flutter (Android/iOS), FCM push + live child status | ⏳ Phase 4 |
 
@@ -33,7 +33,9 @@ SmartSchool.sln
 │                                    # Services: JWT, Twilio WhatsApp + durable queue, Google geocoding
 ├── src/SmartSchool.Shared           # Enums, Constants (roles/groups/events), Helpers
 │                                    # (PkTime, PasswordHasher, PhoneNormalizer), ApiResponse envelope
-├── src/SmartSchool.Admin.Desktop    # WPF admin app            ⏳ Phase 2
+├── src/SmartSchool.Admin            # ✅ Phase 2 — native WPF desktop: sidebar shell, dashboard cards,
+│                                    #    students/fees/buses/drivers/reports, SignalR toasts+sound,
+│                                    #    GMap.NET live tracking, FlowDocument receipt printing
 ├── apps/driver_app                  # Flutter driver app        ⏳ Phase 3
 ├── apps/parent_app                  # Flutter parent app        ⏳ Phase 4
 ├── database/sqlserver/              # 001_schema.sql, 002_seed.sql, EF reference script
@@ -75,6 +77,17 @@ cd src/SmartSchool.API
 dotnet run
 # -> http://localhost:5000 redirects to Swagger
 # phones on the school Wi-Fi:  dotnet run --urls http://0.0.0.0:5000
+```
+
+**4. Run the WPF Admin app (Phase 2)** — API chalti hi rahe, naye terminal mein:
+```powershell
+cd src/SmartSchool.Admin
+dotnet run
+# Login: admin / Admin@12345
+# Single-file exe (kisi bhi Windows PC par bina .NET ke chalne wala):
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+# -> publish/SmartSchool.Admin.exe  (GitHub Actions 'SmartSchool Admin (WPF) CI' bhi yeh exe
+#    build kar ke artifact ke tor par deta hai — Actions tab se download karo)
 ```
 
 Swagger: `http://localhost:5000/swagger` • Health: `/health` • Hub: `/hubs/notifications`
