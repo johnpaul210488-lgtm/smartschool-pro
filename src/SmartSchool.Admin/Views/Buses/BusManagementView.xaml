@@ -1,0 +1,84 @@
+<UserControl x:Class="SmartSchool.Admin.Views.Buses.BusManagementView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:helpers="clr-namespace:SmartSchool.Admin.Helpers">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="340"/>
+            <ColumnDefinition/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Form -->
+        <materialDesign:Card Grid.Column="0" Padding="22" Margin="0,0,12,0" VerticalAlignment="Top">
+            <StackPanel>
+                <TextBlock Text="🚌 Bus Form" FontSize="20" FontWeight="Bold" Margin="0,0,0,14"/>
+                <TextBox materialDesign:HintAssist.Hint="Bus Number *" Margin="0,6"
+                         Text="{Binding FormNumber, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox materialDesign:HintAssist.Hint="Route *" Margin="0,6"
+                         Text="{Binding FormRoute, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox materialDesign:HintAssist.Hint="Vehicle No *" Margin="0,6"
+                         Text="{Binding FormVehicleNo, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox materialDesign:HintAssist.Hint="Capacity" Margin="0,6"
+                         Text="{Binding FormCapacity, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <ComboBox materialDesign:HintAssist.Hint="Assign Driver (select bus first)"
+                          ItemsSource="{Binding Drivers}" DisplayMemberPath="FullName"
+                          Margin="0,6"
+                          SelectionChanged="DriverCombo_SelectionChanged"/>
+
+                <TextBlock Text="{Binding FormError}" Foreground="#F44336" FontSize="12"
+                           TextWrapping="Wrap" Margin="0,6,0,0"
+                           Visibility="{Binding FormError, Converter={StaticResource NotEmptyToVis}}"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button Content="NEW" Command="{Binding NewBusCommand}"
+                            Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,8,0"/>
+                    <Button Content="💾 SAVE" Command="{Binding SaveCommand}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"/>
+                </StackPanel>
+            </StackPanel>
+        </materialDesign:Card>
+
+        <!-- Grid -->
+        <materialDesign:Card Grid.Column="1" Padding="10">
+            <DataGrid ItemsSource="{Binding Buses}" AutoGenerateColumns="False" IsReadOnly="True"
+                      CanUserAddRows="False" SelectedItem="{Binding SelectedBus, Mode=TwoWay}"
+                      GridLinesVisibility="Horizontal" RowHeaderWidth="0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="#" Binding="{Binding BusNumber}" Width="60"/>
+                    <DataGridTextColumn Header="Route" Binding="{Binding Route}" Width="2*"/>
+                    <DataGridTextColumn Header="Vehicle" Binding="{Binding VehicleNo}" Width="*"/>
+                    <DataGridTextColumn Header="Capacity" Binding="{Binding Capacity}" Width="80"/>
+                    <DataGridTextColumn Header="Students" Binding="{Binding StudentCount}" Width="80"/>
+                    <DataGridTextColumn Header="Driver" Binding="{Binding DriverName, TargetNullValue='—'}" Width="*"/>
+                    <DataGridTemplateColumn Header="Status" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <materialDesign:PackIcon Kind="Circle" Width="12" Height="12"
+                                    HorizontalAlignment="Center">
+                                    <materialDesign:PackIcon.Foreground>
+                                        <Binding Path="IsActive" Converter="{StaticResource BoolToBrush}"/>
+                                    </materialDesign:PackIcon.Foreground>
+                                </materialDesign:PackIcon>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="" Width="60">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="🗑" ToolTip="Deactivate"
+                                        Command="{Binding DataContext.DeleteCommand,
+                                            RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        Style="{StaticResource MaterialDesignIconButton}"
+                                        Foreground="#F44336"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </materialDesign:Card>
+    </Grid>
+</UserControl>

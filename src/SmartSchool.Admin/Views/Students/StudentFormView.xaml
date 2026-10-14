@@ -1,0 +1,81 @@
+<UserControl x:Class="SmartSchool.Admin.Views.Students.StudentFormView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+
+    <Grid>
+        <materialDesign:Card Padding="30" MaxWidth="620" VerticalAlignment="Top">
+            <StackPanel>
+                <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="Bold" Margin="0,0,0,16"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox Grid.Column="0" Margin="0,6,8,6"
+                             materialDesign:HintAssist.Hint="Full Name *"
+                             materialDesign:HintAssist.HelperText="e.g. Ahmed Raza"
+                             Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+
+                    <TextBox Grid.Column="1" Margin="8,6,0,6"
+                             materialDesign:HintAssist.Hint="Roll No *"
+                             Text="{Binding RollNo, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+
+                    <ComboBox Grid.Column="0" Margin="0,6,8,6"
+                              materialDesign:HintAssist.Hint="Class *"
+                              ItemsSource="{Binding Classes}" DisplayMemberPath="DisplayName"
+                              SelectedItem="{Binding SelectedClass, Mode=TwoWay}"/>
+
+                    <DatePicker Grid.Column="1" Margin="8,6,0,6"
+                                materialDesign:HintAssist.Hint="Date of Birth"
+                                SelectedDate="{Binding DateOfBirth, Mode=TwoWay}"/>
+
+                    <TextBox Grid.Column="0" Margin="0,6,8,6"
+                             materialDesign:HintAssist.Hint="Father Name *"
+                             Text="{Binding FatherName, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+
+                    <TextBox Grid.Column="1" Margin="8,6,0,6"
+                             materialDesign:HintAssist.Hint="Father Phone *"
+                             materialDesign:HintAssist.HelperText="03xxxxxxxxx"
+                             Text="{Binding FatherPhone, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+
+                    <TextBox Grid.Column="0" Margin="0,6,8,6"
+                             materialDesign:HintAssist.Hint="Mother Phone (optional)"
+                             Text="{Binding MotherPhone, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+
+                    <ComboBox Grid.Column="1" Margin="8,6,0,6"
+                              materialDesign:HintAssist.Hint="Bus (optional)"
+                              ItemsSource="{Binding Buses}"
+                              SelectedItem="{Binding SelectedBus, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding BusNumber, StringFormat='Bus #{0}'}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </Grid>
+
+                <TextBox Margin="0,6"
+                         materialDesign:HintAssist.Hint="Address *"
+                         AcceptsReturn="True" Height="60"
+                         Text="{Binding Address, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+
+                <CheckBox Content="Active (school jata hai)"
+                          IsChecked="{Binding IsActive}" Margin="0,8,0,0"/>
+
+                <TextBlock Text="{Binding FormError}" Foreground="#F44336" TextWrapping="Wrap"
+                           Margin="0,8,0,0" FontSize="12"
+                           Visibility="{Binding FormError, Converter={StaticResource NotEmptyToVis}}"/>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+                    <Button Content="Cancel" Command="{Binding CancelCommand}"
+                            Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,10,0"/>
+                    <Button Content="💾 SAVE" Command="{Binding SaveCommand}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"/>
+                </StackPanel>
+            </StackPanel>
+        </materialDesign:Card>
+    </Grid>
+</UserControl>

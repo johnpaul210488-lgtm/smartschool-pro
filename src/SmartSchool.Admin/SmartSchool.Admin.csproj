@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Lets CI (ubuntu) compile-verify the WPF project too. Run/publish still needs Windows. -->
+    <EnableWindowsTargeting Condition="'$(OS)' != 'Windows_NT'">true</EnableWindowsTargeting>
+    <RootNamespace>SmartSchool.Admin</RootNamespace>
+    <AssemblyName>SmartSchool.Admin</AssemblyName>
+    <ApplicationIcon></ApplicationIcon>
+    <AssemblyTitle>SmartSchool Pro - Admin</AssemblyTitle>
+    <Description>Native Windows desktop admin panel for SmartSchool Pro</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- MVVM toolkit with source generators -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <!-- Material Design for WPF (dark/light themes, controls) -->
+    <PackageReference Include="MaterialDesignThemes" Version="5.1.0" />
+    <!-- Offline-friendly map control (OpenStreetMap etc.) — WPF flavour -->
+    <PackageReference Include="GMap.NET.WinPresentation" Version="2.1.7" />
+    <!-- SignalR client for live alerts + bus tracking -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.10" />
+    <!-- DPAPI for encrypted token storage on Windows -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

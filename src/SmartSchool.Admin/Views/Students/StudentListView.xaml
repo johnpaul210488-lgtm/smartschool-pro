@@ -1,0 +1,95 @@
+<UserControl x:Class="SmartSchool.Admin.Views.Students.StudentListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:helpers="clr-namespace:SmartSchool.Admin.Helpers">
+    <UserControl.Resources>
+        <helpers:LiveStatusToBrushConverter x:Key="LiveBrush"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12" VerticalAlignment="Center">
+            <TextBlock Text="🎓 Students" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding TotalCount, StringFormat='{}{0} total'}" Opacity="0.65"
+                       VerticalAlignment="Center" Margin="12,4,0,0"/>
+            <TextBox Width="230" Margin="18,0,8,0" VerticalAlignment="Center"
+                     materialDesign:HintAssist.Hint="🔍 Search name / roll no…"
+                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=400}"/>
+            <ComboBox Width="180" VerticalAlignment="Center"
+                      materialDesign:HintAssist.Hint="Class"
+                      ItemsSource="{Binding Classes}"
+                      DisplayMemberPath="DisplayName"
+                      SelectedItem="{Binding SelectedClass, Mode=TwoWay}"/>
+            <Button Margin="8,0" VerticalAlignment="Center" Command="{Binding LoadCommand}"
+                    ToolTip="Refresh" Style="{StaticResource MaterialDesignIconButton}">
+                <materialDesign:PackIcon Kind="Refresh"/>
+            </Button>
+            <Button Content="➕ New Student" Command="{Binding AddNewCommand}" Margin="10,0,0,0"
+                    Style="{StaticResource MaterialDesignRaisedButton}"/>
+            <ProgressBar IsIndeterminate="{Binding IsBusy}" Visibility="{Binding IsBusy,
+                Converter={StaticResource BooleanToVisibilityConverter}}"
+                Width="140" Height="4" VerticalAlignment="Center" Margin="12,0,0,0"/>
+        </StackPanel>
+
+        <!-- Grid -->
+        <materialDesign:Card Grid.Row="1" Padding="10">
+            <DataGrid ItemsSource="{Binding StudentsView}" AutoGenerateColumns="False"
+                      IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single"
+                      SelectedItem="{Binding SelectedStudent, Mode=TwoWay}"
+                      GridLinesVisibility="Horizontal" RowHeaderWidth="0">
+                <DataGrid.Columns>
+                    <!-- Live SignalR chip -->
+                    <DataGridTemplateColumn Header="Live" Width="70">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border Padding="6,2" CornerRadius="8"
+                                        Background="{Binding LiveStatus, Converter={StaticResource LiveBrush}}"
+                                        Visibility="{Binding LiveStatus, Converter={StaticResource NotEmptyToVis}}"
+                                        HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding LiveStatus}" FontSize="11" FontWeight="Bold"/>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Roll" Binding="{Binding RollNo}" Width="60"/>
+                    <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="2*"/>
+                    <DataGridTextColumn Header="Class" Binding="{Binding ClassName}" Width="*"/>
+                    <DataGridTextColumn Header="Bus" Binding="{Binding BusNumber, TargetNullValue='—'}" Width="60"/>
+                    <DataGridTextColumn Header="Father" Binding="{Binding FatherName}" Width="*"/>
+                    <DataGridTextColumn Header="Phone" Binding="{Binding FatherPhone}" Width="*"/>
+                    <DataGridCheckBoxColumn Header="Active" Binding="{Binding IsActive}" Width="60"/>
+                    <DataGridTemplateColumn Header="Actions" Width="200">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="👁" ToolTip="Profile"
+                                            Command="{Binding DataContext.ViewProfileCommand,
+                                                RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource MaterialDesignIconButton}"/>
+                                    <Button Content="✏️" ToolTip="Edit"
+                                            Command="{Binding DataContext.EditCommand,
+                                                RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource MaterialDesignIconButton}"/>
+                                    <Button Content="🗑" ToolTip="Deactivate"
+                                            Command="{Binding DataContext.DeactivateCommand,
+                                                RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            Style="{StaticResource MaterialDesignIconButton}"
+                                            Foreground="#F44336"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </materialDesign:Card>
+    </Grid>
+</UserControl>

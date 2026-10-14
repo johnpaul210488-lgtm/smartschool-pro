@@ -1,0 +1,98 @@
+<UserControl x:Class="SmartSchool.Admin.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:helpers="clr-namespace:SmartSchool.Admin.Helpers"
+             x:Name="Root">
+    <UserControl.Resources>
+        <helpers:LiveStatusToBrushConverter x:Key="LiveBrush"/>
+        <helpers:EventTypeToBrushConverter x:Key="EvtBrush"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
+            <TextBlock Text="📊 Dashboard" FontSize="26" FontWeight="Bold"/>
+            <TextBlock Text="{Binding DateLine}" FontSize="14" Opacity="0.7" VerticalAlignment="Bottom" Margin="16,0,0,2"/>
+        </StackPanel>
+
+        <!-- Cards -->
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Cards}" Margin="0,0,0,14">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="3" Rows="2"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <materialDesign:Card Margin="6" Padding="18" UniformCornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding Title}" FontSize="13" Opacity="0.75"/>
+                                <TextBlock Text="{Binding Value}" FontSize="30" FontWeight="Bold" Margin="0,4,0,2">
+                                    <TextBlock.Foreground><SolidColorBrush Color="{Binding Accent}"/></TextBlock.Foreground>
+                                </TextBlock>
+                                <TextBlock Text="{Binding SubText}" FontSize="11" Opacity="0.6"/>
+                            </StackPanel>
+                            <materialDesign:PackIcon Kind="{Binding IconKind}" Width="40" Height="40"
+                                Grid.Column="1" VerticalAlignment="Center">
+                                <materialDesign:PackIcon.Foreground>
+                                    <SolidColorBrush Color="{Binding Accent}"/>
+                                </materialDesign:PackIcon.Foreground>
+                            </materialDesign:PackIcon>
+                        </Grid>
+                    </materialDesign:Card>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Live attendance feed -->
+        <materialDesign:Card Grid.Row="2" Padding="14" UniformCornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <materialDesign:PackIcon Kind="AccessPoint" VerticalAlignment="Center" Foreground="#4CAF50" Margin="0,0,6,0"/>
+                    <TextBlock Text="Live Bus Attendance (real-time SignalR)" FontSize="16" FontWeight="SemiBold"/>
+                </StackPanel>
+
+                <DataGrid Grid.Row="1" ItemsSource="{Binding LiveAttendance}" AutoGenerateColumns="False"
+                          IsReadOnly="True" CanUserAddRows="False" GridLinesVisibility="Horizontal"
+                          HeadersVisibility="Column" RowHeaderWidth="0">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="" Width="40">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <materialDesign:PackIcon Kind="CheckboxMarkedCircle"
+                                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <materialDesign:PackIcon.Foreground>
+                                            <SolidColorBrush Color="{Binding Type, Converter={StaticResource EvtBrush}}"/>
+                                        </materialDesign:PackIcon.Foreground>
+                                    </materialDesign:PackIcon>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Student" Binding="{Binding StudentName}" Width="2*"/>
+                        <DataGridTextColumn Header="Class" Binding="{Binding ClassName}" Width="*"/>
+                        <DataGridTextColumn Header="Bus" Binding="{Binding BusNumber}" Width="60"/>
+                        <DataGridTextColumn Header="Event" Binding="{Binding Type}" Width="90"/>
+                        <DataGridTextColumn Header="Time (PKT)" Binding="{Binding TimePakistan}" Width="*"/>
+                        <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="2*"/>
+                        <DataGridTextColumn Header="Driver" Binding="{Binding DriverName}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </materialDesign:Card>
+    </Grid>
+</UserControl>

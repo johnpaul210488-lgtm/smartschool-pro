@@ -10,6 +10,7 @@ on:
       - 'src/SmartSchool.Core/**'
       - 'src/SmartSchool.Infrastructure/**'
       - 'src/SmartSchool.Shared/**'
+      - 'src/SmartSchool.Admin/**'
       - 'SmartSchool.sln'
       - '.github/workflows/api-ci.yml'
   workflow_dispatch:

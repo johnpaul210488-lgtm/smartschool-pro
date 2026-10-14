@@ -1,0 +1,269 @@
+using System.Text.Json.Serialization;
+
+namespace SmartSchool.Admin.Models;
+
+// ============ Envelope (mirrors SmartSchool.Shared ApiResponse) ============
+public sealed class ApiResponse<T>
+{
+    [JsonPropertyName("success")] public bool Success { get; set; }
+    [JsonPropertyName("message")] public string Message { get; set; } = string.Empty;
+    [JsonPropertyName("data")] public T? Data { get; set; }
+    [JsonPropertyName("errors")] public List<string> Errors { get; set; } = new();
+}
+
+public sealed class PagedResult<T>
+{
+    [JsonPropertyName("items")] public List<T> Items { get; set; } = new();
+    [JsonPropertyName("page")] public int Page { get; set; }
+    [JsonPropertyName("pageSize")] public int PageSize { get; set; }
+    [JsonPropertyName("totalCount")] public int TotalCount { get; set; }
+    [JsonPropertyName("totalPages")] public int TotalPages { get; set; }
+}
+
+// ============ Auth ============
+public sealed class LoginRequest
+{
+    [JsonPropertyName("username")] public string Username { get; set; } = string.Empty;
+    [JsonPropertyName("password")] public string Password { get; set; } = string.Empty;
+}
+
+public sealed class UserInfoDto
+{
+    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("username")] public string Username { get; set; } = string.Empty;
+    [JsonPropertyName("fullName")] public string FullName { get; set; } = string.Empty;
+    [JsonPropertyName("role")] public string Role { get; set; } = string.Empty;
+}
+
+public sealed class LoginResponse
+{
+    [JsonPropertyName("token")] public string Token { get; set; } = string.Empty;
+    [JsonPropertyName("expiresAtUtc")] public DateTime ExpiresAtUtc { get; set; }
+    [JsonPropertyName("serverTimePakistan")] public string ServerTimePakistan { get; set; } = string.Empty;
+    [JsonPropertyName("user")] public UserInfoDto? User { get; set; }
+}
+
+// ============ Dashboard ============
+public sealed class DashboardSummary
+{
+    [JsonPropertyName("datePakistan")] public string DatePakistan { get; set; } = string.Empty;
+    [JsonPropertyName("activeStudents")] public int ActiveStudents { get; set; }
+    [JsonPropertyName("totalTeachers")] public int TotalTeachers { get; set; }
+    [JsonPropertyName("totalBuses")] public int TotalBuses { get; set; }
+    [JsonPropertyName("totalDrivers")] public int TotalDrivers { get; set; }
+    [JsonPropertyName("activeTripsNow")] public int ActiveTripsNow { get; set; }
+    [JsonPropertyName("pickInsToday")] public int PickInsToday { get; set; }
+    [JsonPropertyName("dropOutsToday")] public int DropOutsToday { get; set; }
+    [JsonPropertyName("pendingFeesCount")] public int PendingFeesCount { get; set; }
+    [JsonPropertyName("pendingFeesAmount")] public decimal PendingFeesAmount { get; set; }
+    [JsonPropertyName("collectedThisMonth")] public decimal CollectedThisMonth { get; set; }
+    [JsonPropertyName("whatsAppSentToday")] public int WhatsAppSentToday { get; set; }
+    [JsonPropertyName("whatsAppFailedTotal")] public int WhatsAppFailedTotal { get; set; }
+}
+
+// ============ Students ============
+public class StudentListItem
+{
+    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("fullName")] public string FullName { get; set; } = string.Empty;
+    [JsonPropertyName("rollNo")] public string RollNo { get; set; } = string.Empty;
+    [JsonPropertyName("className")] public string ClassName { get; set; } = string.Empty;
+    [JsonPropertyName("classId")] public int ClassId { get; set; }
+    [JsonPropertyName("busNumber")] public string? BusNumber { get; set; }
+    [JsonPropertyName("fatherName")] public string FatherName { get; set; } = string.Empty;
+    [JsonPropertyName("fatherPhone")] public string FatherPhone { get; set; } = string.Empty;
+    [JsonPropertyName("photoUrl")] public string? PhotoUrl { get; set; }
+    [JsonPropertyName("isActive")] public bool IsActive { get; set; }
+
+    /// <summary>Live status driven by SignalR alerts (not from the API).</summary>
+    [JsonIgnore] public string LiveStatus { get; set; } = string.Empty;
+}
+
+public sealed class StudentRecentEvent
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("type")] public string Type { get; set; } = string.Empty;
+    [JsonPropertyName("timePakistan")] public string TimePakistan { get; set; } = string.Empty;
+    [JsonPropertyName("busNumber")] public string BusNumber { get; set; } = string.Empty;
+    [JsonPropertyName("location")] public string? Location { get; set; }
+}
+
+public sealed class StudentDetailResponse : StudentListItem
+{
+    [JsonPropertyName("dateOfBirth")] public DateOnly DateOfBirth { get; set; }
+    [JsonPropertyName("busId")] public int? BusId { get; set; }
+    [JsonPropertyName("motherPhone")] public string? MotherPhone { get; set; }
+    [JsonPropertyName("address")] public string Address { get; set; } = string.Empty;
+    [JsonPropertyName("totalOutstandingFees")] public decimal TotalOutstandingFees { get; set; }
+    [JsonPropertyName("recentBusEvents")] public List<StudentRecentEvent> RecentBusEvents { get; set; } = new();
+}
+
+public sealed class StudentUpsertRequest
+{
+    [JsonPropertyName("fullName")] public string FullName { get; set; } = string.Empty;
+    [JsonPropertyName("dateOfBirth")] public string DateOfBirth { get; set; } = string.Empty; // yyyy-MM-dd
+    [JsonPropertyName("classId")] public int ClassId { get; set; }
+    [JsonPropertyName("rollNo")] public string RollNo { get; set; } = string.Empty;
+    [JsonPropertyName("photoUrl")] public string? PhotoUrl { get; set; }
+    [JsonPropertyName("fatherName")] public string FatherName { get; set; } = string.Empty;
+    [JsonPropertyName("fatherPhone")] public string FatherPhone { get; set; } = string.Empty;
+    [JsonPropertyName("motherPhone")] public string? MotherPhone { get; set; }
+    [JsonPropertyName("address")] public string Address { get; set; } = string.Empty;
+    [JsonPropertyName("busId")] public int? BusId { get; set; }
+    [JsonPropertyName("isActive")] public bool? IsActive { get; set; }
+}
+
+// ============ Classes ============
+public sealed class ClassListItem
+{
+    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+    [JsonPropertyName("section")] public string Section { get; set; } = string.Empty;
+    [JsonPropertyName("displayName")] public string DisplayName { get; set; } = string.Empty;
+    [JsonPropertyName("teacherId")] public int? TeacherId { get; set; }
+    [JsonPropertyName("classTeacherName")] public string? ClassTeacherName { get; set; }
+    [JsonPropertyName("studentCount")] public int StudentCount { get; set; }
+}
+
+// ============ Buses ============
+public sealed class BusListItem
+{
+    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("busNumber")] public string BusNumber { get; set; } = string.Empty;
+    [JsonPropertyName("route")] public string Route { get; set; } = string.Empty;
+    [JsonPropertyName("vehicleNo")] public string VehicleNo { get; set; } = string.Empty;
+    [JsonPropertyName("capacity")] public int Capacity { get; set; }
+    [JsonPropertyName("driverId")] public int? DriverId { get; set; }
+    [JsonPropertyName("driverName")] public string? DriverName { get; set; }
+    [JsonPropertyName("isActive")] public bool IsActive { get; set; }
+    [JsonPropertyName("studentCount")] public int StudentCount { get; set; }
+}
+
+public sealed class BusUpsertRequest
+{
+    [JsonPropertyName("busNumber")] public string BusNumber { get; set; } = string.Empty;
+    [JsonPropertyName("route")] public string Route { get; set; } = string.Empty;
+    [JsonPropertyName("vehicleNo")] public string VehicleNo { get; set; } = string.Empty;
+    [JsonPropertyName("capacity")] public int Capacity { get; set; } = 40;
+    [JsonPropertyName("isActive")] public bool IsActive { get; set; } = true;
+}
+
+// ============ Drivers ============
+public sealed class DriverListItem
+{
+    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("fullName")] public string FullName { get; set; } = string.Empty;
+    [JsonPropertyName("phone")] public string Phone { get; set; } = string.Empty;
+    [JsonPropertyName("licenseNo")] public string LicenseNo { get; set; } = string.Empty;
+    [JsonPropertyName("userId")] public int UserId { get; set; }
+    [JsonPropertyName("username")] public string Username { get; set; } = string.Empty;
+    [JsonPropertyName("isActive")] public bool IsActive { get; set; }
+    [JsonPropertyName("assignedBusId")] public int? AssignedBusId { get; set; }
+    [JsonPropertyName("assignedBusNumber")] public string? AssignedBusNumber { get; set; }
+}
+
+public sealed class DriverCreateRequest
+{
+    [JsonPropertyName("fullName")] public string FullName { get; set; } = string.Empty;
+    [JsonPropertyName("phone")] public string Phone { get; set; } = string.Empty;
+    [JsonPropertyName("licenseNo")] public string LicenseNo { get; set; } = string.Empty;
+    [JsonPropertyName("username")] public string Username { get; set; } = string.Empty;
+    [JsonPropertyName("password")] public string Password { get; set; } = string.Empty;
+}
+
+public sealed class DriverUpdateRequest
+{
+    [JsonPropertyName("fullName")] public string FullName { get; set; } = string.Empty;
+    [JsonPropertyName("phone")] public string Phone { get; set; } = string.Empty;
+    [JsonPropertyName("licenseNo")] public string LicenseNo { get; set; } = string.Empty;
+    [JsonPropertyName("isActive")] public bool IsActive { get; set; } = true;
+}
+
+// ============ Fees ============
+public sealed class FeeListItem
+{
+    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("studentId")] public int StudentId { get; set; }
+    [JsonPropertyName("studentName")] public string StudentName { get; set; } = string.Empty;
+    [JsonPropertyName("className")] public string ClassName { get; set; } = string.Empty;
+    [JsonPropertyName("amount")] public decimal Amount { get; set; }
+    [JsonPropertyName("month")] public string Month { get; set; } = string.Empty;
+    [JsonPropertyName("dueDate")] public DateOnly DueDate { get; set; }
+    [JsonPropertyName("paidDate")] public DateOnly? PaidDate { get; set; }
+    [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
+    [JsonPropertyName("receiptNo")] public string? ReceiptNo { get; set; }
+    [JsonPropertyName("notes")] public string? Notes { get; set; }
+}
+
+public sealed class FeeCreateRequest
+{
+    [JsonPropertyName("studentId")] public int StudentId { get; set; }
+    [JsonPropertyName("amount")] public decimal Amount { get; set; }
+    [JsonPropertyName("month")] public string Month { get; set; } = string.Empty; // yyyy-MM
+    [JsonPropertyName("dueDate")] public string DueDate { get; set; } = string.Empty; // yyyy-MM-dd
+    [JsonPropertyName("notes")] public string? Notes { get; set; }
+}
+
+public sealed class DuesSummaryResponse
+{
+    [JsonPropertyName("totalUnpaidCount")] public int TotalUnpaidCount { get; set; }
+    [JsonPropertyName("totalUnpaidAmount")] public decimal TotalUnpaidAmount { get; set; }
+    [JsonPropertyName("items")] public List<FeeListItem> Items { get; set; } = new();
+}
+
+// ============ Bus attendance / tracking ============
+public sealed class BusEventListItem
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("studentId")] public int StudentId { get; set; }
+    [JsonPropertyName("studentName")] public string StudentName { get; set; } = string.Empty;
+    [JsonPropertyName("className")] public string ClassName { get; set; } = string.Empty;
+    [JsonPropertyName("busId")] public int BusId { get; set; }
+    [JsonPropertyName("busNumber")] public string BusNumber { get; set; } = string.Empty;
+    [JsonPropertyName("driverName")] public string DriverName { get; set; } = string.Empty;
+    [JsonPropertyName("type")] public string Type { get; set; } = string.Empty;
+    [JsonPropertyName("timePakistan")] public string TimePakistan { get; set; } = string.Empty;
+    [JsonPropertyName("latitude")] public double Latitude { get; set; }
+    [JsonPropertyName("longitude")] public double Longitude { get; set; }
+    [JsonPropertyName("location")] public string? Location { get; set; }
+    [JsonPropertyName("whatsAppSent")] public bool WhatsAppSent { get; set; }
+}
+
+// ============ SignalR payloads ============
+public sealed class BusEventNotification
+{
+    [JsonPropertyName("eventId")] public long EventId { get; set; }
+    [JsonPropertyName("studentId")] public int StudentId { get; set; }
+    [JsonPropertyName("studentName")] public string StudentName { get; set; } = string.Empty;
+    [JsonPropertyName("className")] public string ClassName { get; set; } = string.Empty;
+    [JsonPropertyName("busId")] public int BusId { get; set; }
+    [JsonPropertyName("busNumber")] public string BusNumber { get; set; } = string.Empty;
+    [JsonPropertyName("driverName")] public string DriverName { get; set; } = string.Empty;
+    [JsonPropertyName("eventType")] public string EventType { get; set; } = string.Empty; // PickIn | DropOut
+    [JsonPropertyName("timePakistan")] public string TimePakistan { get; set; } = string.Empty;
+    [JsonPropertyName("latitude")] public double Latitude { get; set; }
+    [JsonPropertyName("longitude")] public double Longitude { get; set; }
+    [JsonPropertyName("locationLabel")] public string LocationLabel { get; set; } = string.Empty;
+}
+
+public sealed class BusLocationUpdate
+{
+    [JsonPropertyName("busId")] public int BusId { get; set; }
+    [JsonPropertyName("busNumber")] public string BusNumber { get; set; } = string.Empty;
+    [JsonPropertyName("driverName")] public string DriverName { get; set; } = string.Empty;
+    [JsonPropertyName("latitude")] public double Latitude { get; set; }
+    [JsonPropertyName("longitude")] public double Longitude { get; set; }
+    [JsonPropertyName("speedKmh")] public double? SpeedKmh { get; set; }
+    [JsonPropertyName("timePakistan")] public string TimePakistan { get; set; } = string.Empty;
+}
+
+public sealed class TripNotification
+{
+    [JsonPropertyName("tripId")] public int TripId { get; set; }
+    [JsonPropertyName("busId")] public int BusId { get; set; }
+    [JsonPropertyName("busNumber")] public string BusNumber { get; set; } = string.Empty;
+    [JsonPropertyName("driverName")] public string DriverName { get; set; } = string.Empty;
+    [JsonPropertyName("type")] public string Type { get; set; } = string.Empty;
+    [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
+    [JsonPropertyName("timePakistan")] public string TimePakistan { get; set; } = string.Empty;
+}
