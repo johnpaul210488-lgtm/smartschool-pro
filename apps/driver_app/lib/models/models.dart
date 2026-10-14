@@ -1,4 +1,4 @@
-/// API models — mirror SmartSchool.API envelope + DTOs (camelCase JSON).
+// API models — mirror SmartSchool.API envelope + DTOs (camelCase JSON).
 
 class ApiException implements Exception {
   ApiException(this.message, {this.errors = const []});

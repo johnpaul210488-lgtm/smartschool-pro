@@ -97,7 +97,7 @@ class ApiClient {
           {bool anonymous = false}) =>
       _send('POST', path, body, parse, anonymous: anonymous);
 
-  Future<Envelope<T>> _send(String method, String path, Object? body,
+  Future<Envelope<T>> _send<T>(String method, String path, Object? body,
       T Function(Object?) parse,
       {bool anonymous = false}) async {
     final uri = Uri.parse('${AppConfig.apiBaseUrl}/$path');

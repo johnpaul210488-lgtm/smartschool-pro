@@ -26,6 +26,7 @@ dependencies:
 
   # Offline outbox
   sqflite: ^2.4.4+2
+  path: ^1.9.1
 
   # UI extras
   google_maps_flutter: ^2.18.2
