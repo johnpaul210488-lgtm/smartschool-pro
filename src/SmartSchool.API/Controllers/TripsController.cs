@@ -200,6 +200,40 @@ public sealed class TripsController : BaseApiController
         return OkEnvelope(PagedResult<TripResponse>.Create(items, page, pageSize, total));
     }
 
+    /// <summary>
+    /// Driver app REST uplink for GPS during an active trip. Background Flutter
+    /// services can't reliably hold a SignalR socket — REST is the robust path;
+    /// server relays it to AdminGroup + watchers via the hub, same as the driver-
+    /// called hub method.
+    /// </summary>
+    [HttpPost("{id:int}/location")]
+    [Authorize(Roles = AppRoles.Driver)]
+    public async Task<ActionResult<ApiResponse<object>>> PushLocation(
+        int id, LocationPingRequest request, CancellationToken ct)
+    {
+        var trip = await _uow.Trips.Query().Include(t => t.Bus)
+            .FirstOrDefaultAsync(t => t.Id == id && t.Status == TripStatus.Active, ct);
+        if (trip is null)
+            return NotFoundEnvelope($"Active trip {id} nahi mila (shayad end ho chuka).");
+
+        var callerDriverId = await ResolveCallerDriverIdAsync(ct);
+        if (callerDriverId is null || trip.DriverId != callerDriverId)
+            return BadRequestEnvelope("Yeh trip aapki nahi hai.");
+
+        await _notify.SendBusLocationAsync(new SmartSchool.Core.DTOs.BusLocationUpdate
+        {
+            BusId = trip.BusId,
+            BusNumber = trip.Bus.BusNumber,
+            DriverName = User.FindFirst("fullName")?.Value ?? User.Identity?.Name ?? "Driver",
+            Latitude = request.Latitude,
+            Longitude = request.Longitude,
+            SpeedKmh = request.SpeedKmh,
+            TimePakistan = PkTime.NowPk.ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture)
+        }, ct);
+
+        return OkEnvelope<object>(new { }, "OK");
+    }
+
     private async Task NotifySafe(TripNotification notification, CancellationToken ct)
     {
         try

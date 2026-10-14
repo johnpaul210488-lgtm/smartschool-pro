@@ -1,0 +1,36 @@
+# Flutter Driver app CI: pub get + analyze on every push to the app.
+name: Driver App (Flutter) CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/driver_app/**'
+      - '.github/workflows/flutter-driver-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/driver_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: flutter doctor
+        run: flutter doctor -v
+
+      - name: pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos

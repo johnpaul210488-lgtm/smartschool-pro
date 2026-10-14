@@ -37,6 +37,23 @@ public sealed class BusesController : BaseApiController
         return OkEnvelope(items);
     }
 
+    /// <summary>Driver app: caller ka apna assigned bus (ek call - no id guessing).</summary>
+    [HttpGet("mine")]
+    [Authorize(Roles = AppRoles.Driver)]
+    public async Task<ActionResult<ApiResponse<BusListItem>>> Mine(CancellationToken ct)
+    {
+        var bus = await _uow.Buses.Query().Include(b => b.Driver)
+            .Where(b => b.Driver != null && b.Driver.UserId == CallerUserId && b.IsActive)
+            .Select(b => new BusListItem(
+                b.Id, b.BusNumber, b.Route, b.VehicleNo, b.Capacity,
+                b.DriverId, b.Driver!.FullName, b.IsActive, b.Students.Count(s => s.IsActive)))
+            .FirstOrDefaultAsync(ct);
+
+        return bus is null
+            ? NotFoundEnvelope("Is account se koi bus assign nahi hai. Admin se rabta karein.")
+            : OkEnvelope(bus);
+    }
+
     [HttpPost]
     [Authorize(Roles = AppRoles.Staff)]
     public async Task<ActionResult<ApiResponse<BusListItem>>> Create(BusUpsertRequest request, CancellationToken ct)

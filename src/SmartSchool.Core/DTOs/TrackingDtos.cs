@@ -51,6 +51,14 @@ public sealed class TripStartRequest
     public TripType Type { get; set; } = TripType.ToSchool;
 }
 
+/// <summary>Body for POST /api/trips/{id}/location (driver background GPS uplink).</summary>
+public sealed class LocationPingRequest
+{
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double? SpeedKmh { get; set; }
+}
+
 public sealed record TripResponse(
     int Id,
     int BusId,
