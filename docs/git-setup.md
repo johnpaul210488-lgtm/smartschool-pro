@@ -15,7 +15,7 @@ Ye file aap ko 10 minute mein full setup deti hai.
 | Git for Windows | git-scm.com | code push/pull |
 | .NET 8 SDK | dot.net/download | API build/run |
 | Visual Studio 2022 **Community** (free) | visualstudio.microsoft.com | Phase 2 WPF ke liye best |
-| SQL Server Express + SSMS | microsoft.com/sql-server/sql-server-downloads | database |
+| SQL Server Express + SSMS | **Direct link** (winget ka link kabhi kabhi 404 hota hai): https://go.microsoft.com/fwlink/?linkid=2215160 — installer chala kar **Basic** install chuno | database |
 | Flutter SDK | docs.flutter.dev (Phase 3 par) | mobile apps |
 
 (Optional lekin aasaan: **GitHub Desktop** ya `winget install GitHub.cli` → `gh auth login`.)
