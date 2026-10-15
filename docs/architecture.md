@@ -76,7 +76,7 @@ Dependency rule: `API → Infrastructure → Core → Shared` (each only referen
   **ParentGroup_{studentId}**, **BusGroup_{busId}**; events `SendPickInAlert`, `SendDropOutAlert`,
   `UpdateBusLocation`, `SendTripUpdate`.
 - **WhatsApp outbox**: DB row first (deduped by CorrelationId), channel-based background sender,
-  exponential backoff (5s/30s/2min × MaxRetries), restart sweeper, manual retry endpoint.
+  fixed 5-minute intervals (MaxRetries, then SendAdminAlert to admins), restart sweeper, manual retry endpoint.
 - **Time**: DB stores UTC; `PkTime` converts to PST (Asia/Karachi) at the boundary.
 
 ## Scale notes (500+ students, 20+ buses)

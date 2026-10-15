@@ -68,6 +68,8 @@ public partial class MainViewModel : ObservableObject
             Toasts.DropOut(m.Payload.StudentName, m.Payload.BusNumber, m.Payload.TimePakistan));
         WeakReferenceMessenger.Default.Register<TripUpdateMessage>(this, (_, m) =>
             Toasts.Info("Trip Update", $"Bus #{m.Payload.BusNumber} → {m.Payload.Status}"));
+        WeakReferenceMessenger.Default.Register<AdminAlertMessage>(this, (_, m) =>
+            Toasts.Error($"⚠️ {m.Payload.Title}", m.Payload.Message));
     }
 
     partial void OnSelectedNavItemChanged(NavItem? value)

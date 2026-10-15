@@ -108,6 +108,32 @@ public sealed class BusAttendanceController : BaseApiController
         if (timestampUtc > DateTime.UtcNow.AddMinutes(5))
             timestampUtc = DateTime.UtcNow;
 
+        // 30-second debounce: an accidental double-tap (or offline-sync re-post) of the SAME
+        // event type for the SAME student inside the window returns the original event —
+        // no duplicate attendance row, no second WhatsApp. Idempotent by design.
+        var debounceSeconds = _config.GetValue("BusAttendance:DebounceSeconds", 30);
+        var windowStart = timestampUtc.AddSeconds(-debounceSeconds);
+        var windowEnd = timestampUtc.AddSeconds(debounceSeconds);
+        var duplicate = await _uow.BusAttendances.Query(false)
+            .Where(e => e.StudentId == student.Id && e.Type == type
+                        && e.TimestampUtc >= windowStart && e.TimestampUtc <= windowEnd)
+            .OrderByDescending(e => e.TimestampUtc)
+            .FirstOrDefaultAsync(ct);
+        if (duplicate is not null)
+        {
+            _logger.LogInformation(
+                "Debounced duplicate {Type} for student {StudentId} (original event {EventId}).",
+                type, student.Id, duplicate.Id);
+            return OkEnvelope(new BusEventResponse(
+                duplicate.Id,
+                type.ToString(),
+                PkTime.ToPk(duplicate.TimestampUtc).ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture),
+                duplicate.LocationLabel ?? string.Empty,
+                AdminNotified: true,
+                WhatsAppRecipientsQueued: 0),
+                $"{student.FullName}: {type} already recorded seconds ago - duplicate tap ignored.");
+        }
+
         var location = await _geocoding.GetLocationLabelAsync(request.Latitude, request.Longitude, ct);
 
         var busEvent = new BusAttendance
@@ -127,12 +153,19 @@ public sealed class BusAttendanceController : BaseApiController
         await _uow.SaveChangesAsync(ct);
 
         var timePk = PkTime.ToPk(timestampUtc);
-        var timeText = timePk.ToString("hh:mm tt", CultureInfo.InvariantCulture);
         var stampText = timePk.ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture);
 
+        // Official EN / Roman-Urdu templates (per-school choice: Twilio:Language = "en" | "ur").
+        var language = _config["Twilio:Language"]?.Trim().ToLowerInvariant() ?? "en";
+        var templateVars = new WhatsAppTemplates.TemplateVars(
+            StudentName: student.FullName,
+            ClassName: student.Class.DisplayName,
+            BusNumber: bus.BusNumber,
+            Time: stampText,
+            Location: location);
         var message = type == BusAttendanceType.PickIn
-            ? $"Your child {student.FullName} has boarded Bus #{bus.BusNumber} at {timeText} from {location}. — SmartSchool Pro"
-            : $"Your child {student.FullName} has been safely dropped at {location} at {timeText}. — SmartSchool Pro";
+            ? WhatsAppTemplates.PickIn(templateVars, language)
+            : WhatsAppTemplates.DropOut(templateVars, language);
 
         // (1) Real-time alert: WPF admin desktop + parent app (their child only).
         try
@@ -176,6 +209,7 @@ public sealed class BusAttendanceController : BaseApiController
             {
                 CorrelationId = correlationId,
                 StudentId = student.Id,
+                EventType = type.ToString(), // "PickIn" | "DropOut" — used by rate-limit/debounce views
                 ParentPhone = phone,
                 Message = message,
                 Status = WhatsAppStatus.Queued,

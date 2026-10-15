@@ -139,18 +139,29 @@ parents auto-join **ParentGroup_{studentId}** per child; staff can also `WatchBu
 | `SendDropOutAlert` | same | same |
 | `UpdateBusLocation` | live bus GPS | AdminGroup, BusGroup_{busId} |
 | `SendTripUpdate` | trip started/ended | AdminGroup, BusGroup_{busId} |
+| `SendAdminAlert` | red flag (e.g. WhatsApp permanently failed) | AdminGroup |
 
 Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (driver GPS streaming).
 
 ## WhatsApp (Twilio) — config in `src/SmartSchool.API/appsettings.json`
 
 ```json
-"Twilio": { "Enabled": false, "AccountSid": "", "AuthToken": "", "FromWhatsAppNumber": "whatsapp:+14155238886", "NotifyMother": false }
+"Twilio": { "Enabled": false, "AccountSid": "", "AuthToken": "", "WhatsAppFrom": "whatsapp:+14155238886", "Language": "en", "NotifyMother": false },
+"BusAttendance": { "DebounceSeconds": 30 }
 ```
 
-`Enabled:false` = **dry-run** (messages logged, marked Sent — the whole pipeline testable for free).
-Messages are **persisted before sending** and retried with exponential backoff by a background queue
-(5s → 30s → 2min), with a sweeper that recovers anything stuck after a restart.
+- `Enabled:false` = **dry-run** (messages logged, marked Sent — the whole pipeline testable for free).
+- Official Twilio SDK (`Twilio.AspNet.Core`); legacy key `FromWhatsAppNumber` still accepted as fallback.
+- **Templates** (`src/SmartSchool.Shared/Helpers/WhatsAppTemplates.cs`), per-school via `Twilio:Language`:
+  - **en** — “Your child *{Name}* (Class {Class}) has BOARDED Bus #{Bus} / has been DROPPED OFF safely …”
+  - **ur** (Roman-Urdu) — “Aap ka bacha … Bus #… mai baith chuka hai / se mehfooz utar chuka hai …”
+- Messages are **persisted before sending** (`WhatsAppLogs`, dedupe key `CorrelationId`) and retried by a
+  hosted background queue: **3 attempts at 5-minute intervals** (`WhatsAppQueue:RetryMinutes`),
+  a sweeper that recovers anything stuck after a restart, then permanent **Failed** + a
+  `SendAdminAlert` SignalR push so every connected admin desktop shows an error toast.
+- **Rate limiting / debounce:** the same event type for the same student within
+  `BusAttendance:DebounceSeconds` (default 30 s — covers double-taps and offline-sync re-posts)
+  returns the original event: no duplicate attendance row, no second WhatsApp (idempotent).
 
 ## Test the critical real-time flow in Swagger (2 minutes)
 

@@ -44,3 +44,11 @@ public sealed record BusLocationUpdate
     public double? SpeedKmh { get; init; }
     public required string TimePakistan { get; init; }
 }
+
+/// <summary>SignalR payload pushed on SendAdminAlert (e.g. WhatsApp permanent failure).</summary>
+public sealed record AdminAlertNotification
+{
+    public required string Title { get; init; }
+    public required string Message { get; init; }
+    public required string TimePakistan { get; init; }
+}

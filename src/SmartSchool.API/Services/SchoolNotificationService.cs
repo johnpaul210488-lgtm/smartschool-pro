@@ -32,4 +32,9 @@ public sealed class SchoolNotificationService : ISchoolNotificationService
     public Task SendBusLocationAsync(BusLocationUpdate u, CancellationToken ct = default)
         => _hub.Clients.Groups(HubGroups.AdminGroup, HubGroups.BusGroup(u.BusId))
               .SendAsync(HubEvents.UpdateBusLocation, u, ct);
+
+    /// <summary>Generic red-flag toast for every connected admin/staff client (e.g. WhatsApp permanently failed).</summary>
+    public Task SendAdminAlertAsync(AdminAlertNotification a, CancellationToken ct = default)
+        => _hub.Clients.Group(HubGroups.AdminGroup)
+              .SendAsync(HubEvents.SendAdminAlert, a, ct);
 }

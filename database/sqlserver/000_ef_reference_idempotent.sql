@@ -506,3 +506,28 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261015165514_AddWhatsAppLogEventType'
+)
+BEGIN
+    ALTER TABLE [WhatsAppLogs] ADD [EventType] nvarchar(20) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261015165514_AddWhatsAppLogEventType'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261015165514_AddWhatsAppLogEventType', N'8.0.10');
+END;
+GO
+
+COMMIT;
+GO
+

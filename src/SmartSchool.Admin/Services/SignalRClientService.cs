@@ -54,6 +54,8 @@ public sealed class SignalRClientService : IAsyncDisposable
             Dispatch(() => WeakReferenceMessenger.Default.Send(new BusLocationMessage(u))));
         _conn.On<TripNotification>("SendTripUpdate", t =>
             Dispatch(() => WeakReferenceMessenger.Default.Send(new TripUpdateMessage(t))));
+        _conn.On<AdminAlertNotification>("SendAdminAlert", a =>
+            Dispatch(() => WeakReferenceMessenger.Default.Send(new AdminAlertMessage(a))));
 
         _conn.Closed += _ => { Notify("⚠️ Live connection band — dobara koshish…"); return Task.CompletedTask; };
         _conn.Reconnecting += _ => { Notify("🔄 Dobara connect ho raha hai…"); return Task.CompletedTask; };
@@ -97,3 +99,4 @@ public sealed record PickInAlertMessage(BusEventNotification Payload);
 public sealed record DropOutAlertMessage(BusEventNotification Payload);
 public sealed record BusLocationMessage(BusLocationUpdate Payload);
 public sealed record TripUpdateMessage(TripNotification Payload);
+public sealed record AdminAlertMessage(AdminAlertNotification Payload);

@@ -152,6 +152,7 @@ public sealed class SchoolDbContext : DbContext
             e.HasIndex(x => x.CorrelationId).IsUnique();
             e.Property(x => x.ParentPhone).HasMaxLength(25).IsRequired();
             e.Property(x => x.Message).HasMaxLength(1600).IsRequired();
+            e.Property(x => x.EventType).HasMaxLength(20);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Error).HasMaxLength(1000);
             e.Property(x => x.ProviderMessageId).HasMaxLength(100);

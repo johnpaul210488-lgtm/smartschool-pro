@@ -34,4 +34,5 @@ public static class HubEvents
     public const string SendDropOutAlert = "SendDropOutAlert";
     public const string UpdateBusLocation = "UpdateBusLocation";
     public const string SendTripUpdate = "SendTripUpdate";
+    public const string SendAdminAlert = "SendAdminAlert";
 }

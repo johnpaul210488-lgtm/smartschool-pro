@@ -267,3 +267,11 @@ public sealed class TripNotification
     [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
     [JsonPropertyName("timePakistan")] public string TimePakistan { get; set; } = string.Empty;
 }
+
+/// <summary>Server-side red flag pushed on SendAdminAlert (e.g. WhatsApp permanently failed after 3 retries).</summary>
+public sealed class AdminAlertNotification
+{
+    [JsonPropertyName("title")] public string Title { get; set; } = string.Empty;
+    [JsonPropertyName("message")] public string Message { get; set; } = string.Empty;
+    [JsonPropertyName("timePakistan")] public string TimePakistan { get; set; } = string.Empty;
+}

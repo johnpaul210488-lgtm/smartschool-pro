@@ -44,4 +44,5 @@ public interface ISchoolNotificationService
     Task SendDropOutAlertAsync(BusEventNotification notification, CancellationToken ct = default);
     Task SendTripUpdateAsync(TripNotification notification, CancellationToken ct = default);
     Task SendBusLocationAsync(BusLocationUpdate update, CancellationToken ct = default);
+    Task SendAdminAlertAsync(AdminAlertNotification alert, CancellationToken ct = default);
 }

@@ -20,7 +20,7 @@
 (5) WPF Admin Desktop (Phase 2)                                        (6/7) WhatsAppQueueHostedService
  HubConnection: /hubs/notifications?access_token=...                      channel -> Twilio (or dry-run)
  .withAutomaticReconnect()                                                success: Status=Sent, WhatsAppSent=true
- .on("SendPickInAlert", ...)  -> toast popup + SoundPlayer                failure: backoff 5s -> 30s -> 2min,
+ .on("SendPickInAlert", ...)  -> toast popup + SoundPlayer                failure: 3 retries at 5-min intervals,
  .on("SendDropOutAlert", ...) -> toast + sound                            Failed after N; sweeper recovers
  .on("UpdateBusLocation", ...) -> live map                                stuck rows after restart
 ```

@@ -1,31 +1,28 @@
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SmartSchool.Core.Interfaces;
 using SmartSchool.Shared.Helpers;
+using Twilio;
+using Twilio.Exceptions;
+using Twilio.Rest.Api.V2010.Account;
+using Twilio.Types;
 
 namespace SmartSchool.Infrastructure.Services.WhatsApp;
 
 /// <summary>
-/// Twilio WhatsApp sender over plain HTTPS (POST .../Messages.json).
+/// Twilio WhatsApp sender using the official Twilio SDK (Twilio.AspNet.Core).
 /// Twilio:Enabled=false = DRY-RUN (logged, reported Sent) so the whole pipeline
-/// is testable without spending credit. Swappable for the official Twilio SDK
-/// without touching callers.
+/// is testable without spending credit.
 /// </summary>
 public sealed class TwilioWhatsAppService : IWhatsAppSender
 {
-    private readonly HttpClient _http;
     private readonly IConfiguration _config;
     private readonly ILogger<TwilioWhatsAppService> _logger;
 
-    public TwilioWhatsAppService(HttpClient http, IConfiguration config, ILogger<TwilioWhatsAppService> logger)
+    public TwilioWhatsAppService(IConfiguration config, ILogger<TwilioWhatsAppService> logger)
     {
-        _http = http;
         _config = config;
         _logger = logger;
-        _http.Timeout = TimeSpan.FromSeconds(15);
     }
 
     public async Task<WhatsAppSendResult> SendAsync(string toPhone, string body, CancellationToken ct = default)
@@ -36,43 +33,37 @@ public sealed class TwilioWhatsAppService : IWhatsAppSender
 
         if (!_config.GetValue("Twilio:Enabled", false))
         {
-            _logger.LogInformation("[WhatsApp DRY-RUN] To={To} | {Body}", to, body);
+            _logger.LogInformation("[WhatsApp DRY-RUN] To={To} | {Body}", to, body.ReplaceLineEndings("\\n"));
             return WhatsAppSendResult.Ok($"DRYRUN-{Guid.NewGuid():N}");
         }
 
+        // User-facing key name is "WhatsAppFrom"; older configs used "FromWhatsAppNumber".
         var sid = _config["Twilio:AccountSid"];
         var token = _config["Twilio:AuthToken"];
-        var from = _config["Twilio:FromWhatsAppNumber"];
+        var from = _config["Twilio:WhatsAppFrom"] ?? _config["Twilio:FromWhatsAppNumber"];
         if (string.IsNullOrWhiteSpace(sid) || string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(from))
-            return WhatsAppSendResult.Fail("Twilio is enabled but AccountSid/AuthToken/FromWhatsAppNumber are missing.");
+            return WhatsAppSendResult.Fail(
+                "Twilio enabled but AccountSid/AuthToken/WhatsAppFrom missing in appsettings.json.");
 
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            $"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json");
-        request.Headers.Authorization = new AuthenticationHeaderValue(
-            "Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes($"{sid}:{token}")));
-        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        try
         {
-            ["To"] = to,
-            ["From"] = from,
-            ["Body"] = body
-        });
+            TwilioClient.Init(sid, token);
+            var message = await MessageResource.CreateAsync(
+                to: new PhoneNumber(to),
+                from: new PhoneNumber(from),
+                body: body);
 
-        using var response = await _http.SendAsync(request, ct);
-        var payload = await response.Content.ReadAsStringAsync(ct);
-
-        if (response.IsSuccessStatusCode)
-        {
-            string? messageSid = null;
-            try
-            {
-                using var doc = JsonDocument.Parse(payload);
-                messageSid = doc.RootElement.GetProperty("sid").GetString();
-            }
-            catch (JsonException) { /* SID parsing is best-effort */ }
-
-            return WhatsAppSendResult.Ok(messageSid ?? "unknown");
+            return WhatsAppSendResult.Ok(message.Sid ?? "unknown");
         }
-
-        return WhatsAppSendResult.Fail($"Twilio HTTP {(int)response.StatusCode}: {payload}");
+        catch (ApiException ex)
+        {
+            _logger.LogWarning(ex, "Twilio API error sending to {To}", to);
+            return WhatsAppSendResult.Fail($"Twilio API {ex.Code}: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Twilio send failed to {To}", to);
+            return WhatsAppSendResult.Fail(ex.Message);
+        }
     }
 }

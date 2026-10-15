@@ -18,6 +18,9 @@ public sealed class WhatsAppLog
     public int? StudentId { get; set; }
     public Student? Student { get; set; }
 
+    /// <summary>"PickIn" | "DropOut" — used by the 30s debounce / rate limiter.</summary>
+    public string? EventType { get; set; }
+
     public string ParentPhone { get; set; } = string.Empty;
 
     public string Message { get; set; } = string.Empty;

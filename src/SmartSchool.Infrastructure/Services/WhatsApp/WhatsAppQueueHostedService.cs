@@ -26,7 +26,7 @@ public sealed class InMemoryWhatsAppQueue : IWhatsAppQueue
 
 /// <summary>
 /// Background consumer for WhatsApp alerts:
-///  - Twilio down? Retry with exponential backoff (5s -> 30s -> 2min, max N attempts).
+///  - Twilio down? 3 retries at 5-minute intervals, then permanent Failed + admin SignalR alert.
 ///  - Restart-safe: rows sit Queued in WhatsAppLogs; a sweeper re-enqueues stuck rows.
 ///  - Deduped by CorrelationId so a re-enqueued job can never double-send.
 /// </summary>
@@ -34,6 +34,7 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
 {
     private readonly InMemoryWhatsAppQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _config;
     private readonly ILogger<WhatsAppQueueHostedService> _logger;
     private readonly int _maxRetries;
     private readonly TimeSpan _sweepInterval;
@@ -46,6 +47,7 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
     {
         _queue = queue;
         _scopeFactory = scopeFactory;
+        _config = config;
         _logger = logger;
         _maxRetries = config.GetValue("WhatsAppQueue:MaxRetries", 3);
         _sweepInterval = TimeSpan.FromSeconds(config.GetValue("WhatsAppQueue:SweepIntervalSeconds", 60));
@@ -136,6 +138,25 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
             await db.SaveChangesAsync(ct);
             _logger.LogWarning("WhatsApp message {Id} failed permanently after {N} attempts: {Error}",
                 job.CorrelationId, log.RetryCount, result.Error);
+
+            // Alert connected admin clients so a human can call the parent manually.
+            try
+            {
+                var notify = scope.ServiceProvider.GetRequiredService<ISchoolNotificationService>();
+                await notify.SendAdminAlertAsync(new SmartSchool.Core.DTOs.AdminAlertNotification
+                {
+                    Title = "WhatsApp FAILED",
+                    Message = $"Student ({(log.StudentId?.ToString() ?? "?")}) → {log.ParentPhone}: " +
+                              $"{_maxRetries} attempts ke baad bhi message nahi gaya. Parent ko phone kar lein. " +
+                              $"Error: {result.Error}",
+                    TimePakistan = SmartSchool.Shared.Helpers.PkTime.NowPk
+                        .ToString("dd MMM yyyy hh:mm tt", System.Globalization.CultureInfo.InvariantCulture)
+                }, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Admin alert (SignalR) failed - DB row still marked Failed.");
+            }
             return;
         }
 
@@ -158,12 +179,12 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
         });
     }
 
-    private static TimeSpan Backoff(int retryCount) => retryCount switch
+    /// <summary>Spec: 3 retries at 5-minute intervals (WhatsAppQueue:RetryMinutes, default 5).</summary>
+    private TimeSpan Backoff(int retryCount)
     {
-        1 => TimeSpan.FromSeconds(5),
-        2 => TimeSpan.FromSeconds(30),
-        _ => TimeSpan.FromMinutes(2)
-    };
+        var minutes = _config.GetValue("WhatsAppQueue:RetryMinutes", 5);
+        return TimeSpan.FromMinutes(minutes);
+    }
 
     /// <summary>Feeds messages stuck since before a restart (or manually reset) back into the channel.</summary>
     private async Task SweepStuckMessagesAsync(CancellationToken ct)
@@ -176,7 +197,8 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
 
-                var stuckCutoff = DateTime.UtcNow.AddMinutes(-2);
+                // 6 min idle > 5 min retry delay → genuinely stuck (missed re-enqueue), not just waiting.
+                var stuckCutoff = DateTime.UtcNow.AddMinutes(-6);
                 var stuck = await db.WhatsAppLogs
                     .Where(l => l.Status == WhatsAppStatus.Queued
                                 && l.RetryCount < _maxRetries
