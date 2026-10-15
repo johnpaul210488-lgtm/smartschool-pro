@@ -17,6 +17,7 @@ public interface IUnitOfWork : IDisposable, IAsyncDisposable
     IRepository<WhatsAppLog> WhatsAppLogs { get; }
     IRepository<ParentStudent> ParentStudents { get; }
     IRepository<DeviceToken> DeviceTokens { get; }
+    IRepository<Announcement> Announcements { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

@@ -37,4 +37,8 @@ public sealed class SchoolNotificationService : ISchoolNotificationService
     public Task SendAdminAlertAsync(AdminAlertNotification a, CancellationToken ct = default)
         => _hub.Clients.Group(HubGroups.AdminGroup)
               .SendAsync(HubEvents.SendAdminAlert, a, ct);
+
+    public Task SendAnnouncementAsync(AnnouncementNotification a, CancellationToken ct = default)
+        => _hub.Clients.Groups(HubGroups.AdminGroup, HubGroups.ParentsGroup)
+              .SendAsync(HubEvents.ReceiveAnnouncement, a, ct);
 }

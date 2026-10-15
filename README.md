@@ -36,10 +36,14 @@ SmartSchool.sln
 ├── src/SmartSchool.Admin            # ✅ Phase 2 — native WPF desktop: sidebar shell, dashboard cards,
 │                                    #    students/fees/buses/drivers/reports, SignalR toasts+sound,
 │                                    #    GMap.NET live tracking, FlowDocument receipt printing
-├── apps/driver_app                  # Flutter driver app        ⏳ Phase 3
-├── apps/parent_app                  # Flutter parent app        ⏳ Phase 4
+├── apps/driver_app                  # ✅ Phase 3 — Flutter driver app: trip/student list, pick-in/drop-out,
+│                                    #    15s background GPS, sqflite offline outbox + auto-sync, TTS
+├── apps/parent_app                  # ✅ Phase 5 — Flutter parent app: children cards + today status,
+│                                    #    live bus map, fees + PDF receipts, alerts/announcements, EN⇄UR
 ├── database/sqlserver/              # 001_schema.sql, 002_seed.sql, EF reference script
-├── docs/                            # architecture.md, realtime-flow.md
+├── scripts/                         # load-test-bus-events.ps1 (50 concurrent events)
+├── docs/                            # architecture.md, realtime-flow.md, deployment-guide.md,
+│                                    #   integration-test-checklist.md
 └── docker-compose.yml               # optional local SQL Server 2022
 ```
 
@@ -124,6 +128,9 @@ current-month fee challans for every sample student.
 | Trips | `POST /trips/start` · `POST /trips/{id}/end` · `GET /trips/active` · `GET /trips` |
 | WhatsApp | `GET /whatsapp-logs` · `POST /whatsapp-logs/{id}/retry` |
 | Dashboard | `GET /dashboard/summary` |
+| **Parent app** | **`GET /parents/me/children`** (cards: photo/class/bus/today status) · `GET/PATCH /parents/me/settings` (language, WhatsApp opt-out, phone) · `GET /fees/my` · `GET /fees/my/{id}/receipt` |
+| Devices (FCM) | `POST /devices/register` · `POST /devices/unregister` |
+| Announcements | `GET /announcements` · `POST/DELETE /announcements` (staff → SignalR + FCM broadcast) |
 
 Authorization is role-based: `[Authorize(Roles="SuperAdmin,Admin")]` for mutations,
 drivers can post bus events / manage their own trips, parents can only read their own children's data.
@@ -140,6 +147,7 @@ parents auto-join **ParentGroup_{studentId}** per child; staff can also `WatchBu
 | `UpdateBusLocation` | live bus GPS | AdminGroup, BusGroup_{busId} |
 | `SendTripUpdate` | trip started/ended | AdminGroup, BusGroup_{busId} |
 | `SendAdminAlert` | red flag (e.g. WhatsApp permanently failed) | AdminGroup |
+| `ReceiveAnnouncement` | school announcement | AdminGroup, ParentsGroup |
 
 Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (driver GPS streaming).
 
@@ -162,6 +170,19 @@ Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (dr
 - **Rate limiting / debounce:** the same event type for the same student within
   `BusAttendance:DebounceSeconds` (default 30 s — covers double-taps and offline-sync re-posts)
   returns the original event: no duplicate attendance row, no second WhatsApp (idempotent).
+- Per-parent overrides: the **parent app's language setting** picks that parent's template, and the
+  **WhatsApp toggle** (`User.ReceiveWhatsApp`) skips that parent's number entirely.
+
+## Push notifications (Firebase Cloud Messaging) — Phase 5
+
+```json
+"Firebase": { "Enabled": false, "CredentialsJsonPath": "" }
+```
+
+`Enabled:false` = **dry-run** (pushes logged, like the Twilio switch). Every pick-in/drop-out also
+sends an FCM multicast to the child's parents' registered devices (FirebaseAdmin SDK, dry-run safe);
+announcements broadcast to all parent devices. Apps register tokens via `POST /api/devices/register`
+(+ re-register on FCM token refresh). Setup: **docs/deployment-guide.md → section 4**.
 
 ## Test the critical real-time flow in Swagger (2 minutes)
 

@@ -24,6 +24,7 @@ public sealed class UnitOfWork : IUnitOfWork
         WhatsAppLogs = new Repository<WhatsAppLog>(context);
         ParentStudents = new Repository<ParentStudent>(context);
         DeviceTokens = new Repository<DeviceToken>(context);
+        Announcements = new Repository<Announcement>(context);
     }
 
     public IRepository<User> Users { get; }
@@ -38,6 +39,7 @@ public sealed class UnitOfWork : IUnitOfWork
     public IRepository<WhatsAppLog> WhatsAppLogs { get; }
     public IRepository<ParentStudent> ParentStudents { get; }
     public IRepository<DeviceToken> DeviceTokens { get; }
+    public IRepository<Announcement> Announcements { get; }
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default)
         => _context.SaveChangesAsync(ct);

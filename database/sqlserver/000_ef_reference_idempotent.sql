@@ -531,3 +531,73 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261015172940_ParentAppPhase5'
+)
+BEGIN
+    ALTER TABLE [Users] ADD [Phone] nvarchar(25) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261015172940_ParentAppPhase5'
+)
+BEGIN
+    ALTER TABLE [Users] ADD [PreferredLanguage] nvarchar(5) NOT NULL DEFAULT N'en';
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261015172940_ParentAppPhase5'
+)
+BEGIN
+    ALTER TABLE [Users] ADD [ReceiveWhatsApp] bit NOT NULL DEFAULT CAST(1 AS bit);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261015172940_ParentAppPhase5'
+)
+BEGIN
+    CREATE TABLE [Announcements] (
+        [Id] int NOT NULL IDENTITY,
+        [Title] nvarchar(200) NOT NULL,
+        [Body] nvarchar(2000) NOT NULL,
+        [CreatedByName] nvarchar(150) NULL,
+        [ClassId] int NULL,
+        [IsActive] bit NOT NULL,
+        [CreatedAtUtc] datetime2 NOT NULL,
+        CONSTRAINT [PK_Announcements] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261015172940_ParentAppPhase5'
+)
+BEGIN
+    CREATE INDEX [IX_Announcements_CreatedAtUtc] ON [Announcements] ([CreatedAtUtc]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261015172940_ParentAppPhase5'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261015172940_ParentAppPhase5', N'8.0.10');
+END;
+GO
+
+COMMIT;
+GO
+

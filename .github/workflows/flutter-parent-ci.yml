@@ -1,0 +1,36 @@
+# Flutter Parent app CI: pub get + analyze on every push to the app.
+name: Parent App (Flutter) CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/parent_app/**'
+      - '.github/workflows/flutter-parent-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/parent_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: flutter doctor
+        run: flutter doctor -v
+
+      - name: pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos

@@ -19,6 +19,7 @@ public sealed class SchoolDbContext : DbContext
     public DbSet<WhatsAppLog> WhatsAppLogs => Set<WhatsAppLog>();
     public DbSet<ParentStudent> ParentStudents => Set<ParentStudent>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
+    public DbSet<Announcement> Announcements => Set<Announcement>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -32,6 +33,9 @@ public sealed class SchoolDbContext : DbContext
             e.Property(x => x.PasswordHash).HasMaxLength(200).IsRequired();
             e.Property(x => x.Role).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.FullName).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Phone).HasMaxLength(25);
+            e.Property(x => x.PreferredLanguage).HasMaxLength(5).HasDefaultValue("en");
+            e.Property(x => x.ReceiveWhatsApp).HasDefaultValue(true);
         });
 
         mb.Entity<Teacher>(e =>
@@ -180,6 +184,15 @@ public sealed class SchoolDbContext : DbContext
             e.Property(x => x.Platform).HasMaxLength(20).IsRequired();
             e.HasOne(x => x.User).WithMany()
              .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        mb.Entity<Announcement>(e =>
+        {
+            e.ToTable("Announcements");
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Body).HasMaxLength(2000).IsRequired();
+            e.Property(x => x.CreatedByName).HasMaxLength(150);
+            e.HasIndex(x => x.CreatedAtUtc);
         });
     }
 }

@@ -17,6 +17,7 @@ using SmartSchool.Core.Interfaces;
 using SmartSchool.Infrastructure.Data;
 using SmartSchool.Infrastructure.Repositories;
 using SmartSchool.Infrastructure.Services;
+using SmartSchool.Infrastructure.Services.Push;
 using SmartSchool.Infrastructure.Services.WhatsApp;
 using SmartSchool.Shared.Common;
 using SmartSchool.Shared.Helpers;
@@ -156,6 +157,9 @@ try
 
     builder.Services.AddHttpClient<IWhatsAppSender, TwilioWhatsAppService>();
     builder.Services.AddHttpClient<IGeocodingService, GoogleMapsGeocodingService>();
+
+    // Firebase Cloud Messaging: dry-run until Firebase:Enabled=true + credentials JSON path set.
+    builder.Services.AddSingleton<IFcmSender, FirebaseFcmSender>();
 
     var app = builder.Build();
 

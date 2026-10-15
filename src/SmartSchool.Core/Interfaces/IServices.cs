@@ -45,4 +45,20 @@ public interface ISchoolNotificationService
     Task SendTripUpdateAsync(TripNotification notification, CancellationToken ct = default);
     Task SendBusLocationAsync(BusLocationUpdate update, CancellationToken ct = default);
     Task SendAdminAlertAsync(AdminAlertNotification alert, CancellationToken ct = default);
+    /// <summary>School announcement → every admin desktop + every connected parent app.</summary>
+    Task SendAnnouncementAsync(AnnouncementNotification announcement, CancellationToken ct = default);
+}
+
+// ============ Push notifications (FCM) ============
+
+public sealed record FcmPush(string Title, string Body, IReadOnlyDictionary<string, string>? Data = null);
+
+/// <summary>
+/// Firebase Cloud Messaging sender. Firebase:Enabled=false = dry-run (logged only),
+/// so the full chain is testable before the school creates a Firebase project.
+/// </summary>
+public interface IFcmSender
+{
+    /// <summary>Sends to the given device tokens. Returns the count that FCM accepted.</summary>
+    Task<int> SendToDevicesAsync(IReadOnlyList<string> tokens, FcmPush push, CancellationToken ct = default);
 }

@@ -16,6 +16,15 @@ public sealed class User
 
     public string FullName { get; set; } = string.Empty;
 
+    /// <summary>Login contact number (editable in the parent app settings).</summary>
+    public string? Phone { get; set; }
+
+    /// <summary>"en" | "ur" — drives WhatsApp template + push-notification language per user.</summary>
+    public string PreferredLanguage { get; set; } = "en";
+
+    /// <summary>Parent app toggle: false = do not WhatsApp this parent's devices/number.</summary>
+    public bool ReceiveWhatsApp { get; set; } = true;
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

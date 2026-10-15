@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -177,6 +178,54 @@ public sealed class FeesController : BaseApiController
     }
 
     /// <summary>Mark a fee as paid; generates receipt INV-{yyyyMM}-{id:D6}.</summary>
+    /// <summary>Parent app: every fee row of MY children (paid history + pending dues together).</summary>
+    [HttpGet("my")]
+    [Authorize(Roles = AppRoles.Parent)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<FeeListItem>>>> GetMine(CancellationToken ct)
+    {
+        var childIds = await _uow.ParentStudents.Query()
+            .Where(ps => ps.ParentUserId == CallerUserId)
+            .Select(ps => ps.StudentId)
+            .ToListAsync(ct);
+
+        var rows = await _uow.Fees.Query()
+            .Include(f => f.Student).ThenInclude(s => s.Class)
+            .Where(f => childIds.Contains(f.StudentId))
+            .OrderBy(f => f.StudentId).ThenByDescending(f => f.Month)
+            .ToListAsync(ct);
+
+        return OkEnvelope((IReadOnlyList<FeeListItem>)rows.Select(ToDto).ToList());
+    }
+
+    /// <summary>Parent app: receipt data for ONE of my children's PAID fees (PDF rendered client-side).</summary>
+    [HttpGet("my/{id:int}/receipt")]
+    [Authorize(Roles = AppRoles.Parent)]
+    public async Task<ActionResult<ApiResponse<FeeReceiptDto>>> GetMyReceipt(int id, CancellationToken ct)
+    {
+        var fee = await _uow.Fees.Query()
+            .Include(f => f.Student).ThenInclude(s => s.Class)
+            .FirstOrDefaultAsync(f => f.Id == id, ct);
+        if (fee is null)
+            return NotFoundEnvelope($"Fee receipt {id} was not found.");
+
+        var owns = await _uow.ParentStudents.Query()
+            .AnyAsync(ps => ps.ParentUserId == CallerUserId && ps.StudentId == fee.StudentId, ct);
+        if (!owns)
+            return Forbid();
+
+        if (fee.Status != FeeStatus.Paid || fee.PaidDate is null || fee.ReceiptNo is null)
+            return BadRequestEnvelope("This fee is not paid yet - no receipt exists.");
+
+        var receipt = new FeeReceiptDto(
+            fee.ReceiptNo, fee.Student.FullName,
+            fee.Student.Class.Name + "-" + fee.Student.Class.Section,
+            fee.Month, fee.Amount, fee.DueDate, fee.PaidDate.Value,
+            fee.PaidDate.Value.ToString("dd MMM yyyy", CultureInfo.InvariantCulture),
+            fee.Notes);
+
+        return OkEnvelope(receipt);
+    }
+
     [HttpPost("{id:int}/pay")]
     [Authorize(Roles = AppRoles.Staff)]
     public async Task<ActionResult<ApiResponse<FeeListItem>>> Pay(int id, PayFeeRequest? request, CancellationToken ct)

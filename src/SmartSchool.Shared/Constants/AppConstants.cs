@@ -23,6 +23,8 @@ public static class AppRoles
 public static class HubGroups
 {
     public const string AdminGroup = "AdminGroup";
+    /// <summary>Every connected parent — used for school announcements.</summary>
+    public const string ParentsGroup = "ParentsGroup";
     public static string ParentGroup(int studentId) => $"ParentGroup_{studentId}";
     public static string BusGroup(int busId) => $"BusGroup_{busId}";
 }
@@ -35,4 +37,5 @@ public static class HubEvents
     public const string UpdateBusLocation = "UpdateBusLocation";
     public const string SendTripUpdate = "SendTripUpdate";
     public const string SendAdminAlert = "SendAdminAlert";
+    public const string ReceiveAnnouncement = "ReceiveAnnouncement";
 }

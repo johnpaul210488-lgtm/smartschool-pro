@@ -41,14 +41,22 @@ public sealed class SchoolNotificationHub : Hub
         else if (role == AppRoles.Parent
                  && int.TryParse(Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parentId))
         {
-            // Parents join one ParentGroup_{studentId} per linked child.
-            var childIds = await _db.ParentStudents.AsNoTracking()
+            // Parents join: global ParentsGroup (announcements) + ParentGroup_{studentId}
+            // per linked child + BusGroup_{busId} of each child's bus (live map in the app).
+            await Groups.AddToGroupAsync(Context.ConnectionId, HubGroups.ParentsGroup);
+
+            var children = await _db.ParentStudents.AsNoTracking()
                 .Where(ps => ps.ParentUserId == parentId)
-                .Select(ps => ps.StudentId)
+                .Join(_db.Students.AsNoTracking(), ps => ps.StudentId, s => s.Id,
+                    (ps, s) => new { s.Id, s.BusId })
                 .ToListAsync();
 
-            foreach (var studentId in childIds)
-                await Groups.AddToGroupAsync(Context.ConnectionId, HubGroups.ParentGroup(studentId));
+            foreach (var child in children)
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, HubGroups.ParentGroup(child.Id));
+                if (child.BusId is { } busId)
+                    await Groups.AddToGroupAsync(Context.ConnectionId, HubGroups.BusGroup(busId));
+            }
         }
 
         await base.OnConnectedAsync();

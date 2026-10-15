@@ -25,6 +25,7 @@ public sealed class BusAttendanceController : BaseApiController
     private readonly IWhatsAppQueue _whatsAppQueue;
     private readonly ISchoolNotificationService _notify;
     private readonly IGeocodingService _geocoding;
+    private readonly IFcmSender _fcm;
     private readonly IConfiguration _config;
     private readonly ILogger<BusAttendanceController> _logger;
 
@@ -33,6 +34,7 @@ public sealed class BusAttendanceController : BaseApiController
         IWhatsAppQueue whatsAppQueue,
         ISchoolNotificationService notify,
         IGeocodingService geocoding,
+        IFcmSender fcm,
         IConfiguration config,
         ILogger<BusAttendanceController> logger)
     {
@@ -40,6 +42,7 @@ public sealed class BusAttendanceController : BaseApiController
         _whatsAppQueue = whatsAppQueue;
         _notify = notify;
         _geocoding = geocoding;
+        _fcm = fcm;
         _config = config;
         _logger = logger;
     }
@@ -155,17 +158,21 @@ public sealed class BusAttendanceController : BaseApiController
         var timePk = PkTime.ToPk(timestampUtc);
         var stampText = timePk.ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture);
 
-        // Official EN / Roman-Urdu templates (per-school choice: Twilio:Language = "en" | "ur").
-        var language = _config["Twilio:Language"]?.Trim().ToLowerInvariant() ?? "en";
+        // Official EN / Roman-Urdu templates. Per-parent language preference overrides
+        // the school-wide default (Twilio:Language) — the parent app setting toggles it.
+        var defaultLanguage = _config["Twilio:Language"]?.Trim().ToLowerInvariant() ?? "en";
         var templateVars = new WhatsAppTemplates.TemplateVars(
             StudentName: student.FullName,
             ClassName: student.Class.DisplayName,
             BusNumber: bus.BusNumber,
             Time: stampText,
             Location: location);
-        var message = type == BusAttendanceType.PickIn
-            ? WhatsAppTemplates.PickIn(templateVars, language)
-            : WhatsAppTemplates.DropOut(templateVars, language);
+        var messagesByLang = new Dictionary<string, string>(2);
+        string MessageFor(string lang) => messagesByLang.TryGetValue(lang, out var cached)
+            ? cached
+            : messagesByLang[lang] = type == BusAttendanceType.PickIn
+                ? WhatsAppTemplates.PickIn(templateVars, lang)
+                : WhatsAppTemplates.DropOut(templateVars, lang);
 
         // (1) Real-time alert: WPF admin desktop + parent app (their child only).
         try
@@ -197,13 +204,66 @@ public sealed class BusAttendanceController : BaseApiController
             _logger.LogWarning(ex, "SignalR notification failed for event {EventId}", busEvent.Id);
         }
 
-        // (2) WhatsApp to parents - durable log row first, then enqueue.
+        // (2) Linked parent accounts drive: FCM push, per-parent language, WhatsApp opt-out.
+        var parents = await _uow.ParentStudents.Query()
+            .Where(ps => ps.StudentId == student.Id)
+            .Join(_uow.Users.Query(), ps => ps.ParentUserId, u => u.Id,
+                (ps, u) => new { u.Id, u.Phone, u.PreferredLanguage, u.ReceiveWhatsApp })
+            .ToListAsync(ct);
+
+        // (2a) FCM push to the parent's registered devices (best-effort, grouped by language).
+        try
+        {
+            var parentIds = parents.Select(p => p.Id).ToArray();
+            var devices = await _uow.DeviceTokens.Query()
+                .Where(d => parentIds.Contains(d.UserId))
+                .Select(d => new { d.UserId, d.Token })
+                .ToListAsync(ct);
+
+            foreach (var grp in devices.GroupBy(d =>
+                         parents.First(p => p.Id == d.UserId).PreferredLanguage == "ur" ? "ur" : "en"))
+            {
+                var picked = type == BusAttendanceType.PickIn;
+                var (title, body) = grp.Key == "ur"
+                    ? ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
+                       picked ? $"{student.FullName} Bus #{bus.BusNumber} mai baith chuka hai — waqt: {stampText}"
+                              : $"{student.FullName} Bus #{bus.BusNumber} se mehfooz utar chuka hai — waqt: {stampText}")
+                    : ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
+                       picked ? $"{student.FullName} has BOARDED Bus #{bus.BusNumber} at {stampText}."
+                              : $"{student.FullName} has been DROPPED OFF safely at {stampText}.");
+
+                await _fcm.SendToDevicesAsync(grp.Select(d => d.Token).ToArray(),
+                    new FcmPush(title, body, new Dictionary<string, string>
+                    {
+                        ["type"] = "bus_event",
+                        ["studentId"] = student.Id.ToString(),
+                        ["eventType"] = type.ToString(),
+                        ["eventId"] = busEvent.Id.ToString()
+                    }), ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "FCM push failed for event {EventId}", busEvent.Id);
+        }
+
+        // (2b) WhatsApp to parents - durable log row first, then enqueue.
         var recipients = new List<string> { student.FatherPhone };
         if (_config.GetValue("Twilio:NotifyMother", false) && !string.IsNullOrWhiteSpace(student.MotherPhone))
             recipients.Add(student.MotherPhone!);
 
+        var queued = 0;
         foreach (var phone in recipients)
         {
+            // Parent-app toggle: that parent disabled WhatsApp alerts → respect it.
+            var owner = parents.FirstOrDefault(p => PhoneMatches(p.Phone, phone));
+            if (owner is { ReceiveWhatsApp: false })
+            {
+                _logger.LogInformation("WhatsApp skipped for {Phone} — parent disabled alerts in app settings.", phone);
+                continue;
+            }
+
+            var message = MessageFor(owner?.PreferredLanguage == "ur" ? "ur" : defaultLanguage);
             var correlationId = Guid.NewGuid();
             await _uow.WhatsAppLogs.AddAsync(new WhatsAppLog
             {
@@ -219,6 +279,7 @@ public sealed class BusAttendanceController : BaseApiController
 
             await _whatsAppQueue.EnqueueAsync(
                 new WhatsAppJob(correlationId, busEvent.Id, student.Id, phone, message), ct);
+            queued++;
         }
 
         return OkEnvelope(new BusEventResponse(
@@ -227,10 +288,20 @@ public sealed class BusAttendanceController : BaseApiController
             stampText,
             location,
             AdminNotified: true,
-            WhatsAppRecipientsQueued: recipients.Count),
+            WhatsAppRecipientsQueued: queued),
             type == BusAttendanceType.PickIn
                 ? $"{student.FullName} marked as boarded."
                 : $"{student.FullName} marked as dropped.");
+    }
+
+    /// <summary>Loose phone comparison: last 10 digits (covers 0300… vs +92300… formats).</summary>
+    private static bool PhoneMatches(string? userPhone, string recipientPhone)
+    {
+        if (string.IsNullOrWhiteSpace(userPhone)) return false;
+        var a = new string(userPhone.Where(char.IsDigit).ToArray());
+        var b = new string(recipientPhone.Where(char.IsDigit).ToArray());
+        return a.Length >= 10 && b.Length >= 10
+               && a[^10..] == b[^10..];
     }
 
     /// <summary>Event feed for one student. Staff/teachers, or the student's own parent.</summary>
