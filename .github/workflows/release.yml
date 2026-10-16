@@ -60,6 +60,9 @@ jobs:
           flutter create --platforms android --org com.smartschool --project-name smartschool_driver .
           # Allow the in-app updater to install downloaded APKs
           sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>|' android/app/src/main/AndroidManifest.xml
+          # flutter_local_notifications release builds need core library desugaring
+          G=android/app/build.gradle.kts; [ -f "$G" ] || G=android/app/build.gradle
+          printf '\nandroid { compileOptions { isCoreLibraryDesugaringEnabled = true } }\ndependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") }\n' >> "$G"
           flutter pub get
           flutter build apk --release --build-name="$VER" --build-number=$((GITHUB_RUN_NUMBER))
           mkdir -p ../../dist
@@ -75,6 +78,8 @@ jobs:
           cd apps/parent_app
           flutter create --platforms android --org com.smartschool --project-name smartschool_parent .
           sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>|' android/app/src/main/AndroidManifest.xml
+          G=android/app/build.gradle.kts; [ -f "$G" ] || G=android/app/build.gradle
+          printf '\nandroid { compileOptions { isCoreLibraryDesugaringEnabled = true } }\ndependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") }\n' >> "$G"
           flutter pub get
           flutter build apk --release --build-name="$VER" --build-number=$((GITHUB_RUN_NUMBER + 1)) || flutter build apk --release --build-name="$VER"
           cp build/app/outputs/flutter-apk/app-release.apk ../../dist/parent-release.apk
@@ -98,6 +103,7 @@ jobs:
       - name: Build efbundle.exe
         run: |
           dotnet tool install -g dotnet-ef
+          dotnet restore src/SmartSchool.API/SmartSchool.API.csproj -r win-x64
           dotnet ef migrations bundle --self-contained -r win-x64 `
             -p src/SmartSchool.Infrastructure -s src/SmartSchool.API `
             -o dist/efbundle.exe
