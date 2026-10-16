@@ -1,11 +1,43 @@
-/// App-wide config. CHANGE the BASE URL to point at the school server running
-/// SmartSchool.API.
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// App-wide config. The API base can be baked in at build time
+/// (--dart-define=API_BASE=...) AND overridden on the login screen — the
+/// override persists, so update-APKs (built with a generic default) never
+/// break an already-configured phone.
 ///
 /// - Same PC emulator:        http://10.0.2.2:5000   (Android emulator → host PC)
 /// - Physical phone (Wi-Fi):  http://192.168.1.10:5000  (server's LAN IP)
 /// - Production:              https://api.yourschool.pk
 class AppConfig {
-  static const String apiBaseUrl = 'http://10.0.2.2:5000';
+  static const String _defaultBase = String.fromEnvironment(
+    'API_BASE',
+    defaultValue: 'http://10.0.2.2:5000',
+  );
+
+  static const _kBaseOverride = 'api_base_override';
+
+  /// Effective API base (override, else baked-in default). Mutated once at boot.
+  static String apiBaseUrl = _defaultBase;
+
+  /// Load any saved override — call before the first network call (app boot).
+  static Future<void> loadServerOverride() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_kBaseOverride);
+    if (saved != null && saved.trim().isNotEmpty) apiBaseUrl = saved.trim();
+  }
+
+  /// Called from the login screen when the driver edits the server address.
+  static Future<void> saveServerOverride(String baseUrl) async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = baseUrl.trim();
+    if (value.isEmpty || value == _defaultBase) {
+      await prefs.remove(_kBaseOverride);
+      apiBaseUrl = _defaultBase;
+    } else {
+      await prefs.setString(_kBaseOverride, value);
+      apiBaseUrl = value;
+    }
+  }
 
   /// GPS uplink interval while a trip is active.
   static const Duration gpsPushInterval = Duration(seconds: 15);

@@ -40,6 +40,36 @@ public sealed class ApiClient
 
     public SecureTokenStore TokenStore => _tokenStore;
 
+    /// <summary>Raw file download with progress (update assets). False on any failure.</summary>
+    public async Task<bool> DownloadFileAsync(string url, string savePath, IProgress<int>? progress = null)
+    {
+        try
+        {
+            AttachToken();
+            using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode) return false;
+
+            var total = response.Content.Headers.ContentLength ?? -1;
+            await using var src = await response.Content.ReadAsStreamAsync();
+            await using var dst = File.Create(savePath);
+
+            var buffer = new byte[81920];
+            long read = 0;
+            int n;
+            while ((n = await src.ReadAsync(buffer)) > 0)
+            {
+                await dst.WriteAsync(buffer.AsMemory(0, n));
+                read += n;
+                if (total > 0) progress?.Report((int)(read * 100 / total));
+            }
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private void AttachToken()
     {
         var token = AppSession.Current.Token;

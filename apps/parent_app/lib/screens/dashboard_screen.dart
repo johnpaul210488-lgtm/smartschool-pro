@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_updater.dart';
 import '../core/models.dart';
 import '../providers/children_provider.dart';
 import '../providers/locale_provider.dart';
@@ -36,6 +37,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ChildrenProvider>().refresh();
+      // Self-update check (silent unless a newer release exists).
+      AppUpdater.promptIfUpdate(context);
     });
   }
 

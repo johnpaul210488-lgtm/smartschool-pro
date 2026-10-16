@@ -42,8 +42,9 @@ SmartSchool.sln
 │                                    #    live bus map, fees + PDF receipts, alerts/announcements, EN⇄UR
 ├── database/sqlserver/              # 001_schema.sql, 002_seed.sql, EF reference script
 ├── scripts/                         # load-test-bus-events.ps1 (50 concurrent events)
+├── installer/                       # SchoolServer-Setup.iss (one-click: LocalDB+service+admin)
 ├── docs/                            # architecture.md, realtime-flow.md, deployment-guide.md,
-│                                    #   integration-test-checklist.md
+│                                    #   integration-test-checklist.md, auto-update-and-installer.md
 └── docker-compose.yml               # optional local SQL Server 2022
 ```
 
@@ -131,6 +132,7 @@ current-month fee challans for every sample student.
 | **Parent app** | **`GET /parents/me/children`** (cards: photo/class/bus/today status) · `GET/PATCH /parents/me/settings` (language, WhatsApp opt-out, phone) · `GET /fees/my` · `GET /fees/my/{id}/receipt` |
 | Devices (FCM) | `POST /devices/register` · `POST /devices/unregister` |
 | Announcements | `GET /announcements` · `POST/DELETE /announcements` (staff → SignalR + FCM broadcast) |
+| **App updates** | `GET /app-updates/{admin\|driver\|parent}` (version feed) · `GET /app-updates/{app}/download` (proxied asset from GitHub Releases — see **docs/auto-update-and-installer.md**) |
 
 Authorization is role-based: `[Authorize(Roles="SuperAdmin,Admin")]` for mutations,
 drivers can post bus events / manage their own trips, parents can only read their own children's data.

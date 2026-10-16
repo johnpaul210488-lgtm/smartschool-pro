@@ -37,6 +37,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _userRole = string.Empty;
     [ObservableProperty] private bool _isDarkTheme = true;
 
+    // ---- self-update (GitHub Release → school server → this desktop) ----
+    [ObservableProperty] private string _appVersionText = $"v{UpdateService.CurrentVersion}";
+    [ObservableProperty] private bool _hasUpdate;
+    [ObservableProperty] private string _updateLabel = "⬆ Update";
+    [ObservableProperty] private bool _isUpdating;
+
     public ObservableCollection<NavItem> NavItems { get; } = new();
     public ToastService Toasts => ToastService.Current;
     public SignalRClientService SignalR => _signalR;
@@ -70,6 +76,37 @@ public partial class MainViewModel : ObservableObject
             Toasts.Info("Trip Update", $"Bus #{m.Payload.BusNumber} → {m.Payload.Status}"));
         WeakReferenceMessenger.Default.Register<AdminAlertMessage>(this, (_, m) =>
             Toasts.Error($"⚠️ {m.Payload.Title}", m.Payload.Message));
+
+        // Background update check (graceful no-op if the server has no Update feed configured).
+        _ = CheckForUpdatesAsync();
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        var (has, latest, notes) = await UpdateService.Instance.CheckAsync();
+        HasUpdate = has;
+        if (has)
+        {
+            UpdateLabel = $"⬆ Update {latest}";
+            Toasts.Info("Update available!",
+                $"Naya version {latest} aagaya — neeche Update button dabayen, app khud update ho jayegi.");
+        }
+    }
+
+    [RelayCommand]
+    private async Task UpdateNow()
+    {
+        if (IsUpdating) return;
+        IsUpdating = true;
+        UpdateLabel = "⬇ Shuru…";
+        var progress = new Progress<int>(p => UpdateLabel = $"⬇ {p}%");
+        var ok = await UpdateService.Instance.ApplyAsync(progress);
+        // Success → swapper script replaces the exe and relaunches; we only handle failure here.
+        if (!ok)
+        {
+            UpdateLabel = "⚠ Update fail — dobara koshish";
+            IsUpdating = false;
+        }
     }
 
     partial void OnSelectedNavItemChanged(NavItem? value)

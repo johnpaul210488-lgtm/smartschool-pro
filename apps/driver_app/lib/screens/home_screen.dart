@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_state.dart';
+import '../services/app_updater.dart';
 import '../services/tts_service.dart';
 import 'trip_screen.dart';
 import 'widgets/status_banner.dart';
@@ -15,6 +16,10 @@ class HomeScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     final bus = state.bus;
     final trip = state.activeTrip;
+
+    // Self-update check (guarded to once per session, fully silent if none).
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => AppUpdater.promptIfUpdate(context, state.api));
 
     return Scaffold(
       appBar: AppBar(

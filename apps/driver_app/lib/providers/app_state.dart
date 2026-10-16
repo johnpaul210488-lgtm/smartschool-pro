@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
+import '../config/app_config.dart';
 import '../models/models.dart';
 import '../services/api_client.dart';
 import '../services/background_gps_service.dart';
@@ -42,6 +43,7 @@ class AppState extends ChangeNotifier {
   // =============== boot ===============
 
   Future<void> boot() async {
+    await AppConfig.loadServerOverride();
     final restored = await _api.restoreSession();
     if (restored == null) {
       authStatus = AuthStatus.loggedOut;

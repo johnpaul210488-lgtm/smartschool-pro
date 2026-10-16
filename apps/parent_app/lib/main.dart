@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/config.dart';
 import 'core/fcm_service.dart';
 import 'core/signalr_service.dart';
 import 'providers/auth_provider.dart';
@@ -85,6 +86,7 @@ class _RootState extends State<_Root> {
     final loc = context.read<LocaleProvider>();
     final auth = context.read<AuthProvider>();
     await loc.load();
+    await AppConfig.loadServerOverride();
     await auth.restore();
     _loggedIn = auth.isLoggedIn;
     if (_loggedIn) _startLive();

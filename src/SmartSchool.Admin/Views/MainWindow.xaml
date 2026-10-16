@@ -9,6 +9,10 @@
         Background="{DynamicResource MaterialDesignPaper}"
         FontFamily="{DynamicResource MaterialDesignFont}">
 
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <!-- Sidebar -->
@@ -59,6 +63,10 @@
                     </StackPanel>
                     <TextBlock Text="{Binding LiveStatus}" FontSize="10.5" Opacity="0.8"
                                TextWrapping="Wrap" Margin="0,6,0,4"/>
+                    <TextBlock Text="{Binding AppVersionText}" FontSize="10" Opacity="0.5" Margin="0,0,0,4"/>
+                    <Button Content="{Binding UpdateLabel}" Command="{Binding UpdateNowCommand}"
+                            Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}"
+                            Style="{StaticResource MaterialDesignRaisedButton}" Height="30" Margin="0,2"/>
                     <StackPanel Orientation="Horizontal" Margin="0,4">
                         <ToggleButton ToolTip="Dark / Light theme" Command="{Binding ToggleThemeCommand}"
                                       IsChecked="{Binding IsDarkTheme}">🌙</ToggleButton>

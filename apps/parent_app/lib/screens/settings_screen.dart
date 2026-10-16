@@ -129,11 +129,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
 
                 const SizedBox(height: 16),
-                Text('${loc.t('server')}: ${AppConfig.apiBase}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                // Server address (tap to change; survives app updates).
+                TextButton.icon(
+                  onPressed: _editServer,
+                  icon: const Icon(Icons.dns, size: 16, color: Colors.grey),
+                  label: Text('${loc.t('server')}: ${AppConfig.apiBase}',
+                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ),
               ],
             ),
     );
+  }
+
+  Future<void> _editServer() async {
+    final ctrl = TextEditingController(text: AppConfig.apiBase);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Server Address'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            hintText: 'http://192.168.1.10:5000',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (saved == true) {
+      await AppConfig.saveServerOverride(ctrl.text);
+      if (mounted) setState(() {});
+    }
+    ctrl.dispose();
   }
 }

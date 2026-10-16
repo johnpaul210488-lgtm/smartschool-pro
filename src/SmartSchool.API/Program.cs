@@ -161,6 +161,10 @@ try
     // Firebase Cloud Messaging: dry-run until Firebase:Enabled=true + credentials JSON path set.
     builder.Services.AddSingleton<IFcmSender, FirebaseFcmSender>();
 
+    // Self-update feed: school server proxies GitHub Releases for WPF/APK auto-updates.
+    builder.Services.AddHttpClient();
+    builder.Services.AddSingleton<GitHubReleaseProvider>();
+
     var app = builder.Build();
 
     // ----------------------------- DB init + seed ---------------------------

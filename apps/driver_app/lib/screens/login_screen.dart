@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_config.dart';
 import '../providers/app_state.dart';
 
 /// Simple, big-target login for drivers (phone = username).
@@ -14,16 +15,27 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _userCtrl = TextEditingController(text: 'driver1');
   final _passCtrl = TextEditingController();
+  late final TextEditingController _serverCtrl;
   bool _obscure = true;
+  bool _showServer = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _serverCtrl = TextEditingController(text: AppConfig.apiBaseUrl);
+  }
 
   @override
   void dispose() {
     _userCtrl.dispose();
     _passCtrl.dispose();
+    _serverCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    // Persist any edited server address BEFORE the login request goes out.
+    await AppConfig.saveServerOverride(_serverCtrl.text);
     final state = context.read<AppState>();
     final ok = await state.doLogin(_userCtrl.text, _passCtrl.text);
     if (ok && mounted) {
@@ -104,6 +116,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  // Server address (once per phone; remembered afterwards).
+                  TextButton.icon(
+                    onPressed: () => setState(() => _showServer = !_showServer),
+                    icon: Icon(_showServer ? Icons.expand_less : Icons.dns, size: 18),
+                    label: Text(_showServer ? 'Server chhupayen' : 'Server settings',
+                        style: const TextStyle(fontSize: 13)),
+                  ),
+                  if (_showServer)
+                    TextField(
+                      controller: _serverCtrl,
+                      keyboardType: TextInputType.url,
+                      style: const TextStyle(fontSize: 16),
+                      decoration: const InputDecoration(
+                        labelText: 'Server (example: http://192.168.1.10:5000)',
+                        prefixIcon: Icon(Icons.dns),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
                 ],
               ),
             ),

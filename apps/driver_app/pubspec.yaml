@@ -33,6 +33,11 @@ dependencies:
   cached_network_image: ^4.0.4
   flutter_tts: ^4.2.5
 
+  # In-app self-update (school server → GitHub Release)
+  package_info_plus: ^10.2.2
+  path_provider: ^2.1.6
+  open_filex: ^5.0.0
+
   intl: ^0.20.2
 
 dev_dependencies:
