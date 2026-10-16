@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 env:
-  VERSION: ${{ github.event.inputs.version || github.ref_name }}
+  RELEASE_TAG: ${{ github.event.inputs.version || github.ref_name }}
 
 jobs:
   # ---------------- Admin desktop exe (Windows, self-contained) ----------------
@@ -30,7 +30,7 @@ jobs:
       - name: Publish admin exe (version = tag)
         shell: pwsh
         run: |
-          $v = $env:VERSION.TrimStart('v','V')
+          $v = $env:RELEASE_TAG.TrimStart('v','V')
           dotnet publish src/SmartSchool.Admin/SmartSchool.Admin.csproj `
             -c Release -r win-x64 --self-contained true `
             -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
@@ -55,11 +55,9 @@ jobs:
       - name: Build driver APK
         run: |
           set -e
-          VER="${VERSION#v}"
+          VER="${RELEASE_TAG#v}"
           cd apps/driver_app
           flutter create --platforms android --org com.smartschool --project-name smartschool_driver .
-          # Allow the in-app updater to install downloaded APKs
-          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>|' android/app/src/main/AndroidManifest.xml
           # flutter_local_notifications release builds need core library desugaring
           G=android/app/build.gradle.kts; [ -f "$G" ] || G=android/app/build.gradle
           printf '\nandroid { compileOptions { isCoreLibraryDesugaringEnabled = true } }\ndependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") }\n' >> "$G"
@@ -68,13 +66,13 @@ jobs:
           mkdir -p ../../dist
           cp build/app/outputs/flutter-apk/app-release.apk ../../dist/driver-release.apk
         env:
-          VERSION: ${{ env.VERSION }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
       - name: Build parent APK
         run: |
           set -e
-          VER="${VERSION#v}"
+          VER="${RELEASE_TAG#v}"
           cd apps/parent_app
           flutter create --platforms android --org com.smartschool --project-name smartschool_parent .
           sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>|' android/app/src/main/AndroidManifest.xml
@@ -84,7 +82,7 @@ jobs:
           flutter build apk --release --build-name="$VER" --build-number=$((GITHUB_RUN_NUMBER + 1)) || flutter build apk --release --build-name="$VER"
           cp build/app/outputs/flutter-apk/app-release.apk ../../dist/parent-release.apk
         env:
-          VERSION: ${{ env.VERSION }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
       - uses: actions/upload-artifact@v4
@@ -135,7 +133,7 @@ jobs:
       - name: Publish API for installer (LocalDB connection + fresh JWT key)
         shell: pwsh
         run: |
-          $v = $env:VERSION.TrimStart('v','V')
+          $v = $env:RELEASE_TAG.TrimStart('v','V')
           dotnet publish src/SmartSchool.API/SmartSchool.API.csproj -c Release -o build-artifacts/api
           Copy-Item installer/appsettings.installer.json build-artifacts/api/appsettings.json -Force
           $key = -join ((48..57)+(65..90)+(97..122) | Get-Random -Count 64 | % {[char]$_})
@@ -153,7 +151,7 @@ jobs:
       - name: Compile installer
         shell: pwsh
         run: |
-          $v = $env:VERSION.TrimStart('v','V')
+          $v = $env:RELEASE_TAG.TrimStart('v','V')
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$v installer/SchoolServer-Setup.iss
           if (-not (Test-Path dist\installer)) { throw "Installer output missing" }
 
@@ -180,7 +178,7 @@ jobs:
           cp "release-files/admin-exe/SmartSchool.Admin.exe" dist/
           cp release-files/apks/*.apk dist/
           cp release-files/installer-exe/*.exe dist/
-          gh release create "$VERSION" dist/* \
-            --title "SmartSchool Pro $VERSION" \
+          gh release create "$RELEASE_TAG" dist/* \
+            --title "SmartSchool Pro $RELEASE_TAG" \
             --generate-notes \
             --latest
