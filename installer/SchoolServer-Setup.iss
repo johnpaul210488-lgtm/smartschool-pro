@@ -46,31 +46,30 @@ Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: Fi
 [Icons]
 Name: "{group}\SmartSchool Admin"; Filename: "{app}\admin\SmartSchool.Admin.exe"
 Name: "{commondesktop}\SmartSchool Admin"; Filename: "{app}\admin\SmartSchool.Admin.exe"
+; API auto-start at EVERY login (all users) — runs as the interactive user whose
+; per-user LocalDB is proven to work. Console starts minimized in the background.
+Name: "{commonstartup}\SmartSchool API (background)"; Filename: "{app}\api\SmartSchool.API.exe"; \
+      Parameters: "--urls http://0.0.0.0:5000"; WorkingDir: "{app}\api"; Flags: runminimized
 
 [Run]
-; 1. SQL Server 2022 LocalDB — silent
+; 1. SQL Server 2022 LocalDB — silent (agar pehle se installed ho to skip)
 Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\SqlLocalDB.msi"" IACCEPTSQLLOCALDBLICENSETERMS=YES /qn /norestart"; \
     StatusMsg: "SQL Server LocalDB install ho raha hai…(ek minute)"; \
     Check: FileExists(ExpandConstant('{src}\SqlLocalDB.msi'))
 
-; 2. API as an auto-start Windows Service. The service runs as LocalSystem, and
-;    uses (localdb)\MSSQLLocalDB — SYSTEM ka apni private LocalDB instance hai jo
-;    API startup par khud auto-create/restart hoti hai (DbInitializer migrations +
-;    seed bhi khud lagata hai). Koi manual SQL/share step ki zaroorat nahi.
-;    Purani service ho to pehle hata do (upgrade pe fresh+correct binPath mile):
+; 2. Purani (broken) service ho to saaf kar do — nay model mein service NAHIN hai
 Filename: "{sys}\sc.exe"; Parameters: "stop SmartSchoolApi"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden waituntilterminated
-Filename: "{sys}\sc.exe"; Parameters: "create SmartSchoolApi binPath= ""{app}\api\SmartSchool.API.exe"" --urls http://0.0.0.0:5000 start= auto"; \
-    Flags: runhidden waituntilterminated; StatusMsg: "SmartSchool API service ban rahi hai…"
-Filename: "{sys}\sc.exe"; Parameters: "description SmartSchoolApi ""SmartSchool Pro school-server API (http://0.0.0.0:5000)"""; \
-    Flags: runhidden waituntilterminated
-Filename: "{sys}\sc.exe"; Parameters: "failure SmartSchoolApi reset= 60 actions= restart/60000/restart/60000/restart/60000"; \
-    Flags: runhidden waituntilterminated
-Filename: "{sys}\sc.exe"; Parameters: "start SmartSchoolApi"; \
-    Flags: runhidden waituntilterminated; StatusMsg: "SmartSchool API service shuru ho rahi hai…"
+
+; 3. Abhi ke login mein bhi API seedha shuru kar do (restart ka intezar nahi)
+Filename: "{app}\api\SmartSchool.API.exe"; Parameters: "--urls http://0.0.0.0:5000"; \
+    WorkingDir: "{app}\api"; Flags: runhidden nowait postinstall skipifsilent; \
+    StatusMsg: "SmartSchool API shuru ho rahi hai…"
 
 [UninstallRun]
-Filename: "cmd.exe"; Parameters: "/c sc.exe stop SmartSchoolApi & sc.exe delete SmartSchoolApi & exit /b 0"; Flags: runhidden waituntilterminated
+Filename: "{sys}\taskkill.exe"; Parameters: "/f /im SmartSchool.API.exe"; Flags: runhidden waituntilterminated
+Filename: "{sys}\sc.exe"; Parameters: "stop SmartSchoolApi"; Flags: runhidden waituntilterminated
+Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden waituntilterminated
 
 [Messages]
-FinishedLabel=SmartSchool Server install ho gaya!%n%nAdmin app: Desktop shortcut «SmartSchool Admin»%nAPI: http://localhost:5000 (service chal rahi hai)%nLogin: admin / Admin@123 — pehli dafa seed data ban jata hai.
+FinishedLabel=SmartSchool Server install ho gaya!%n%nAdmin app: Desktop shortcut «SmartSchool Admin»%nAPI: http://localhost:5000 — ABHI shuru ho gayi hai aur har PC-login par background mein khud uthe gi.%nLogin: admin / Admin@12345 — pehli dafa database apne aap ban jayegi.
