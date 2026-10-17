@@ -114,7 +114,7 @@ jobs:
   # ---------------- One-click school-server installer (Inno Setup) ----------------
   installer:
     runs-on: windows-latest
-    needs: [admin-exe, efbundle]
+    needs: [admin-exe]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -124,11 +124,6 @@ jobs:
         with:
           name: admin-exe
           path: build-artifacts/admin
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: efbundle
-          path: build-artifacts/db
 
       - name: Publish API for installer (LocalDB connection + fresh JWT key)
         shell: pwsh
