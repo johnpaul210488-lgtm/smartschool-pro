@@ -31,12 +31,19 @@ public sealed class ApiClient
 
     public ApiClient()
     {
-        // Prefer the config next to the exe (works from any working directory).
-        var cfgFrom = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
-        if (!File.Exists(cfgFrom)) cfgFrom = "appsettings.json";
-        var cfg = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(cfgFrom));
-        BaseUrl = cfg.GetProperty("Api").GetProperty("BaseUrl").GetString()
-                  ?? "http://localhost:5000";
+        // appsettings.json is OPTIONAL: standalone exe (unpackaged) falls back to localhost API.
+        BaseUrl = "http://localhost:5000";
+        try
+        {
+            var cfgFrom = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+            if (!File.Exists(cfgFrom)) cfgFrom = "appsettings.json";
+            if (File.Exists(cfgFrom))
+            {
+                var cfg = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(cfgFrom));
+                BaseUrl = cfg.GetProperty("Api").GetProperty("BaseUrl").GetString() ?? BaseUrl;
+            }
+        }
+        catch { /* bad/missing config → keep default */ }
         _http = new HttpClient { BaseAddress = new Uri(BaseUrl.TrimEnd('/') + "/") };
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }

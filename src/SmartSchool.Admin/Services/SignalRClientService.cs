@@ -27,12 +27,21 @@ public sealed class SignalRClientService : IAsyncDisposable
 
     public SignalRClientService()
     {
-        // Prefer the config next to the exe (works from any working directory).
-        var cfgFrom = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
-        if (!File.Exists(cfgFrom)) cfgFrom = "appsettings.json";
-        var cfg = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(cfgFrom));
-        var baseUrl = cfg.GetProperty("Api").GetProperty("BaseUrl").GetString() ?? "http://localhost:5000";
-        var hubPath = cfg.GetProperty("HubPath").GetString() ?? "/hubs/notifications";
+        // appsettings.json is OPTIONAL: standalone exe falls back to localhost API.
+        var baseUrl = "http://localhost:5000";
+        var hubPath = "/hubs/notifications";
+        try
+        {
+            var cfgFrom = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+            if (!File.Exists(cfgFrom)) cfgFrom = "appsettings.json";
+            if (File.Exists(cfgFrom))
+            {
+                var cfg = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(cfgFrom));
+                baseUrl = cfg.GetProperty("Api").GetProperty("BaseUrl").GetString() ?? baseUrl;
+                hubPath = cfg.GetProperty("HubPath").GetString() ?? hubPath;
+            }
+        }
+        catch { /* bad/missing config → keep defaults */ }
         _hubUrl = baseUrl.TrimEnd('/') + hubPath;
     }
 
