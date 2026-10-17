@@ -31,7 +31,10 @@ public sealed class ApiClient
 
     public ApiClient()
     {
-        var cfg = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText("appsettings.json"));
+        // Prefer the config next to the exe (works from any working directory).
+        var cfgFrom = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+        if (!File.Exists(cfgFrom)) cfgFrom = "appsettings.json";
+        var cfg = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(cfgFrom));
         BaseUrl = cfg.GetProperty("Api").GetProperty("BaseUrl").GetString()
                   ?? "http://localhost:5000";
         _http = new HttpClient { BaseAddress = new Uri(BaseUrl.TrimEnd('/') + "/") };
