@@ -41,8 +41,8 @@ Source: "..\build-artifacts\api\*"; DestDir: "{app}\api"; Flags: recursesubdirs 
 Source: "..\build-artifacts\admin\SmartSchool.Admin.exe"; DestDir: "{app}\admin"; Flags: ignoreversion
 ; 1-click diagnostics
 Source: "SmartSchool-Diagnostics.bat"; DestDir: "{app}"; Flags: ignoreversion
-; SQL Server LocalDB (bundled by CI)
-Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: FileExists(ExpandConstant('{src}\SqlLocalDB.msi'))
+; SQL Server LocalDB (bundled by CI — embedded, hamesha copy ho)
+Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
 Name: "{group}\SmartSchool Admin"; Filename: "{app}\admin\SmartSchool.Admin.exe"
@@ -54,10 +54,9 @@ Name: "{commonstartup}\SmartSchool API (background)"; Filename: "{app}\api\Smart
       Parameters: "--urls http://0.0.0.0:5000"; WorkingDir: "{app}\api"; Flags: runminimized
 
 [Run]
-; 1. SQL Server 2022 LocalDB — silent (agar pehle se installed ho to skip)
-Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\SqlLocalDB.msi"" IACCEPTSQLLOCALDBLICENSETERMS=YES /qn /norestart"; \
-    StatusMsg: "SQL Server LocalDB install ho raha hai…(ek minute)"; \
-    Check: FileExists(ExpandConstant('{src}\SqlLocalDB.msi'))
+; 1. SQL Server 2022 LocalDB — silent + verbose MSI log (agar fail ho to diagnostics dikhayega)
+Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\SqlLocalDB.msi"" IACCEPTSQLLOCALDBLICENSETERMS=YES /qn /norestart /l*v ""C:\Windows\Temp\smartschool-localdb-msi.log"""; \
+    StatusMsg: "SQL Server LocalDB install ho raha hai…(ek minute)"
 
 ; 2. Purani (broken) service ho to saaf kar do — nay model mein service NAHIN hai
 Filename: "{sys}\sc.exe"; Parameters: "stop SmartSchoolApi"; Flags: runhidden waituntilterminated

@@ -25,5 +25,8 @@ echo.
 echo --- 5. API log (aakhri 25 lines — YEH sabse kaam ki hai):
 powershell -command "Get-Content 'C:\ProgramData\SmartSchool\logs\smartschool-*.log' -Tail 25 -ErrorAction SilentlyContinue"
 echo.
+echo --- 6. LocalDB MSI install log (aakhri 15 lines):
+powershell -command "Get-Content 'C:\Windows\Temp\smartschool-localdb-msi.log' -Tail 15 -ErrorAction SilentlyContinue"
+echo.
 echo =======================================================
 pause
