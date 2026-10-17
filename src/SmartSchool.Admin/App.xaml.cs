@@ -12,13 +12,10 @@ public partial class App : Application
     {
         // OpenStreetMap tile policy: identifiable app User-Agent/Referer required,
         // warna OSM server tiles pe "Access blocked" 403 laga deta hai.
-        try
-        {
-            GMap.NET.Core.GMapProvider.UserAgent =
-                "SmartSchoolPro-Admin/1.1 (+https://github.com/johnpaul210488-lgtm/smartschool-pro)";
-            GMap.NET.Core.GMapProvider.RefererUrl = "https://smartschoolpro.local/";
-        }
-        catch { /* older GMap build: fields may vary */ }
+        // OpenStreetMap tile usage policy: identifiable app User-Agent required (ya
+        // tiles pe "Access blocked" 403 dikhati hain). UserAgent = static, pure app ko lagta hai.
+        GMap.NET.MapProviders.GMapProvider.UserAgent =
+            "SmartSchoolPro-Admin/1.1 (+https://github.com/johnpaul210488-lgtm/smartschool-pro)";
 
         // NEVER die silently: any unhandled error lands in a MessageBox + crash log.
         DispatcherUnhandledException += (_, e) =>
