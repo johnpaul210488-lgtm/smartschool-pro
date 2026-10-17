@@ -11,7 +11,9 @@ public static class PasswordBoxHelper
 {
     public static readonly DependencyProperty BoundPasswordProperty =
         DependencyProperty.RegisterAttached("BoundPassword", typeof(string), typeof(PasswordBoxHelper),
-            new FrameworkPropertyMetadata(string.Empty, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+            // default NULL (not ""): when the VM's initial "" arrives the value CHANGES,
+            // the callback fires, and the PasswordChanged subscription gets attached.
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
                 OnBoundPasswordChanged));
 
     public static string GetBoundPassword(DependencyObject d) => (string)d.GetValue(BoundPasswordProperty);
