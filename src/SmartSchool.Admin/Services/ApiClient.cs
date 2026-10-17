@@ -56,7 +56,21 @@ public sealed class ApiClient
         try
         {
             AttachToken();
-            using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            // Big update files (175 MB+) need a long-timeout, dedicated client —
+            // the shared _http has the 100s default which kills slow connections.
+            var baseUri = _http.BaseAddress!;
+            using var http = new HttpClient(new HttpClientHandler
+            {
+                AutomaticDecompression = System.Net.DecompressionMethods.None
+            }, disposeHandler: true)
+            {
+                BaseAddress = baseUri,
+                Timeout = TimeSpan.FromMinutes(20)
+            };
+            foreach (var h in _http.DefaultRequestHeaders)
+                http.DefaultRequestHeaders.TryAddWithoutValidation(h.Key, h.Value);
+
+            using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
             if (!response.IsSuccessStatusCode) return false;
 
             var total = response.Content.Headers.ContentLength ?? -1;

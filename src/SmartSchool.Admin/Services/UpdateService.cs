@@ -68,13 +68,17 @@ public sealed class UpdateService
             var ok = await ApiClient.Instance.DownloadFileAsync("api/app-updates/admin/download", tempExe, progress);
             if (!ok || new FileInfo(tempExe).Length < 1_000_000) return false;
 
-            // Tiny swapper: wait for us to exit, replace exe, relaunch, self-delete.
+            // Tiny swapper: wait for exit → replace → relaunch. If Program Files
+            // blocks the copy, retry ONCE with UAC elevation (single Yes-click).
             var script = Path.Combine(Path.GetTempPath(), "smartschool-admin-update.cmd");
+            var elevatedCmd =
+                $"powershell -NoProfile -Command \"Start-Process -Verb RunAs -Wait cmd.exe " +
+                $"-ArgumentList '/c copy /y \\\"{tempExe}\\\" \\\"{currentExe}\\\" & start \\\"\\\" \\\"{currentExe}\\\"'\"";
             await File.WriteAllTextAsync(script,
                 "@echo off\r\n" +
                 "ping 127.0.0.1 -n 3 >nul\r\n" +
-                $"copy /y \"{tempExe}\" \"{currentExe}\" >nul\r\n" +
-                $"start \"\" \"{currentExe}\"\r\n" +
+                $"copy /y \"{tempExe}\" \"{currentExe}\" >nul 2>&1\r\n" +
+                $"if errorlevel 1 ({elevatedCmd}) else (start \"\" \"{currentExe}\")\r\n" +
                 "del \"%~f0\"\r\n");
 
             Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{script}\"")

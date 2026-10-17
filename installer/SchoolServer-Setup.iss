@@ -37,16 +37,20 @@ WizardStyle=modern
 [Files]
 ; API (Kestrel self-host — khud migrations+seed lagata hai startup par)
 Source: "..\build-artifacts\api\*"; DestDir: "{app}\api"; Flags: recursesubdirs ignoreversion
-; WPF Admin desktop
-Source: "..\build-artifacts\admin\SmartSchool.Admin.exe"; DestDir: "{app}\admin"; Flags: ignoreversion
+; WPF Admin desktop (LocalAppData: self-updater kaam kare silently, koi UAC nahi)
+Source: "..\build-artifacts\admin\SmartSchool.Admin.exe"; DestDir: "{localappdata}\Programs\SmartSchool Admin"; Flags: ignoreversion
 ; 1-click diagnostics
 Source: "SmartSchool-Diagnostics.bat"; DestDir: "{app}"; Flags: ignoreversion
 ; SQL Server LocalDB (bundled by CI — embedded, hamesha copy ho)
 Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
+[InstallDelete]
+; Purani (Program Files) wali admin exe saaf kar do taake shortcut sirf nayi ki taraf jaaye
+Type: files; Name: "{app}\admin\SmartSchool.Admin.exe"
+
 [Icons]
-Name: "{group}\SmartSchool Admin"; Filename: "{app}\admin\SmartSchool.Admin.exe"
-Name: "{commondesktop}\SmartSchool Admin"; Filename: "{app}\admin\SmartSchool.Admin.exe"
+Name: "{group}\SmartSchool Admin"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
+Name: "{commondesktop}\SmartSchool Admin"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
 Name: "{commondesktop}\SmartSchool Diagnostics"; Filename: "{app}\SmartSchool-Diagnostics.bat"
 ; API auto-start at EVERY login (all users) — runs as the interactive user whose
 ; per-user LocalDB is proven to work. Console starts minimized in the background.
