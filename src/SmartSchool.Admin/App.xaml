@@ -7,10 +7,10 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- Material Design: dark theme by default (toggleable at runtime) -->
-                <materialDesign:BundledTheme BaseTheme="Dark"
-                                             PrimaryColor="DeepPurple"
-                                             SecondaryColor="Lime" />
+                <!-- Material Design: modern LIGHT skin — Indigo + Cyan accents -->
+                <materialDesign:BundledTheme BaseTheme="Light"
+                                             PrimaryColor="Indigo"
+                                             SecondaryColor="Cyan" />
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
             </ResourceDictionary.MergedDictionaries>
 

@@ -35,7 +35,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _liveStatus = "⏳ Live connection shuru ho raha hai…";
     [ObservableProperty] private string _userName = string.Empty;
     [ObservableProperty] private string _userRole = string.Empty;
-    [ObservableProperty] private bool _isDarkTheme = true;
+    [ObservableProperty] private bool _isDarkTheme;
 
     // ---- self-update (GitHub Release → school server → this desktop) ----
     [ObservableProperty] private string _appVersionText = $"v{UpdateService.CurrentVersion}";

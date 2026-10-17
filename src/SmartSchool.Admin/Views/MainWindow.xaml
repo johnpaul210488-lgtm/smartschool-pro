@@ -5,6 +5,7 @@
         Title="SmartSchool Pro — Admin Panel"
         Width="1360" Height="860" MinWidth="1200" MinHeight="760"
         WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
         Background="{DynamicResource MaterialDesignPaper}"
         FontFamily="{DynamicResource MaterialDesignFont}">
