@@ -54,17 +54,26 @@ Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\SqlLocalDB.msi"" IACCEPTSQLLOCA
     StatusMsg: "SQL Server LocalDB install ho raha hai…(ek minute)"; \
     Check: FileExists(ExpandConstant('{src}\SqlLocalDB.msi'))
 
-; 2. Create + start + SHARE the instance (shared instance = accessible by the
-;    Windows Service running as LocalSystem). All steps tolerate "already exists".
-Filename: "cmd.exe"; Parameters: "/c ""{pf}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"" create SmartSchool 2>nul & ""{pf}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"" start SmartSchool 2>nul & ""{pf}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"" share SmartSchool SmartSchoolShared 2>nul & exit /b 0"; \
+; 2. Create + start + SHARE the instance (shared = accessible by the Windows
+;    Service running as LocalSystem). Already-exists cases are no-ops.
+Filename: "{pf}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"; Parameters: "create SmartSchool"; \
     Flags: runhidden waituntilterminated; StatusMsg: "Database instance tayyar ho rahi hai…"
+Filename: "{pf}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"; Parameters: "start SmartSchool"; \
+    Flags: runhidden waituntilterminated; StatusMsg: "Database instance shuru ho rahi hai…"
+Filename: "{pf}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"; Parameters: "share SmartSchool SmartSchoolShared"; \
+    Flags: runhidden waituntilterminated; StatusMsg: "Database share ho rahi hai…"
 
 ; 3. Apply ALL migrations → SmartSchoolPro database ready
 Filename: "{app}\db\efbundle.exe"; Parameters: "--connection ""Server=(localdb)\\.\SmartSchoolShared;Database=SmartSchoolPro;Trusted_Connection=True;TrustServerCertificate=True"""; \
     StatusMsg: "SmartSchoolPro database ban rahi hai…"; Check: FileExists(ExpandConstant('{app}\db\efbundle.exe'))
 
 ; 4. API as an auto-start Windows Service (LocalSystem reaches the SHARED LocalDB)
-Filename: "cmd.exe"; Parameters: "/c sc.exe create SmartSchoolApi binPath= ""\""{app}\api\SmartSchool.API.exe\"" --urls http://0.0.0.0:5000"" start= auto & sc.exe start SmartSchoolApi & exit /b 0"; \
+;    Purani service ho to pehle hata do (upgrade pe fresh+correct binPath mile):
+Filename: "{sys}\sc.exe"; Parameters: "stop SmartSchoolApi"; Flags: runhidden waituntilterminated
+Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden waituntilterminated
+Filename: "{sys}\sc.exe"; Parameters: "create SmartSchoolApi binPath= ""{app}\api\SmartSchool.API.exe"" --urls http://0.0.0.0:5000 start= auto"; \
+    Flags: runhidden waituntilterminated; StatusMsg: "SmartSchool API service ban rahi hai…"
+Filename: "{sys}\sc.exe"; Parameters: "start SmartSchoolApi"; \
     Flags: runhidden waituntilterminated; StatusMsg: "SmartSchool API service shuru ho rahi hai…"
 
 [UninstallRun]
