@@ -165,6 +165,12 @@ try
     builder.Services.AddHttpClient();
     builder.Services.AddSingleton<GitHubReleaseProvider>();
 
+    // ThingWorx (IoT portal) integration — bus locations relay into SignalR.
+    builder.Services.Configure<SmartSchool.API.Services.IoT.ThingWorxOptions>(
+        builder.Configuration.GetSection("ThingWorx"));
+    builder.Services.AddHttpClient<SmartSchool.API.Services.IoT.ThingWorxClient>();
+    builder.Services.AddHostedService<SmartSchool.API.Services.IoT.ThingWorxRelayService>();
+
     var app = builder.Build();
 
     // ----------------------------- DB init + seed ---------------------------
