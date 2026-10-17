@@ -168,7 +168,24 @@ try
     var app = builder.Build();
 
     // ----------------------------- DB init + seed ---------------------------
-    await DbInitializer.InitializeAsync(app.Services, app.Configuration, app.Logger);
+    // NEVER die on DB problems (LocalDB cold start, missing install, etc.):
+    // retry for ~2 minutes, then stay UP and let endpoints report the error.
+    var dbInitOk = false;
+    for (var attempt = 1; attempt <= 12 && !dbInitOk; attempt++)
+    {
+        try
+        {
+            await DbInitializer.InitializeAsync(app.Services, app.Configuration, app.Logger);
+            dbInitOk = true;
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogError(ex, "Database init attempt {Attempt}/12 failed; retrying in 10s...", attempt);
+            if (attempt < 12) await Task.Delay(TimeSpan.FromSeconds(10));
+        }
+    }
+    if (!dbInitOk)
+        app.Logger.LogCritical("Database init could not complete — API is staying UP so clients see the real error instead of connection-refused.");
 
     // ----------------------------- Pipeline ---------------------------------
     app.UseMiddleware<ExceptionHandlingMiddleware>();

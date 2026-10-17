@@ -3,10 +3,9 @@
 ;
 ; What it does, silently, in order:
 ;   1. Installs SQL Server 2022 LocalDB (bundled MSI)
-;   2. Creates + shares the "SmartSchool" LocalDB instance (Windows-Service-safe)
-;   3. Lays down the API (Kestrel exe) + applies ALL EF migrations (efbundle)
-;   4. Creates & starts the "SmartSchoolApi" Windows Service (auto-start)
-;   5. Installs the WPF Admin app + Desktop shortcut
+;   2. Lays down the API (Kestrel exe — khud migrations+seed startup par)
+;   3. Auto-starts API now + at every login (interactive user's own LocalDB)
+;   4. Installs the WPF Admin app + Desktop shortcut + Diagnostics shortcut
 ;
 ; Built by CI (release.yml). To build by hand:
 ;   - dotnet publish src\SmartSchool.API -c Release -o build-artifacts\api
@@ -40,12 +39,15 @@ WizardStyle=modern
 Source: "..\build-artifacts\api\*"; DestDir: "{app}\api"; Flags: recursesubdirs ignoreversion
 ; WPF Admin desktop
 Source: "..\build-artifacts\admin\SmartSchool.Admin.exe"; DestDir: "{app}\admin"; Flags: ignoreversion
+; 1-click diagnostics
+Source: "SmartSchool-Diagnostics.bat"; DestDir: "{app}"; Flags: ignoreversion
 ; SQL Server LocalDB (bundled by CI)
 Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: FileExists(ExpandConstant('{src}\SqlLocalDB.msi'))
 
 [Icons]
 Name: "{group}\SmartSchool Admin"; Filename: "{app}\admin\SmartSchool.Admin.exe"
 Name: "{commondesktop}\SmartSchool Admin"; Filename: "{app}\admin\SmartSchool.Admin.exe"
+Name: "{commondesktop}\SmartSchool Diagnostics"; Filename: "{app}\SmartSchool-Diagnostics.bat"
 ; API auto-start at EVERY login (all users) — runs as the interactive user whose
 ; per-user LocalDB is proven to work. Console starts minimized in the background.
 Name: "{commonstartup}\SmartSchool API (background)"; Filename: "{app}\api\SmartSchool.API.exe"; \
