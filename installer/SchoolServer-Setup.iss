@@ -25,8 +25,9 @@
 AppName=SmartSchool Pro (School Server)
 AppVersion={#AppVersion}
 AppPublisher=SmartSchool Pro
-DefaultDirName={pf}\SmartSchool Server
+DefaultDirName={autopf}\SmartSchool Server
 DefaultGroupName=SmartSchool
+ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist\installer
 OutputBaseFilename=SmartSchoolServer-Setup-{#AppVersion}
 PrivilegesRequired=admin
@@ -56,11 +57,11 @@ Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\SqlLocalDB.msi"" IACCEPTSQLLOCA
 
 ; 2. Create + start + SHARE the instance (shared = accessible by the Windows
 ;    Service running as LocalSystem). Already-exists cases are no-ops.
-Filename: "{pf}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"; Parameters: "create SmartSchool"; \
+Filename: "{commonpf64}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"; Parameters: "create SmartSchool"; \
     Flags: runhidden waituntilterminated; StatusMsg: "Database instance tayyar ho rahi hai…"
-Filename: "{pf}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"; Parameters: "start SmartSchool"; \
+Filename: "{commonpf64}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"; Parameters: "start SmartSchool"; \
     Flags: runhidden waituntilterminated; StatusMsg: "Database instance shuru ho rahi hai…"
-Filename: "{pf}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"; Parameters: "share SmartSchool SmartSchoolShared"; \
+Filename: "{commonpf64}\Microsoft SQL Server\160\Tools\Binn\SqlLocalDB.exe"; Parameters: "share SmartSchool SmartSchoolShared"; \
     Flags: runhidden waituntilterminated; StatusMsg: "Database share ho rahi hai…"
 
 ; 3. Apply ALL migrations → SmartSchoolPro database ready
