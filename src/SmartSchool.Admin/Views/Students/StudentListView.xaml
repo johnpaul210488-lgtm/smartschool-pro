@@ -31,7 +31,7 @@
                 <materialDesign:PackIcon Kind="Refresh"/>
             </Button>
             <Button Content="➕ New Student" Command="{Binding AddNewCommand}" Margin="10,0,0,0"
-                    Style="{StaticResource MaterialDesignRaisedButton}"/>
+                    Style="{StaticResource MaterialDesignRaisedPrimaryButton}"/>
             <ProgressBar IsIndeterminate="{Binding IsBusy}" Visibility="{Binding IsBusy,
                 Converter={StaticResource BooleanToVisibilityConverter}}"
                 Width="140" Height="4" VerticalAlignment="Center" Margin="12,0,0,0"/>

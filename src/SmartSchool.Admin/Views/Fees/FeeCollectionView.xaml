@@ -37,7 +37,7 @@
                             Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,10,0"/>
                     <Button Content="✅ CONFIRM PAYMENT" Command="{Binding ConfirmPaymentCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
-                            Style="{StaticResource MaterialDesignRaisedButton}"/>
+                            Style="{StaticResource MaterialDesignRaisedPrimaryButton}"/>
                 </StackPanel>
             </StackPanel>
         </materialDesign:Card>
