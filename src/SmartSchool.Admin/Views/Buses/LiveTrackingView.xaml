@@ -14,6 +14,14 @@
             <TextBlock Text="📍 Live Bus Tracking" FontSize="26" FontWeight="Bold"/>
             <TextBlock Text="{Binding StatusLine}" VerticalAlignment="Bottom" Margin="16,0,0,2"
                        FontSize="12" Opacity="0.75"/>
+            <ComboBox x:Name="ProviderPicker" Width="185" VerticalAlignment="Center"
+                      HorizontalAlignment="Right" Margin="24,0,0,2" SelectedIndex="0"
+                      SelectionChanged="ProviderPicker_SelectionChanged"
+                      ToolTip="Map style: Google (mobile / satellite) ya OpenStreetMap">
+                <ComboBoxItem Content="🗺 Street (Google)" />
+                <ComboBoxItem Content="🛰 Satellite (Google)" />
+                <ComboBoxItem Content="🗺 Street (OpenStreetMap)" />
+            </ComboBox>
         </StackPanel>
 
         <Grid Grid.Row="1">
