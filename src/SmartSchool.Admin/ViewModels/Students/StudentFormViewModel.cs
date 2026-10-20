@@ -117,7 +117,8 @@ public partial class StudentFormViewModel : ObservableValidator
     {
         _studentId = studentId;
         _title = studentId is null ? "➕ New Student" : "✏️ Edit Student";
-        ValidateAllProperties();
+        // NOTE: yahan ValidateAllProperties MAT chalayein — warna new form khulte hi
+        // sab fields par red "lazmi hai" errors aa jati hain. Validation sirf save/typing pe.
         _ = InitAsync();
     }
 

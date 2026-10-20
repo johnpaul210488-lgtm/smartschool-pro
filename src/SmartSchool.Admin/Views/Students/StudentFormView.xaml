@@ -3,171 +3,242 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <materialDesign:Card Padding="26" MaxWidth="1000" VerticalAlignment="Top" Margin="0,0,0,24">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
+        <materialDesign:Card MaxWidth="960" Padding="34,28" Margin="10,10,10,20" VerticalAlignment="Top">
             <StackPanel>
 
-                <!-- Header -->
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
-                    <materialDesign:PackIcon Kind="School" Width="36" Height="36"
-                                             Foreground="{DynamicResource PrimaryHueMidBrush}"
-                                             VerticalAlignment="Center" Margin="0,0,12,0"/>
-                    <StackPanel>
-                        <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="Bold"/>
-                        <TextBlock Text="Student ki mukammal profile — photo, class, ghar ke baray sab ek jagah."
-                                   FontSize="12" Opacity="0.65" Margin="1,2,0,0"/>
+                <!-- ============ HEADER ============ -->
+                <Grid Margin="0,0,0,18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="52" Height="52" CornerRadius="14"
+                            Background="{DynamicResource PrimaryHueLightBrush}" Margin="0,0,16,0">
+                        <materialDesign:PackIcon Kind="AccountPlus" Width="26" Height="26"
+                                                 Foreground="{DynamicResource PrimaryHueMidForegroundBrush}"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}" FontSize="25" FontWeight="Bold"/>
+                        <TextBlock Text="Student ki poori profile — photo, class, waldein aur transport ek jagah."
+                                   FontSize="12.5" Opacity="0.6" Margin="0,3,0,0"/>
                     </StackPanel>
-                </StackPanel>
+                </Grid>
 
-                <Border Margin="0,0,0,18" BorderThickness="0,1,0,0"
-                        BorderBrush="{DynamicResource MaterialDesignDivider}" Opacity="0.7"/>
+                <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource MaterialDesignDivider}"
+                        Opacity="0.7" Margin="0,0,0,22"/>
 
+                <!-- ============ BODY: photo + fields ============ -->
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="270"/>
+                        <ColumnDefinition Width="238"/>
+                        <ColumnDefinition Width="32"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- ===== LEFT: photo panel ===== -->
-                    <StackPanel Grid.Column="0" Margin="0,4,26,0">
-                        <TextBlock Text="Profile Photo" FontWeight="SemiBold" Margin="1,0,0,8"/>
+                    <Border Grid.Column="0" CornerRadius="14" Padding="18"
+                            Background="{DynamicResource MaterialDesignCardBackground}"
+                            BorderBrush="{DynamicResource MaterialDesignDivider}"
+                            BorderThickness="1" VerticalAlignment="Top">
+                        <StackPanel>
+                            <TextBlock Text="PROFILE PHOTO" FontSize="11" FontWeight="Bold" Opacity="0.55"
+                                       Margin="2,0,0,10" HorizontalAlignment="Center"/>
 
-                        <Border Width="200" Height="220" CornerRadius="12"
-                                Background="{DynamicResource MaterialDesignPaperDarkBackground}"
-                                BorderBrush="{DynamicResource MaterialDesignDividerBrush}"
-                                BorderThickness="1" Padding="2">
-                            <Grid>
-                                <materialDesign:PackIcon Kind="AccountChildCircle" Width="64" Height="64"
-                                                         HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                         Opacity="0.35"
-                                                         Visibility="{Binding HasPhotoPreview, Converter={StaticResource InverseBoolToVis}}"/>
-                                <Border CornerRadius="10" Background="Transparent" Padding="0">
+                            <Border Width="172" Height="190" CornerRadius="12" Padding="2"
+                                    HorizontalAlignment="Center"
+                                    Background="{DynamicResource MaterialDesignPaperDarkBackground}"
+                                    BorderBrush="{DynamicResource MaterialDesignDividerBrush}"
+                                    BorderThickness="1.5">
+                                <Grid>
+                                    <materialDesign:PackIcon Kind="AccountChild" Width="64" Height="64" Opacity="0.35"
+                                              Foreground="{DynamicResource MaterialDesignBody}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Visibility="{Binding HasPhotoPreview, Converter={StaticResource InverseBoolToVis}}"/>
                                     <Image Source="{Binding PhotoPreview}" Stretch="UniformToFill"
-                                           Visibility="{Binding HasPhotoPreview, Converter={StaticResource BoolToVis}}"/>
-                                </Border>
-                            </Grid>
-                        </Border>
+                                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                           Visibility="{Binding HasPhotoPreview, Converter={StaticResource BoolToVis}}">
+                                        <Image.Clip>
+                                            <RectangleGeometry RadiusX="10" RadiusY="10" Rect="0,0,168,186"/>
+                                        </Image.Clip>
+                                    </Image>
+                                </Grid>
+                            </Border>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" HorizontalAlignment="Center">
-                            <Button Content="📷 Photo Choose" Command="{Binding PickPhotoCommand}"
-                                    Style="{StaticResource MaterialDesignRaisedButton}" Width="130"/>
-                            <Button Content="✕" ToolTip="Photo hata do"
-                                    Command="{Binding RemovePhotoCommand}"
-                                    Style="{StaticResource MaterialDesignOutlinedButton}" Margin="8,0,0,0"
+                            <Button Content="📷  Photo Choose Karein" Command="{Binding PickPhotoCommand}"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Width="172" Height="36" Margin="0,12,0,0" HorizontalAlignment="Center"/>
+                            <Button Content="✕  Clear" Command="{Binding RemovePhotoCommand}"
+                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                    Width="172" Height="32" Margin="0,8,0,0" HorizontalAlignment="Center"
                                     Visibility="{Binding HasPhotoPreview, Converter={StaticResource BoolToVis}}"/>
+                            <TextBlock Text="JPG / PNG • 8MB tak&#x0a;Auto-resize ho jayegi"
+                                       FontSize="10.5" Opacity="0.55" TextAlignment="Center"
+                                       Margin="0,10,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <TextBlock Text="JPG/PNG — 8MB tak (auto-resize ho jayegi)"
-                                   FontSize="11" Opacity="0.6" TextWrapping="Wrap" Margin="4,8,0,0"/>
-                    </StackPanel>
+                    </Border>
 
                     <!-- ===== RIGHT: fields ===== -->
-                    <Grid Grid.Column="1">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition/><ColumnDefinition/>
-                        </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="2">
 
-                        <TextBox Grid.Row="0" Grid.Column="0" Margin="0,4,10,4"
-                                 materialDesign:HintAssist.Hint="Student Name *"
-                                 materialDesign:HintAssist.HelperText="Poora naam — e.g. Ahmed Raza"
-                                 Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
-                        <TextBox Grid.Row="0" Grid.Column="1" Margin="10,4,0,4"
-                                 materialDesign:HintAssist.Hint="Class Roll No *"
-                                 materialDesign:HintAssist.HelperText="e.g. 15"
-                                 Text="{Binding RollNo, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+                        <!-- Section: Student -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                            <TextBlock Text="STUDENT" FontWeight="Bold" FontSize="12" Opacity="0.55"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <Border Height="1" VerticalAlignment="Center" MinWidth="200"
+                                    Background="{DynamicResource MaterialDesignDivider}" Opacity="0.6"/>
+                        </StackPanel>
 
-                        <ComboBox Grid.Row="1" Grid.Column="0" Margin="0,4,10,4"
-                                  materialDesign:HintAssist.Hint="Class *"
-                                  ItemsSource="{Binding Classes}"
-                                  SelectedItem="{Binding SelectedClass, Mode=TwoWay}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
-                                        <TextBlock Text="{Binding ClassTeacherName, StringFormat='Teacher: {0}'}"
-                                                   FontSize="10" Opacity="0.55"
-                                                   Visibility="{Binding ClassTeacherName, Converter={StaticResource NotEmptyToVis}}"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <DatePicker Grid.Row="1" Grid.Column="1" Margin="10,4,0,4"
-                                    materialDesign:HintAssist.Hint="Date of Birth"
-                                    SelectedDate="{Binding DateOfBirth, Mode=TwoWay}"/>
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     materialDesign:HintAssist.Hint="Student Name *"
+                                     materialDesign:HintAssist.HelperText="Poora naam — e.g. Ahmed Raza"
+                                     Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+                            <TextBox Grid.Column="2"
+                                     materialDesign:HintAssist.Hint="Class Roll No *"
+                                     materialDesign:HintAssist.HelperText="Class mein roll number"
+                                     Text="{Binding RollNo, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+                        </Grid>
 
-                        <TextBox Grid.Row="2" Grid.Column="0" Margin="0,4,10,4"
-                                 materialDesign:HintAssist.Hint="Father Name *"
-                                 Text="{Binding FatherName, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
-                        <TextBox Grid.Row="2" Grid.Column="1" Margin="10,4,0,4"
-                                 materialDesign:HintAssist.Hint="Father Phone *"
-                                 materialDesign:HintAssist.HelperText="03123456789 — is number par alerts jati hain"
-                                 Text="{Binding FatherPhone, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0"
+                                      materialDesign:HintAssist.Hint="Class *"
+                                      ItemsSource="{Binding Classes}"
+                                      SelectedItem="{Binding SelectedClass, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,2">
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding ClassTeacherName, StringFormat='Teacher: {0}'}"
+                                                       FontSize="10" Opacity="0.55"
+                                                       Visibility="{Binding ClassTeacherName, Converter={StaticResource NotEmptyToVis}}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <DatePicker Grid.Column="2"
+                                        materialDesign:HintAssist.Hint="Date of Birth"
+                                        SelectedDate="{Binding DateOfBirth, Mode=TwoWay}"/>
+                        </Grid>
 
-                        <TextBox Grid.Row="3" Grid.Column="0" Margin="0,4,10,4"
-                                 materialDesign:HintAssist.Hint="Mother Phone (optional)"
-                                 materialDesign:HintAssist.HelperText="Alerts ke liye second number"
-                                 Text="{Binding MotherPhone, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
-                        <ComboBox Grid.Row="3" Grid.Column="1" Margin="10,4,0,4"
-                                  materialDesign:HintAssist.Hint="Bus # (optional — agar transport use karta hai)"
-                                  ItemsSource="{Binding Buses}"
-                                  SelectedItem="{Binding SelectedBus, Mode=TwoWay}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <materialDesign:PackIcon Kind="Bus" Width="18" Height="18"
-                                                                 VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <TextBlock Text="{Binding BusNumber, StringFormat='Bus #{0}'}" FontWeight="SemiBold"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
+                        <Grid Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0"
+                                      materialDesign:HintAssist.Hint="Gender"
+                                      SelectedValuePath="Tag"
+                                      SelectedValue="{Binding Gender, Mode=TwoWay}">
+                                <ComboBoxItem Content="— Baad mein set karunga" Tag=""/>
+                                <ComboBoxItem Content="👦  Boy (B)" Tag="Boy"/>
+                                <ComboBoxItem Content="👧  Girl (G)" Tag="Girl"/>
+                            </ComboBox>
+                            <CheckBox Grid.Column="2" VerticalAlignment="Center"
+                                      Content="Nai admission (is saal naya aya hai)"
+                                      IsChecked="{Binding IsNewStudent}"/>
+                        </Grid>
 
-                        <ComboBox Grid.Row="4" Grid.Column="0" Margin="0,4,10,4"
-                                  materialDesign:HintAssist.Hint="Gender (B/G)"
-                                  SelectedValuePath="Tag"
-                                  SelectedValue="{Binding Gender, Mode=TwoWay}">
-                            <ComboBoxItem Content="— (baad mein set karun)" Tag=""/>
-                            <ComboBoxItem Content="👦 Boy (B)" Tag="Boy"/>
-                            <ComboBoxItem Content="👧 Girl (G)" Tag="Girl"/>
-                        </ComboBox>
-                        <CheckBox Grid.Row="4" Grid.Column="1" Margin="15,14,0,0"
-                                  Content="🆕 Nai admission (is saal naya aya hai)"
-                                  IsChecked="{Binding IsNewStudent}"
-                                  ToolTip="Transport sheet ka NEW flag — fees/attendance ke reports mein alag dikhega"/>
+                        <!-- Section: Guardians -->
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,14">
+                            <TextBlock Text="WALDEIN / GUARDIANS" FontWeight="Bold" FontSize="12" Opacity="0.55"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <Border Height="1" VerticalAlignment="Center" MinWidth="160"
+                                    Background="{DynamicResource MaterialDesignDivider}" Opacity="0.6"/>
+                        </StackPanel>
 
-                        <TextBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,6"
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     materialDesign:HintAssist.Hint="Father Name *"
+                                     Text="{Binding FatherName, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+                            <TextBox Grid.Column="2"
+                                     materialDesign:HintAssist.Hint="Father Phone *"
+                                     materialDesign:HintAssist.HelperText="Is number par WhatsApp alerts jati hain"
+                                     Text="{Binding FatherPhone, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     materialDesign:HintAssist.Hint="Mother Phone (optional)"
+                                     materialDesign:HintAssist.HelperText="Alerts ke liye second number"
+                                     Text="{Binding MotherPhone, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
+                            <ComboBox Grid.Column="2"
+                                      materialDesign:HintAssist.Hint="Bus (optional)"
+                                      ItemsSource="{Binding Buses}"
+                                      SelectedItem="{Binding SelectedBus, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="BusSide" Width="16" Height="16"
+                                                                     VerticalAlignment="Center" Margin="0,0,8,0"
+                                                                     Opacity="0.6"/>
+                                            <TextBlock Text="{Binding BusNumber, StringFormat='Bus #{0}'}" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+
+                        <!-- Section: Address -->
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,14">
+                            <TextBlock Text="GHAR KA PATA" FontWeight="Bold" FontSize="12" Opacity="0.55"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <Border Height="1" VerticalAlignment="Center" MinWidth="200"
+                                    Background="{DynamicResource MaterialDesignDivider}" Opacity="0.6"/>
+                        </StackPanel>
+
+                        <TextBox Margin="0,0,0,12"
                                  materialDesign:HintAssist.Hint="Home Address *"
-                                 materialDesign:HintAssist.HelperText="Ghar ka pora pata (city/mohalla)"
-                                 AcceptsReturn="True" Height="62"
+                                 materialDesign:HintAssist.HelperText="Ghar ka poora pata — area, street, city"
+                                 AcceptsReturn="True" MinHeight="72" VerticalScrollBarVisibility="Auto"
                                  Text="{Binding Address, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
 
-                        <CheckBox Grid.Row="6" Grid.Column="0" Margin="1,8,0,0"
-                                  Content="Active student (school jaata hai — fees/alerts live)"
-                                  IsChecked="{Binding IsActive}"/>
-                    </Grid>
+                        <CheckBox Content="Active student — school jaata hai (fees/alerts live)"
+                                  IsChecked="{Binding IsActive}" Margin="2,0,0,4"/>
+
+                    </StackPanel>
                 </Grid>
 
+                <!-- ============ FOOTER ============ -->
                 <TextBlock Text="{Binding FormError}" Foreground="#F44336" TextWrapping="Wrap"
-                           Margin="0,10,0,0" FontSize="12"
+                           Margin="0,14,0,0" FontSize="12"
                            Visibility="{Binding FormError, Converter={StaticResource NotEmptyToVis}}"/>
 
-                <!-- Save bar -->
-                <Border Background="{DynamicResource MaterialDesignPaperDarkBackground}"
-                        Padding="16,12" CornerRadius="8" Margin="0,14,0,0">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="Cancel" Command="{Binding CancelCommand}"
-                                Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,10,0"
-                                Width="110"/>
-                        <Button Content="💾 SAVE STUDENT" Command="{Binding SaveCommand}"
-                                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
-                                Style="{StaticResource MaterialDesignRaisedButton}" Width="150"/>
-                    </StackPanel>
-                </Border>
+                <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource MaterialDesignDivider}"
+                        Opacity="0.7" Margin="0,16,0,0"/>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                    <Button Content="Cancel" Command="{Binding CancelCommand}"
+                            Style="{StaticResource MaterialDesignOutlinedButton}"
+                            Width="120" Height="38" Margin="0,0,12,0"/>
+                    <Button Content="💾 SAVE STUDENT" Command="{Binding SaveCommand}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Width="180" Height="38"/>
+                </StackPanel>
+
             </StackPanel>
         </materialDesign:Card>
     </ScrollViewer>
