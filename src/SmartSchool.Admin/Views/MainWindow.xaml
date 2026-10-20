@@ -71,6 +71,9 @@
                     <StackPanel Orientation="Horizontal" Margin="0,4">
                         <ToggleButton ToolTip="Dark / Light theme" Command="{Binding ToggleThemeCommand}"
                                       IsChecked="{Binding IsDarkTheme}">🌙</ToggleButton>
+                        <Button Content="🐛" Margin="8,0,0,0" ToolTip="Koi masla? Report bhejein — GitHub issue khud ban jati hai"
+                                Click="ReportProblem_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Height="32"/>
                         <Button Content="Logout" Margin="8,0,0,0" Command="{Binding LogoutCommand}"
                                 Style="{StaticResource MaterialDesignOutlinedButton}" Height="32"/>
                     </StackPanel>

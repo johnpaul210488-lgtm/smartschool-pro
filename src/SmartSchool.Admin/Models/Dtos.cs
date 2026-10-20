@@ -281,3 +281,11 @@ public sealed class AdminAlertNotification
     [JsonPropertyName("message")] public string Message { get; set; } = string.Empty;
     [JsonPropertyName("timePakistan")] public string TimePakistan { get; set; } = string.Empty;
 }
+
+// ============ Bug / error reports ============
+public sealed class ErrorReportCreatedResponse
+{
+    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("issueNumber")] public int? IssueNumber { get; set; }
+    [JsonPropertyName("occurrences")] public int Occurrences { get; set; }
+}

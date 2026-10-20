@@ -20,7 +20,7 @@ public sealed class SchoolDbContext : DbContext
     public DbSet<ParentStudent> ParentStudents => Set<ParentStudent>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
-
+    public DbSet<ErrorReport> ErrorReports => Set<ErrorReport>();
     protected override void OnModelCreating(ModelBuilder mb)
     {
         base.OnModelCreating(mb);
@@ -192,6 +192,17 @@ public sealed class SchoolDbContext : DbContext
             e.Property(x => x.Title).HasMaxLength(200).IsRequired();
             e.Property(x => x.Body).HasMaxLength(2000).IsRequired();
             e.Property(x => x.CreatedByName).HasMaxLength(150);
+            e.HasIndex(x => x.CreatedAtUtc);
+        });
+
+        mb.Entity<ErrorReport>(e =>
+        {
+            e.ToTable("ErrorReports");
+            e.Property(x => x.Source).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Severity).HasMaxLength(10).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(300).IsRequired();
+            e.Property(x => x.SignatureHash).HasMaxLength(64).IsRequired();
+            e.HasIndex(x => new { x.SignatureHash, x.IsResolved });
             e.HasIndex(x => x.CreatedAtUtc);
         });
     }

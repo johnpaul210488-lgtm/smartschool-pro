@@ -164,6 +164,8 @@ try
     // Self-update feed: school server proxies GitHub Releases for WPF/APK auto-updates.
     builder.Services.AddHttpClient();
     builder.Services.AddSingleton<GitHubReleaseProvider>();
+    builder.Services.AddSingleton<GitHubIssueService>();
+    builder.Services.AddHostedService<ErrorReportSyncWorker>();
 
     // ThingWorx (IoT portal) integration — bus locations relay into SignalR.
     builder.Services.Configure<SmartSchool.API.Services.IoT.ThingWorxOptions>(

@@ -15,6 +15,12 @@ public partial class MainWindow : Window
         DataContext = _vm;
     }
 
+    private void ReportProblem_Click(object sender, System.Windows.RoutedEventArgs e)
+    {
+        var w = new ReportProblemWindow { Owner = this };
+        w.ShowDialog();
+    }
+
     protected override void OnClosed(EventArgs e)
     {
         _ = _vm.SignalR.DisposeAsync();
