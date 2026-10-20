@@ -91,7 +91,8 @@ public sealed class StudentsController : BaseApiController
                 s.Id, s.FullName, s.RollNo,
                 s.Class.Name + "-" + s.Class.Section, s.ClassId,
                 s.Bus != null ? s.Bus.BusNumber : null,
-                s.FatherName, s.FatherPhone, s.PhotoUrl, s.IsActive))
+                s.FatherName, s.FatherPhone, s.PhotoUrl, s.IsActive,
+                s.Gender, s.IsNewStudent))
             .ToListAsync(ct);
 
         return OkEnvelope(PagedResult<StudentListItem>.Create(items, page, pageSize, total));
@@ -134,7 +135,7 @@ public sealed class StudentsController : BaseApiController
             s.ClassId, s.Class.DisplayName,
             s.Bus?.BusNumber, s.BusId,
             s.FatherName, s.FatherPhone, s.MotherPhone, s.Address,
-            s.PhotoUrl, s.IsActive, outstanding, recent));
+            s.PhotoUrl, s.IsActive, s.Gender, s.IsNewStudent, outstanding, recent));
     }
 
     [HttpPost]
@@ -153,6 +154,8 @@ public sealed class StudentsController : BaseApiController
             ClassId = request.ClassId,
             RollNo = request.RollNo.Trim(),
             PhotoUrl = request.PhotoUrl,
+            Gender = request.Gender.Trim(),
+            IsNewStudent = request.IsNewStudent,
             FatherName = request.FatherName.Trim(),
             FatherPhone = request.FatherPhone.Trim(),
             MotherPhone = request.MotherPhone?.Trim(),
@@ -170,7 +173,8 @@ public sealed class StudentsController : BaseApiController
                 s.Id, s.FullName, s.RollNo,
                 s.Class.Name + "-" + s.Class.Section, s.ClassId,
                 s.Bus != null ? s.Bus.BusNumber : null,
-                s.FatherName, s.FatherPhone, s.PhotoUrl, s.IsActive))
+                s.FatherName, s.FatherPhone, s.PhotoUrl, s.IsActive,
+                s.Gender, s.IsNewStudent))
             .FirstAsync(ct);
 
         return CreatedEnvelope(item, "Student created successfully.");
@@ -194,6 +198,8 @@ public sealed class StudentsController : BaseApiController
         student.ClassId = request.ClassId;
         student.RollNo = request.RollNo.Trim();
         student.PhotoUrl = request.PhotoUrl;
+        student.Gender = request.Gender.Trim();
+        student.IsNewStudent = request.IsNewStudent;
         student.FatherName = request.FatherName.Trim();
         student.FatherPhone = request.FatherPhone.Trim();
         student.MotherPhone = request.MotherPhone?.Trim();

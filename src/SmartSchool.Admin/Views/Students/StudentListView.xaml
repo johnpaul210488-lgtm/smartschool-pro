@@ -91,7 +91,26 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Roll" Binding="{Binding RollNo}" Width="60"/>
+                    <DataGridTemplateColumn Header="B/G" Width="45">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding GenderIcon}" FontSize="15" HorizontalAlignment="Center"
+                                           ToolTip="{Binding Gender}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="2*"/>
+                    <DataGridTemplateColumn Header="NEW" Width="50">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border Padding="6,1" CornerRadius="7" Background="#FFF3E0"
+                                        Visibility="{Binding IsNewStudent, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        HorizontalAlignment="Center">
+                                    <TextBlock Text="🆕 NEW" FontSize="10" FontWeight="Bold" Foreground="#E65100"/>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Class" Binding="{Binding ClassName}" Width="*"/>
                     <DataGridTextColumn Header="Bus" Binding="{Binding BusNumber, TargetNullValue='—'}" Width="60"/>
                     <DataGridTextColumn Header="Father" Binding="{Binding FatherName}" Width="*"/>

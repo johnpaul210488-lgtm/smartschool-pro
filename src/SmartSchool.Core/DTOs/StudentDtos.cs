@@ -10,7 +10,9 @@ public sealed record StudentListItem(
     string FatherName,
     string FatherPhone,
     string? PhotoUrl,
-    bool IsActive);
+    bool IsActive,
+    string Gender,
+    bool IsNewStudent);
 
 public sealed record StudentRecentEvent(
     long Id,
@@ -34,12 +36,16 @@ public sealed record StudentDetailResponse(
     string Address,
     string? PhotoUrl,
     bool IsActive,
+    string Gender,
+    bool IsNewStudent,
     decimal TotalOutstandingFees,
     IReadOnlyList<StudentRecentEvent> RecentBusEvents);
 
 public class StudentCreateRequest
 {
     public string FullName { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty; // "Boy" / "Girl" / ""
+    public bool IsNewStudent { get; set; }
     public DateOnly DateOfBirth { get; set; }
     public int ClassId { get; set; }
     public string RollNo { get; set; } = string.Empty;

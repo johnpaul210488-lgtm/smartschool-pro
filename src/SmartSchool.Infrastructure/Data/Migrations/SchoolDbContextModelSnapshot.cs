@@ -372,7 +372,14 @@ namespace SmartSchool.Infrastructure.Data.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
 
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsNewStudent")
                         .HasColumnType("bit");
 
                     b.Property<string>("MotherPhone")

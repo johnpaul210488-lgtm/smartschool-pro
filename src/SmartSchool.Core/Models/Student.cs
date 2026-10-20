@@ -6,6 +6,12 @@ public sealed class Student
 
     public string FullName { get; set; } = string.Empty;
 
+    /// <summary>"Boy" / "Girl" (empty = not specified).</summary>
+    public string Gender { get; set; } = string.Empty;
+
+    /// <summary>true = is saal nahaya admission liya (NEW flag in transport sheet).</summary>
+    public bool IsNewStudent { get; set; }
+
     public DateOnly DateOfBirth { get; set; }
 
     public int ClassId { get; set; }

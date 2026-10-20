@@ -110,9 +110,16 @@ public partial class StudentListViewModel : ObservableObject, IDisposable
             var progress = new Progress<string>(s => ImportStatus = s);
             var r = await StudentExcelImporter.ImportAsync(dlg.FileName, progress);
 
+            var createdBits = new List<string>();
+            if (r.BusesCreated > 0) createdBits.Add($"{r.BusesCreated} bus{(r.BusesCreated > 1 ? "es" : "")}");
+            if (r.DriversCreated > 0) createdBits.Add($"{r.DriversCreated} driver{(r.DriversCreated > 1 ? "s" : "")}");
+            if (r.ClassesCreated > 0) createdBits.Add($"{r.ClassesCreated} class{(r.ClassesCreated > 1 ? "es" : "")}");
+            var createdTxt = createdBits.Count > 0 ? $" + naye banaye: {string.Join(", ", createdBits)}" : "";
+            var dupesTxt = r.DupesSkipped > 0 ? $" • {r.DupesSkipped} dobari (FS2 noon) skip" : "";
+
             ImportStatus = r.Total == 0 ? "❌ File mein koi data row nahi thi"
-                : r.Imported == r.Total ? $"✅ {r.Imported}/{r.Total} students import ho gaye!"
-                : r.Imported > 0 ? $"⚠ {r.Imported} import • {r.Failed} fail (total {r.Total})"
+                : r.Imported == r.Total - r.DupesSkipped ? $"✅ {r.Imported} students import ho gaye!{dupesTxt}{createdTxt}"
+                : r.Imported > 0 ? $"⚠ {r.Imported} import • {r.Failed} fail{dupesTxt}{createdTxt}"
                 : $"❌ Koi row import nahi hui ({r.Total} mein se)";
             if (r.Errors.Count > 0)
                 ImportDetails = string.Join("\n", r.Errors.Take(12))

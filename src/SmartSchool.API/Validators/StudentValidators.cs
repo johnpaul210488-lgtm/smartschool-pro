@@ -9,6 +9,9 @@ public class StudentCreateRequestValidator : AbstractValidator<StudentCreateRequ
     public StudentCreateRequestValidator()
     {
         RuleFor(x => x.FullName).NotEmpty().MaximumLength(150);
+        RuleFor(x => x.Gender).MaximumLength(10)
+            .Must(g => g is "" or "Boy" or "Girl")
+            .WithMessage("Gender sirf 'Boy' ya 'Girl' (ya khali) ho sakta hai.");
         RuleFor(x => x.DateOfBirth).NotEmpty()
             .Must(dob => dob <= PkTime.TodayPk && dob > PkTime.TodayPk.AddYears(-25))
             .WithMessage("Date of birth must be in the past and within the last 25 years.");

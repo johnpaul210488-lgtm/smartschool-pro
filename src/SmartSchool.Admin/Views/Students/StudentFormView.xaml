@@ -127,13 +127,26 @@
                             </ComboBox.ItemTemplate>
                         </ComboBox>
 
-                        <TextBox Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,6"
+                        <ComboBox Grid.Row="4" Grid.Column="0" Margin="0,4,10,4"
+                                  materialDesign:HintAssist.Hint="Gender (B/G)"
+                                  SelectedValuePath="Tag"
+                                  SelectedValue="{Binding Gender, Mode=TwoWay}">
+                            <ComboBoxItem Content="— (baad mein set karun)" Tag=""/>
+                            <ComboBoxItem Content="👦 Boy (B)" Tag="Boy"/>
+                            <ComboBoxItem Content="👧 Girl (G)" Tag="Girl"/>
+                        </ComboBox>
+                        <CheckBox Grid.Row="4" Grid.Column="1" Margin="15,14,0,0"
+                                  Content="🆕 Nai admission (is saal naya aya hai)"
+                                  IsChecked="{Binding IsNewStudent}"
+                                  ToolTip="Transport sheet ka NEW flag — fees/attendance ke reports mein alag dikhega"/>
+
+                        <TextBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,6"
                                  materialDesign:HintAssist.Hint="Home Address *"
                                  materialDesign:HintAssist.HelperText="Ghar ka pora pata (city/mohalla)"
                                  AcceptsReturn="True" Height="62"
                                  Text="{Binding Address, UpdateSourceTrigger=PropertyChanged, ValidatesOnNotifyDataErrors=True}"/>
 
-                        <CheckBox Grid.Row="5" Grid.Column="0" Margin="1,8,0,0"
+                        <CheckBox Grid.Row="6" Grid.Column="0" Margin="1,8,0,0"
                                   Content="Active student (school jaata hai — fees/alerts live)"
                                   IsChecked="{Binding IsActive}"/>
                     </Grid>

@@ -74,6 +74,10 @@ public class StudentListItem
     [JsonPropertyName("fatherPhone")] public string FatherPhone { get; set; } = string.Empty;
     [JsonPropertyName("photoUrl")] public string? PhotoUrl { get; set; }
     [JsonPropertyName("isActive")] public bool IsActive { get; set; }
+    [JsonPropertyName("gender")] public string Gender { get; set; } = string.Empty;
+    [JsonPropertyName("isNewStudent")] public bool IsNewStudent { get; set; }
+
+    [JsonIgnore] public string GenderIcon => Gender == "Boy" ? "👦" : Gender == "Girl" ? "👧" : "·";
 
     /// <summary>Live status driven by SignalR alerts (not from the API).</summary>
     [JsonIgnore] public string LiveStatus { get; set; } = string.Empty;
@@ -101,6 +105,8 @@ public sealed class StudentDetailResponse : StudentListItem
 public sealed class StudentUpsertRequest
 {
     [JsonPropertyName("fullName")] public string FullName { get; set; } = string.Empty;
+    [JsonPropertyName("gender")] public string Gender { get; set; } = string.Empty;
+    [JsonPropertyName("isNewStudent")] public bool IsNewStudent { get; set; }
     [JsonPropertyName("dateOfBirth")] public string DateOfBirth { get; set; } = string.Empty; // yyyy-MM-dd
     [JsonPropertyName("classId")] public int ClassId { get; set; }
     [JsonPropertyName("rollNo")] public string RollNo { get; set; } = string.Empty;

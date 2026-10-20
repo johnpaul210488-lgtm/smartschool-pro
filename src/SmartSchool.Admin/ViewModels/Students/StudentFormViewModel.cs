@@ -47,6 +47,13 @@ public partial class StudentFormViewModel : ObservableValidator
     [ObservableProperty] private string _address = string.Empty;
 
     [ObservableProperty] private BusListItem? _selectedBus;
+
+    /// <summary>Gender pick: "" / "Boy" / "Girl" — UI ComboBox se aata hai.</summary>
+    [ObservableProperty] private string _gender = string.Empty;
+
+    /// <summary>Is saal ki nai admission (transport sheet ka NEW flag).</summary>
+    [ObservableProperty] private bool _isNewStudent;
+
     [ObservableProperty] private bool _isActive = true;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _formError = string.Empty;
@@ -136,6 +143,8 @@ public partial class StudentFormViewModel : ObservableValidator
                 MotherPhone = d.MotherPhone ?? string.Empty;
                 Address = d.Address;
                 IsActive = d.IsActive;
+                Gender = d.Gender ?? string.Empty;
+                IsNewStudent = d.IsNewStudent;
                 SelectedClass = Classes.FirstOrDefault(c => c.Id == d.ClassId);
                 SelectedBus = Buses.FirstOrDefault(b => b.Id == d.BusId);
 
@@ -190,6 +199,8 @@ public partial class StudentFormViewModel : ObservableValidator
             MotherPhone = string.IsNullOrWhiteSpace(MotherPhone) ? null : MotherPhone.Trim(),
             Address = Address.Trim(),
             BusId = SelectedBus?.Id,
+            Gender = Gender?.Trim() ?? string.Empty,
+            IsNewStudent = IsNewStudent,
             IsActive = _studentId is null ? null : IsActive
         };
 
