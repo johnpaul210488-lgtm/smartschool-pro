@@ -18,6 +18,9 @@ public partial class StudentListViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private StudentListItem? _selectedStudent;
     [ObservableProperty] private int _totalCount;
+    [ObservableProperty] private bool _isImporting;
+    [ObservableProperty] private string _importStatus = string.Empty;
+    [ObservableProperty] private string _importDetails = string.Empty;
 
     public ObservableCollection<StudentListItem> Students { get; } = new();
     public ObservableCollection<ClassListItem> Classes { get; } = new();
@@ -89,6 +92,42 @@ public partial class StudentListViewModel : ObservableObject, IDisposable
     partial void OnSelectedClassChanged(ClassListItem? value) => _ = LoadAsync();
 
     [RelayCommand] private void AddNew() => EditRequested?.Invoke(null);
+
+    [RelayCommand]
+    private async Task ImportExcelAsync()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "Excel / CSV|*.xlsx;*.csv|Excel file|*.xlsx|CSV file|*.csv",
+            Title = "Students ki Excel file select karein (row 1 = headers)"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        IsImporting = true; ImportDetails = string.Empty;
+        ImportStatus = "📥 File parh raha hun…";
+        try
+        {
+            var progress = new Progress<string>(s => ImportStatus = s);
+            var r = await StudentExcelImporter.ImportAsync(dlg.FileName, progress);
+
+            ImportStatus = r.Total == 0 ? "❌ File mein koi data row nahi thi"
+                : r.Imported == r.Total ? $"✅ {r.Imported}/{r.Total} students import ho gaye!"
+                : r.Imported > 0 ? $"⚠ {r.Imported} import • {r.Failed} fail (total {r.Total})"
+                : $"❌ Koi row import nahi hui ({r.Total} mein se)";
+            if (r.Errors.Count > 0)
+                ImportDetails = string.Join("\n", r.Errors.Take(12))
+                    + (r.Errors.Count > 12 ? $"\n… aur {r.Errors.Count - 12} aur notes" : "");
+
+            if (r.Imported > 0) await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ImportStatus = $"❌ Import fail: {ex.Message}";
+            if (dlg.FileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
+                ImportDetails = "Purana .xls format nahi chalta — Excel mein file khol ke '.xlsx' (ya .csv) mein Save As karein.";
+        }
+        finally { IsImporting = false; }
+    }
     [RelayCommand] private void Edit(StudentListItem? s) { if (s is not null) EditRequested?.Invoke(s.Id); }
     [RelayCommand] private void ViewProfile(StudentListItem? s) { if (s is not null) ProfileRequested?.Invoke(s.Id); }
 

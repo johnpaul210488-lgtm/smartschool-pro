@@ -10,6 +10,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -32,13 +33,45 @@
             </Button>
             <Button Content="➕ New Student" Command="{Binding AddNewCommand}" Margin="10,0,0,0"
                     Style="{StaticResource MaterialDesignRaisedButton}"/>
+            <Button Command="{Binding ImportExcelCommand}" Margin="8,0,0,0"
+                    IsEnabled="{Binding IsImporting, Converter={StaticResource InverseBool}}"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    ToolTip="Excel (.xlsx) ya CSV se students bulk-import karein — row 1 headers: Student Name, Father Name, Phone, Class, Roll No, Home Address, Bus #">
+                <StackPanel Orientation="Horizontal">
+                    <ProgressBar Width="12" Height="12" IsIndeterminate="True"
+                                 Visibility="{Binding IsImporting, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    <TextBlock Text="📥 Import Excel" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                </StackPanel>
+            </Button>
             <ProgressBar IsIndeterminate="{Binding IsBusy}" Visibility="{Binding IsBusy,
                 Converter={StaticResource BooleanToVisibilityConverter}}"
                 Width="140" Height="4" VerticalAlignment="Center" Margin="12,0,0,0"/>
         </StackPanel>
 
+        <!-- Excel import status line + expandable notes -->
+        <Border Grid.Row="1" Margin="0,0,0,10" Padding="12,8" CornerRadius="8"
+                Background="{DynamicResource MaterialDesignCardBackground}" BorderThickness="1"
+                BorderBrush="{DynamicResource MaterialDesignDivider}"
+                Visibility="{Binding ImportStatus, Converter={StaticResource NotEmptyToVis}}">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding ImportStatus}" FontWeight="SemiBold" FontSize="13"
+                               VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    <Button Content="✕" Margin="10,0,0,0" VerticalAlignment="Center"
+                            Style="{StaticResource MaterialDesignIconButton}"
+                            ToolTip="Message band karein"
+                            Click="DismissImport_Click"/>
+                </StackPanel>
+                <TextBox Text="{Binding ImportDetails, Mode=OneWay}" IsReadOnly="True"
+                         TextWrapping="Wrap" FontSize="12" Opacity="0.8" Margin="0,6,0,0"
+                         MaxHeight="150" VerticalScrollBarVisibility="Auto"
+                         Background="Transparent" BorderThickness="0"
+                         Visibility="{Binding ImportDetails, Converter={StaticResource NotEmptyToVis}}"/>
+            </StackPanel>
+        </Border>
+
         <!-- Grid -->
-        <materialDesign:Card Grid.Row="1" Padding="10">
+        <materialDesign:Card Grid.Row="2" Padding="10">
             <DataGrid ItemsSource="{Binding StudentsView}" AutoGenerateColumns="False"
                       IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single"
                       SelectedItem="{Binding SelectedStudent, Mode=TwoWay}"

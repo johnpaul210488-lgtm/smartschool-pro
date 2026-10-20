@@ -50,6 +50,27 @@ public sealed class ApiClient
 
     public SecureTokenStore TokenStore => _tokenStore;
 
+    /// <summary>Multipart photo/file upload (students/photos). Returns (Ok, Error).</summary>
+    public async Task<(bool Ok, string Error)> UploadBytesAsync(string url, byte[] bytes, string fileName, string contentType, CancellationToken ct = default)
+    {
+        try
+        {
+            AttachToken();
+            using var form = new MultipartFormDataContent();
+            using var content = new ByteArrayContent(bytes);
+            content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+            form.Add(content, "file", fileName);
+            using var response = await _http.PostAsync(url, form, ct);
+            if (response.IsSuccessStatusCode) return (true, string.Empty);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            return (false, $"Upload fail (HTTP {(int)response.StatusCode}): {body[..Math.Min(160, body.Length)]}");
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
     /// <summary>Raw file download with progress (update assets). False on any failure.</summary>
     public async Task<bool> DownloadFileAsync(string url, string savePath, IProgress<int>? progress = null)
     {

@@ -24,6 +24,33 @@ public sealed class StudentsController : BaseApiController
         => _uow.ParentStudents.AnyAsync(
             ps => ps.ParentUserId == CallerUserId && ps.StudentId == studentId, ct);
 
+    /// <summary>Student ki profile photo upload (jpg/png ≤8MB) → /uploads/students/{id}.jpg</summary>
+    [HttpPost("{id:int}/photo")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> Photo(int id, IFormFile file, CancellationToken ct)
+    {
+        var student = await _uow.Students.FirstOrDefaultAsync(s => s.Id == id, ct);
+        if (student is null) return NotFoundEnvelope("Student nahi mila.");
+        if (file is null || file.Length == 0) return BadRequestEnvelope("Photo file chahiye.");
+        if (file.Length > 8_000_000) return BadRequestEnvelope("Photo 8MB se bari nahi ho sakti.");
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext is not (".jpg" or ".jpeg" or ".png"))
+            return BadRequestEnvelope("Sirf JPG ya PNG photos.");
+
+        var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "SmartSchool", "uploads", "students");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, $"{id}{ext}");
+        await using (var fs = System.IO.File.Create(path))
+            await file.CopyToAsync(fs, ct);
+
+        student.PhotoUrl = $"/uploads/students/{id}{ext}";
+        await _uow.SaveChangesAsync(ct);
+        return OkEnvelope(new { photoUrl = student.PhotoUrl });
+    }
+
     /// <summary>Paged, searchable student list (staff & teachers only).</summary>
     [HttpGet]
     [Authorize(Roles = AppRoles.StaffAndTeachers)]

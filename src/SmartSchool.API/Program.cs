@@ -206,6 +206,16 @@ try
     app.UseSerilogRequestLogging(options =>
         options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0} ms");
 
+    // Uploaded student photos: served from %ProgramData%\SmartSchool\uploads (user-writable, Program Files mein nahi).
+    var uploadsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "SmartSchool", "uploads");
+    Directory.CreateDirectory(uploadsDir);
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsDir),
+        RequestPath = "/uploads"
+    });
+
     app.UseCors("clients");
 
     app.UseAuthentication();
