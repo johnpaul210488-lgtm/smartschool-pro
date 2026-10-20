@@ -119,11 +119,10 @@ public sealed class GitHubReleaseProvider
         var client = CreateClient();
         try
         {
-            client.DefaultRequestHeaders.Accept.Clear();
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
             client.Timeout = TimeSpan.FromMinutes(15);
 
-            // Resolve the asset id from the release listing.
+            // 1. Listing: JSON accept (client ka default — octet-stream kabhi NAHI,
+            //    warna GitHub 415 Unsupported Media Type deta hai).
             using var listResp = await client.GetAsync(
                 $"https://api.github.com/repos/{_repo}/releases/latest", ct);
             if (!listResp.IsSuccessStatusCode) return null;
@@ -136,11 +135,21 @@ public sealed class GitHubReleaseProvider
                     { assetId = a.GetProperty("id").GetInt64(); break; }
             if (assetId == 0) return null;
 
-            // GitHub: 302 → signed URL; HttpClient follows it (Authorization header
-            // is correctly dropped on the cross-host redirect).
+            // 2. Asset: octet-stream sirf IS request par (per-message, client saaf rehta hai).
+            using var dlReq = new HttpRequestMessage(HttpMethod.Get,
+                $"https://api.github.com/repos/{_repo}/releases/assets/{assetId}");
+            dlReq.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+
+            // GitHub: 302 → signed CDN URL; HttpClient follows it automatically.
+            using var dlResp = await client.SendAsync(dlReq, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (!dlResp.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Asset download HTTP {Code}: {Asset}", (int)dlResp.StatusCode, assetName);
+                return null;
+            }
+
             var tempPath = cachePath + ".part";
-            await using (var src = await client.GetStreamAsync(
-                $"https://api.github.com/repos/{_repo}/releases/assets/{assetId}", ct))
+            await using (var src = await dlResp.Content.ReadAsStreamAsync(ct))
             await using (var dst = File.Create(tempPath))
             {
                 await src.CopyToAsync(dst, ct);
