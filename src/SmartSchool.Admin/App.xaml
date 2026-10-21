@@ -14,6 +14,28 @@
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- CHANGED: modern luxury look — rounded + elevated cards/buttons, soft shadows, roomy grids -->
+            <Style TargetType="materialDesign:Card" BasedOn="{StaticResource {x:Type materialDesign:Card}}">
+                <Setter Property="UniformCornerRadius" Value="14"/>
+                <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp4"/>
+            </Style>
+            <Style x:Key="MaterialDesignRaisedButton" TargetType="ButtonBase" BasedOn="{StaticResource MaterialDesignRaisedButton}">
+                <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="10"/>
+                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp4"/>
+            </Style>
+            <Style x:Key="MaterialDesignOutlinedButton" TargetType="ButtonBase" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
+                <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="10"/>
+                <Setter Property="MinHeight" Value="36"/>
+            </Style>
+            <Style x:Key="MaterialDesignFilledComboBox" TargetType="ComboBox" BasedOn="{StaticResource MaterialDesignFilledComboBox}">
+                <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp2"/>
+            </Style>
+            <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+                <Setter Property="RowHeight" Value="42"/>
+                <Setter Property="Padding" Value="4,2"/>
+            </Style>
+
             <!-- App-wide value converters -->
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
             <helpers:BoolToBrushConverter x:Key="BoolToBrush" TrueBrush="#4CAF50" FalseBrush="#B0BEC5" />

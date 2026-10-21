@@ -68,6 +68,12 @@
                     <Button Content="{Binding UpdateLabel}" Command="{Binding UpdateNowCommand}"
                             Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}"
                             Style="{StaticResource MaterialDesignRaisedButton}" Height="30" Margin="0,2"/>
+                    <!-- CHANGED: theme palette selector (apni row — 230px sidebar mein fit) -->
+                    <ComboBox ToolTip="Theme pasand karein (7 professional skins)"
+                              ItemsSource="{Binding PaletteNames}"
+                              SelectedIndex="{Binding SelectedPalette, Mode=TwoWay}"
+                              Style="{StaticResource MaterialDesignFilledComboBox}"
+                              Height="36" Margin="0,2" VerticalContentAlignment="Center"/>
                     <StackPanel Orientation="Horizontal" Margin="0,4">
                         <!-- CHANGED: zoom in/out — choti laptop screens ke liye (Ctrl +/- / Ctrl+0) -->
                         <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" VerticalAlignment="Center" Opacity="0.7"/>

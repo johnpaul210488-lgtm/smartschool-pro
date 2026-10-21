@@ -76,6 +76,9 @@ public partial class App : Application
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+        // CHANGED: saved color-palette lagayein (7 professional skins) — resources load hone ke baad
+        ThemeHelper.ApplySaved();
+
         // Session (holds JWT + user info); shared by all windows via AppSession.Current.
         var session = new AppSession();
         AppSession.Current = session;

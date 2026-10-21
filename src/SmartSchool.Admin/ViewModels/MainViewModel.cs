@@ -37,6 +37,11 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _userRole = string.Empty;
     [ObservableProperty] private bool _isDarkTheme;
 
+    // ---- color palettes: 7 professional variants, side panel combo se badalte hain ----
+    public List<string> PaletteNames => ThemeHelper.Palettes.Select(p => $"{p.Swatch} {p.Name}").ToList();
+    [ObservableProperty] private int _selectedPalette = ThemeHelper.CurrentIndex;
+    partial void OnSelectedPaletteChanged(int value) => ThemeHelper.SetPalette(value);
+
     // ---- self-update (GitHub Release → school server → this desktop) ----
     [ObservableProperty] private string _appVersionText = $"v{UpdateService.CurrentVersion}";
     [ObservableProperty] private bool _hasUpdate;
