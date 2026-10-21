@@ -111,7 +111,18 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedNavItemChanged(NavItem? value)
     {
-        if (value is not null) CurrentView = value.CreateView();
+        if (value is null) return;
+        try
+        {
+            CurrentView = value.CreateView();
+        }
+        catch (Exception ex)
+        {
+            // Page construct hote hi crash ho to blank na dikhe — user ko vaze error dikhega + report save.
+            _ = Services.BugReportService.SendAsync("Error",
+                $"Navigation fail: {value.Title}", ex.Message, ex.ToString(), "MainViewModel");
+            CurrentView = new SmartSchool.Admin.Views.Common.ErrorHostView(value.Title, ex.ToString());
+        }
     }
 
     // ---- simple pages ----

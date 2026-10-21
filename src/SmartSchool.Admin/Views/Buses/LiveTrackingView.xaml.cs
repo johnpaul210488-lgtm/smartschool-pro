@@ -21,6 +21,12 @@ public partial class LiveTrackingView : UserControl
         // Map init — kabhi bhi crash na kare; tiles ka probe Loaded ke baad ata hai.
         try
         {
+            // OSM ki nai policy (2026): app-identifiable User-Agent lazmi — warna sab GMap apps block.
+            GMapProvider.UserAgent = "SmartSchoolPro-Admin/1.1 (smartschool-pro; school transport app)";
+            OpenStreetMapProvider.Instance.RefererUrl = "https://github.com/johnpaul210488-lgtm/smartschool-pro";
+            System.Net.ServicePointManager.SecurityProtocol =
+                System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
+
             // Mobile-style street map (Google) — user neeche drop-down se Satellite/OSM bhi kar sakta hai.
             Map.MapProvider = GoogleMapProvider.Instance;
             GMaps.Instance.Mode = AccessMode.ServerAndCache;
@@ -47,9 +53,15 @@ public partial class LiveTrackingView : UserControl
     /// <summary>Google/OSM tiles par 3s probe — block ho to khud OSM par shift karta hai, warna red warning + bug report.</summary>
     private async Task ProbeTilesAsync()
     {
+        if (_vm is not null) _vm.StatusLine = "🗺 Map ka imtehan chal raha hai…";
         var googleOk = await TryFetchTileAsync("https://mt1.google.com/vt/lyrs=m&x=5722&y=4373&z=13");
-        if (googleOk) return;
+        if (googleOk)
+        {
+            if (_vm is not null) _vm.StatusLine = "✅ Google map theek — live buses ka intezaar…";
+            return;
+        }
 
+        if (_vm is not null) _vm.StatusLine = "⚠ Google block — OpenStreetMap ki koshish…";
         var osmOk = await TryFetchTileAsync("https://a.tile.openstreetmap.org/13/5722/4373.png");
         if (osmOk)
         {
@@ -57,6 +69,7 @@ public partial class LiveTrackingView : UserControl
                 "Agar OSM bhi kharab ho jaye to drop-down se dobara choose karke dekhin. Ye masla khud report ho gaya.", "#FF6A00");
             Map.MapProvider = OpenStreetMapProvider.Instance;
             ProviderPicker.SelectedIndex = 2;
+            if (_vm is not null) _vm.StatusLine = "✅ OpenStreetMap chal gaya — live buses ka intezaar…";
             _ = Services.BugReportService.SendAsync("Warning",
                 "Live tracking: Google tiles unreachable (UAE network?)",
                 "Google map tile probe 3 fail hui — auto-OSM fallback lagaya gaya.",
@@ -67,6 +80,7 @@ public partial class LiveTrackingView : UserControl
             ShowTileBanner("Map tiles kisi bhi source se nahi aa rahi!",
                 "Internet connection ya proxy/firewall tile servers block kar raha hai (mt.google.com, tile.openstreetmap.org). " +
                 "Ye report hame bhej di gai hai — alag alag network se check karein.", "#D32F2F");
+            if (_vm is not null) _vm.StatusLine = "❌ Map ke do-no sources block hain (internet/proxy)";
             _ = Services.BugReportService.SendAsync("Error",
                 "Live tracking: ALL map tile servers unreachable",
                 "Google bhi fail, OSM bhi fail — school network firewall/proxy block kar rahi hogi.",
