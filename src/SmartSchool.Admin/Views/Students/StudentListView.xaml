@@ -91,11 +91,21 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Roll" Binding="{Binding RollNo}" Width="60"/>
-                    <DataGridTemplateColumn Header="B/G" Width="45">
+                    <!-- CHANGED: B/G emoji-column -> circle photo (photo na ho to wahi emoji fallback) -->
+                    <DataGridTemplateColumn Header="Photo" Width="50">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding GenderIcon}" FontSize="15" HorizontalAlignment="Center"
-                                           ToolTip="{Binding Gender}"/>
+                                <Grid Width="32" Height="32" Margin="0,3">
+                                    <Ellipse Stroke="#E0E0E0" StrokeThickness="1"
+                                             Visibility="{Binding PhotoFullUrl, Converter={StaticResource NotEmptyToVis}}">
+                                        <Ellipse.Fill>
+                                            <ImageBrush ImageSource="{Binding PhotoFullUrl}" Stretch="UniformToFill"/>
+                                        </Ellipse.Fill>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding GenderIcon}" FontSize="15" HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" ToolTip="{Binding Gender}"
+                                               Visibility="{Binding PhotoFullUrl, Converter={StaticResource EmptyToVis}}"/>
+                                </Grid>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

@@ -79,6 +79,11 @@ public class StudentListItem
 
     [JsonIgnore] public string GenderIcon => Gender == "Boy" ? "👦" : Gender == "Girl" ? "👧" : "·";
 
+    // <-- CHANGED: photo ka poora URL (server par /uploads/* public serve hota hai; photo na ho to null)
+    [JsonIgnore] public string? PhotoFullUrl => string.IsNullOrWhiteSpace(PhotoUrl)
+        ? null
+        : Services.ApiClient.Instance.BaseUrl.TrimEnd('/') + PhotoUrl;
+
     /// <summary>Live status driven by SignalR alerts (not from the API).</summary>
     [JsonIgnore] public string LiveStatus { get; set; } = string.Empty;
 }

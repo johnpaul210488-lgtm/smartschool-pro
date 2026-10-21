@@ -18,8 +18,18 @@
             <StackPanel>
                 <Button Content="← Back" Command="{Binding BackCommand}" HorizontalAlignment="Left"
                         Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,0,12"/>
-                <materialDesign:PackIcon Kind="AccountCircle" Width="74" Height="74"
-                    HorizontalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                <!-- CHANGED: profile photo circle (photo na ho to purana AccountCircle icon) -->
+                <Grid Width="84" Height="84" HorizontalAlignment="Center">
+                    <Ellipse Stroke="#E0E0E0" StrokeThickness="2"
+                             Visibility="{Binding Student.PhotoFullUrl, Converter={StaticResource NotEmptyToVis}}">
+                        <Ellipse.Fill>
+                            <ImageBrush ImageSource="{Binding Student.PhotoFullUrl}" Stretch="UniformToFill"/>
+                        </Ellipse.Fill>
+                    </Ellipse>
+                    <materialDesign:PackIcon Kind="AccountCircle" Width="74" Height="74"
+                        HorizontalAlignment="Center" Foreground="{DynamicResource PrimaryHueMidBrush}"
+                        Visibility="{Binding Student.PhotoFullUrl, Converter={StaticResource EmptyToVis}}"/>
+                </Grid>
                 <TextBlock Text="{Binding Student.FullName}" FontSize="22" FontWeight="Bold"
                            HorizontalAlignment="Center" Margin="0,6,0,0"/>
                 <TextBlock Text="{Binding Student.ClassName, StringFormat='Class {0}'}" Opacity="0.7"

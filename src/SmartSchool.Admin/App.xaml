@@ -22,6 +22,7 @@
             <helpers:LiveStatusToBrushConverter x:Key="LiveStatusBrush" />
             <helpers:EventTypeToBrushConverter x:Key="EventBrush" />
             <helpers:StringNotEmptyToVisConverter x:Key="NotEmptyToVis" />
+            <helpers:StringEmptyToVisConverter x:Key="EmptyToVis" /> <!-- CHANGED (fallback icon vis) -->
 
             <!-- Toast notification style -->
             <Style x:Key="ToastCard" TargetType="Border">

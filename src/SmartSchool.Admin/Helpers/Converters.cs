@@ -55,6 +55,15 @@ public sealed class StringNotEmptyToVisConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+// <-- CHANGED (added): empty string -> Visible (photo-na-ho fallback icon dikhane ke liye)
+public sealed class StringEmptyToVisConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => string.IsNullOrWhiteSpace(value?.ToString()) ? Visibility.Visible : Visibility.Collapsed;
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 /// <summary>"Picked" / "Dropped" / "" live status -> green/orange/transparent chip.</summary>
 public sealed class LiveStatusToBrushConverter : IValueConverter
 {
