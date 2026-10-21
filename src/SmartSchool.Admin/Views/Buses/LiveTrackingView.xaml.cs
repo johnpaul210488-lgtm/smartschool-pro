@@ -18,11 +18,23 @@ public partial class LiveTrackingView : UserControl
     {
         InitializeComponent();
 
-        // Mobile-style street map (Google) — user neeche drop-down se Satellite/OSM bhi kar sakta hai.
-        Map.MapProvider = GoogleMapProvider.Instance;
-        GMaps.Instance.Mode = AccessMode.ServerAndCache;
-        Map.Position = new PointLatLng(33.5869, 71.4414); // Kohat, KPK
-        Map.Zoom = 13;
+        // Map init — kabhi bhi crash na kare; tiles ka probe Loaded ke baad ata hai.
+        try
+        {
+            // Mobile-style street map (Google) — user neeche drop-down se Satellite/OSM bhi kar sakta hai.
+            Map.MapProvider = GoogleMapProvider.Instance;
+            GMaps.Instance.Mode = AccessMode.ServerAndCache;
+            Map.Position = new PointLatLng(33.5869, 71.4414); // Kohat, KPK
+            Map.Zoom = 13;
+            Map.RetryLoadTile = 4;
+        }
+        catch (Exception ex)
+        {
+            ShowTileBanner("Map shuru nahi hua", ex.Message, "#FF6A00");
+            _ = Services.BugReportService.SendAsync("Error", "LiveTracking map init fail", ex.Message, ex.ToString(), "LiveTrackingView");
+        }
+
+        Loaded += (_, _) => _ = ProbeTilesAsync();
 
         DataContextChanged += (_, _) =>
         {
@@ -31,6 +43,65 @@ public partial class LiveTrackingView : UserControl
             if (_vm is not null) _vm.LocationArrived += OnLocation;
         };
     }
+
+    /// <summary>Google/OSM tiles par 3s probe — block ho to khud OSM par shift karta hai, warna red warning + bug report.</summary>
+    private async Task ProbeTilesAsync()
+    {
+        var googleOk = await TryFetchTileAsync("https://mt1.google.com/vt/lyrs=m&x=5722&y=4373&z=13");
+        if (googleOk) return;
+
+        var osmOk = await TryFetchTileAsync("https://a.tile.openstreetmap.org/13/5722/4373.png");
+        if (osmOk)
+        {
+            ShowTileBanner("Google tiles block thin — OpenStreetMap mode on kar diya.",
+                "Agar OSM bhi kharab ho jaye to drop-down se dobara choose karke dekhin. Ye masla khud report ho gaya.", "#FF6A00");
+            Map.MapProvider = OpenStreetMapProvider.Instance;
+            ProviderPicker.SelectedIndex = 2;
+            _ = Services.BugReportService.SendAsync("Warning",
+                "Live tracking: Google tiles unreachable (UAE network?)",
+                "Google map tile probe 3 fail hui — auto-OSM fallback lagaya gaya.",
+                null, "LiveTrackingView");
+        }
+        else
+        {
+            ShowTileBanner("Map tiles kisi bhi source se nahi aa rahi!",
+                "Internet connection ya proxy/firewall tile servers block kar raha hai (mt.google.com, tile.openstreetmap.org). " +
+                "Ye report hame bhej di gai hai — alag alag network se check karein.", "#D32F2F");
+            _ = Services.BugReportService.SendAsync("Error",
+                "Live tracking: ALL map tile servers unreachable",
+                "Google bhi fail, OSM bhi fail — school network firewall/proxy block kar rahi hogi.",
+                null, "LiveTrackingView");
+        }
+    }
+
+    private static readonly System.Net.Http.HttpClient _tileHttp = new()
+    {
+        Timeout = TimeSpan.FromSeconds(5)
+    };
+
+    private static async Task<bool> TryFetchTileAsync(string url)
+    {
+        try
+        {
+            using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, url);
+            req.Headers.UserAgent.ParseAdd("SmartSchoolPro-Admin/1.1 (+https://github.com/johnpaul210488-lgtm/smartschool-pro)");
+            using var resp = await _tileHttp.SendAsync(req, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
+            if (!resp.IsSuccessStatusCode) return false;
+            var len = resp.Content.Headers.ContentLength ?? 0;
+            var type = resp.Content.Headers.ContentType?.MediaType ?? "";
+            return type.StartsWith("image") && len > 100;
+        }
+        catch { return false; }
+    }
+
+    private void ShowTileBanner(string title, string body, string colorHex)
+    {
+        TileBannerTitle.Text = title;
+        TileBannerBody.Text = body;
+        TileBanner.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colorHex));
+        TileBanner.Visibility = Visibility.Visible;
+    }
+
 
     private void ProviderPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
