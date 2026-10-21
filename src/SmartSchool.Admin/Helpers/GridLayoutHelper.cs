@@ -44,17 +44,14 @@ public static class GridLayoutHelper
         return (view?.GetType().Name ?? "Window") + "#" + idx;
     }
 
-    private static DependencyObject? FindViewRoot(DataGrid g)
+    // CHANGED: pehle WINDOW ke root tak chal-ta tha (sab pages ek hi key share karte = apas mein
+    // state gir jati!) — ab pehla UserControl ancestor (yani asal page) he key ban-ta hai.
+    private static DependencyObject FindViewRoot(DataGrid g)
     {
-        DependencyObject cur = g;
-        var parent = System.Windows.Media.VisualTreeHelper.GetParent(cur);
-        while (parent is not null and not Window)
-        {
-            cur = parent;
-            if (parent is UserControl) { } // keep climbing to the topmost container
+        var parent = System.Windows.Media.VisualTreeHelper.GetParent(g);
+        while (parent is not null && parent is not UserControl)
             parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
-        }
-        return cur;
+        return parent ?? g;
     }
 
     private static IEnumerable<DataGrid> AllGrids(DependencyObject? root)
@@ -98,12 +95,21 @@ public static class GridLayoutHelper
         try
         {
             var store = LoadStore();
-            if (!store.TryGetValue(KeyFor(g), out var cols) || cols.Count != g.Columns.Count) return;
-            foreach (var (col, st) in g.Columns.Zip(cols))
+            // CHANGED: purane galat-key records (sab pages ek key share karte the) ek dafa saaf
+            if (store.Keys.Any(k => !k.Contains('#') || k.StartsWith("ContentPresenter")))
             {
-                col.DisplayIndex = Math.Clamp(st.Display, 0, g.Columns.Count - 1);
-                col.Width = (DataGridLength)new DataGridLengthConverter().ConvertFromString(st.Width)!;
+                var bad = store.Keys.Where(k => k.StartsWith("ContentPresenter") || k.StartsWith("ContentControl")
+                                             || k.StartsWith("Window") || !k.Contains('#')).ToList();
+                foreach (var k in bad) store.Remove(k);
+                if (bad.Count > 0) SaveStore(store);
             }
+            if (!store.TryGetValue(KeyFor(g), out var cols) || cols.Count != g.Columns.Count) return;
+            // CHANGED: pairing as-is; apply sirf DisplayIndex sorted order mein (transient collisions se bachke)
+            var pairs = g.Columns.Zip(cols).ToList();
+            foreach (var (col, st) in pairs)
+                col.Width = (DataGridLength)new DataGridLengthConverter().ConvertFromString(st.Width)!;
+            foreach (var pair in pairs.OrderBy(p => p.Second.Display))
+                pair.First.DisplayIndex = Math.Clamp(pair.Second.Display, 0, g.Columns.Count - 1);
         }
         catch { /* bad saved state → default layout */ }
     }

@@ -24,6 +24,14 @@ public sealed class AppSession
         User = login.User;
     }
 
+    // CHANGED (added): app-start par saved/encrypted session se seedha sign-in
+    public void Restore(string token, DateTime expiresAtUtc, int userId, string username, string fullName, string role)
+    {
+        Token = token;
+        ExpiresAtUtc = expiresAtUtc;
+        User = new UserInfoDto { Id = userId, Username = username, FullName = fullName, Role = role };
+    }
+
     public void SignOut()
     {
         Token = string.Empty;

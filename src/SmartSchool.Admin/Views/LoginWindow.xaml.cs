@@ -12,4 +12,11 @@ public partial class LoginWindow : Window
         var vm = new LoginViewModel { CloseWithSuccess = () => DialogResult = true };
         DataContext = vm;
     }
+
+    // CHANGED (added): Password box mein Enter dabana = login button
+    private void PasswordBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter && DataContext is LoginViewModel vm)
+            vm.LoginCommand.Execute(null);
+    }
 }

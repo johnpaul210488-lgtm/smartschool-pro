@@ -72,7 +72,7 @@ public partial class App : Application
         catch { /* last resort: never crash the crash handler */ }
     }
 
-    private void Application_Startup(object sender, StartupEventArgs e)
+    private async void Application_Startup(object sender, StartupEventArgs e)
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
@@ -82,6 +82,32 @@ public partial class App : Application
         // Session (holds JWT + user info); shared by all windows via AppSession.Current.
         var session = new AppSession();
         AppSession.Current = session;
+
+        // CHANGED: saved session ho to login MAANGNE ki zaroorat nahi — seedha main window.
+        // (Logout dabane par hi session clear hota hai aur dobara login window dikhata hai.)
+        var saved = ApiClient.Instance.TokenStore.Load();
+        if (saved is not null)
+        {
+            var s = saved.Value;
+            if (s.ExpiresAtUtc > DateTime.UtcNow.AddMinutes(5))
+            {
+                session.Restore(s.Token, s.ExpiresAtUtc, s.UserId, s.Username ?? string.Empty, s.FullName, s.Role);
+            }
+            else if (!string.IsNullOrWhiteSpace(s.Username) && !string.IsNullOrWhiteSpace(s.Password))
+            {
+                // JWT expire ho gayi — saved credentials se khud silent re-login
+                try { _ = await ApiClient.Instance.LoginAsync(s.Username, s.Password, true); } catch { /* offline → login dikhega */ }
+            }
+        }
+
+        if (session.IsLoggedIn)
+        {
+            var main0 = new MainWindow(session);
+            MainWindow = main0;
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
+            main0.Show();
+            return;
+        }
 
         var login = new LoginWindow(session);
         var ok = login.ShowDialog();
