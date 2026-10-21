@@ -26,6 +26,18 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
+// Silent background mode: installer ka startup shortcut "--hide-console" ke saath
+// chalata hai — console window foran free ho jati hai (PC on par background service jaisa).
+// Logs phir bhi C:/ProgramData/SmartSchool/logs/ file sink mein jaati rehti hain.
+if (args.Contains("--hide-console"))
+{
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")] static extern bool FreeConsole();
+    _ = FreeConsole();
+    Console.SetOut(TextWriter.Null);
+    Console.SetError(TextWriter.Null);
+    Log.Logger = new LoggerConfiguration().CreateLogger(); // no console sink from here on
+}
+
 try
 {
     var builder = WebApplication.CreateBuilder(args);

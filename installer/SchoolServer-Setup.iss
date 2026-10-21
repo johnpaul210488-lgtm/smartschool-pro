@@ -53,9 +53,9 @@ Name: "{group}\SmartSchool Admin"; Filename: "{localappdata}\Programs\SmartSchoo
 Name: "{commondesktop}\SmartSchool Admin"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
 Name: "{commondesktop}\SmartSchool Diagnostics"; Filename: "{app}\SmartSchool-Diagnostics.bat"
 ; API auto-start at EVERY login (all users) — runs as the interactive user whose
-; per-user LocalDB is proven to work. Console starts minimized in the background.
+; per-user LocalDB is proven to work. "--hide-console" = seedha background (koi window nahi).
 Name: "{commonstartup}\SmartSchool API (background)"; Filename: "{app}\api\SmartSchool.API.exe"; \
-      Parameters: "--urls http://0.0.0.0:5000"; WorkingDir: "{app}\api"; Flags: runminimized
+      Parameters: "--hide-console --urls http://0.0.0.0:5000"; WorkingDir: "{app}\api"; Flags: runminimized
 
 [Run]
 ; 1. SQL Server 2022 LocalDB — silent + verbose MSI log (agar fail ho to diagnostics dikhayega)
