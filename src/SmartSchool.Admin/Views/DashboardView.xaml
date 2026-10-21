@@ -67,7 +67,8 @@
                     <TextBlock Text="Live Bus Attendance (real-time SignalR)" FontSize="16" FontWeight="SemiBold"/>
                 </StackPanel>
 
-                <DataGrid Grid.Row="1" ItemsSource="{Binding LiveAttendance}" AutoGenerateColumns="False"
+                <DataGrid 
+                      helpers:GridLayoutHelper.IsPersistent="True" Grid.Row="1" ItemsSource="{Binding LiveAttendance}" AutoGenerateColumns="False"
                           IsReadOnly="True" CanUserAddRows="False" GridLinesVisibility="Horizontal"
                           HeadersVisibility="Column" RowHeaderWidth="0">
                     <DataGrid.Columns>

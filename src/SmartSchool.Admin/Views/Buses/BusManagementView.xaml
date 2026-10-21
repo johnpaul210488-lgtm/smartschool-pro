@@ -14,19 +14,33 @@
         <materialDesign:Card Grid.Column="0" Padding="22" Margin="0,0,12,0" VerticalAlignment="Top">
             <StackPanel>
                 <TextBlock Text="🚌 Bus Form" FontSize="20" FontWeight="Bold" Margin="0,0,0,14"/>
-                <TextBox materialDesign:HintAssist.Hint="Bus Number *" Margin="0,6"
-                         Text="{Binding FormNumber, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBox materialDesign:HintAssist.Hint="Route *" Margin="0,6"
-                         Text="{Binding FormRoute, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBox materialDesign:HintAssist.Hint="Vehicle No *" Margin="0,6"
-                         Text="{Binding FormVehicleNo, UpdateSourceTrigger=PropertyChanged}"/>
-                <TextBox materialDesign:HintAssist.Hint="Capacity" Margin="0,6"
-                         Text="{Binding FormCapacity, UpdateSourceTrigger=PropertyChanged}"/>
+                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
+                    <TextBlock Text="BUS NUMBER *" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
+                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 Text="{Binding FormNumber, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
+                    <TextBlock Text="ROUTE *" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
+                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 Text="{Binding FormRoute, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
+                    <TextBlock Text="VEHICLE NO *" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
+                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 Text="{Binding FormVehicleNo, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
+                    <TextBlock Text="CAPACITY" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
+                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 Text="{Binding FormCapacity, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
 
-                <ComboBox materialDesign:HintAssist.Hint="Assign Driver (select bus first)"
-                          ItemsSource="{Binding Drivers}" DisplayMemberPath="FullName"
-                          Margin="0,6"
-                          SelectionChanged="DriverCombo_SelectionChanged"/>
+                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
+                    <TextBlock Text="ASSIGN DRIVER (bus select ke baad)" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
+                    <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                    ItemsSource="{Binding Drivers}" DisplayMemberPath="FullName"
+                                    SelectionChanged="DriverCombo_SelectionChanged"/>
+                </StackPanel>
 
                 <TextBlock Text="{Binding FormError}" Foreground="#F44336" FontSize="12"
                            TextWrapping="Wrap" Margin="0,6,0,0"
@@ -43,7 +57,8 @@
 
         <!-- Grid -->
         <materialDesign:Card Grid.Column="1" Padding="10">
-            <DataGrid ItemsSource="{Binding Buses}" AutoGenerateColumns="False" IsReadOnly="True"
+            <DataGrid 
+                      helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding Buses}" AutoGenerateColumns="False" IsReadOnly="True"
                       CanUserAddRows="False" SelectedItem="{Binding SelectedBus, Mode=TwoWay}"
                       GridLinesVisibility="Horizontal" RowHeaderWidth="0">
                 <DataGrid.Columns>

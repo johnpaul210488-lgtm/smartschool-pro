@@ -11,9 +11,16 @@ public partial class MainWindow : Window
     public MainWindow(AppSession session)
     {
         InitializeComponent();
+        // CHANGED: poori window ka zoom — Ctrl +/- ya neeche 🔍 buttons; %LocalAppData% mein save
+        Helpers.ZoomHelper.Apply(this, MainRoot);
+        ZoomLabel.Text = $"{Helpers.ZoomHelper.CurrentZoom * 100:0}%";
+        Helpers.ZoomHelper.ZoomChanged += z => ZoomLabel.Text = $"{z * 100:0}%";
         _vm = new MainViewModel();
         DataContext = _vm;
     }
+
+    private void ZoomIn_Click(object sender, System.Windows.RoutedEventArgs e) => Helpers.ZoomHelper.ZoomIn();
+    private void ZoomOut_Click(object sender, System.Windows.RoutedEventArgs e) => Helpers.ZoomHelper.ZoomOut();
 
     private void ReportProblem_Click(object sender, System.Windows.RoutedEventArgs e)
     {

@@ -82,7 +82,8 @@
                         <RowDefinition Height="Auto"/><RowDefinition/>
                     </Grid.RowDefinitions>
                     <TextBlock Text="🚌 Recent Bus Events" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding Student.RecentBusEvents}"
+                    <DataGrid 
+                      helpers:GridLayoutHelper.IsPersistent="True" Grid.Row="1" ItemsSource="{Binding Student.RecentBusEvents}"
                               AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
                               GridLinesVisibility="Horizontal" RowHeaderWidth="0">
                         <DataGrid.Columns>
@@ -111,7 +112,8 @@
                         <RowDefinition Height="Auto"/><RowDefinition/>
                     </Grid.RowDefinitions>
                     <TextBlock Text="💰 Fee History" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding Fees}"
+                    <DataGrid 
+                      helpers:GridLayoutHelper.IsPersistent="True" Grid.Row="1" ItemsSource="{Binding Fees}"
                               AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
                               GridLinesVisibility="Horizontal" RowHeaderWidth="0">
                         <DataGrid.Columns>

@@ -19,7 +19,9 @@
             <TextBlock Text="🎓 Students" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
             <TextBlock Text="{Binding TotalCount, StringFormat='{}{0} total'}" Opacity="0.65"
                        VerticalAlignment="Center" Margin="12,4,0,0"/>
+            <!-- CHANGED: outlined search (consistent form styling) -->
             <TextBox Width="230" Margin="18,0,8,0" VerticalAlignment="Center"
+                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
                      materialDesign:HintAssist.Hint="🔍 Search name / roll no…"
                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=400}"/>
             <ComboBox Width="180" VerticalAlignment="Center"
@@ -72,7 +74,8 @@
 
         <!-- Grid -->
         <materialDesign:Card Grid.Row="2" Padding="10">
-            <DataGrid ItemsSource="{Binding StudentsView}" AutoGenerateColumns="False"
+            <DataGrid 
+                      helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding StudentsView}" AutoGenerateColumns="False"
                       IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single"
                       SelectedItem="{Binding SelectedStudent, Mode=TwoWay}"
                       GridLinesVisibility="Horizontal" RowHeaderWidth="0">

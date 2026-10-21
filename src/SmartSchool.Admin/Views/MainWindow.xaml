@@ -14,7 +14,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </Window.Resources>
 
-    <Grid>
+    <Grid x:Name="MainRoot">
         <Grid.ColumnDefinitions>
             <!-- Sidebar -->
             <ColumnDefinition Width="230"/>
@@ -69,8 +69,15 @@
                             Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}"
                             Style="{StaticResource MaterialDesignRaisedButton}" Height="30" Margin="0,2"/>
                     <StackPanel Orientation="Horizontal" Margin="0,4">
+                        <!-- CHANGED: zoom in/out — choti laptop screens ke liye (Ctrl +/- / Ctrl+0) -->
+                        <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" VerticalAlignment="Center" Opacity="0.7"/>
+                        <Button Content="−" ToolTip="Zoom out (Ctrl -)" Click="ZoomOut_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Width="28" Height="32" Padding="0"/>
+                        <TextBlock x:Name="ZoomLabel" Text="100%" VerticalAlignment="Center" Margin="6,0" FontSize="11" Opacity="0.8"/>
+                        <Button Content="+" ToolTip="Zoom in (Ctrl +)" Click="ZoomIn_Click"
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Width="28" Height="32" Padding="0"/>
                         <ToggleButton ToolTip="Dark / Light theme" Command="{Binding ToggleThemeCommand}"
-                                      IsChecked="{Binding IsDarkTheme}">🌙</ToggleButton>
+                                      IsChecked="{Binding IsDarkTheme}" Margin="10,0,0,0">🌙</ToggleButton>
                         <Button Content="🐛" Margin="8,0,0,0" ToolTip="Koi masla? Report bhejein — GitHub issue khud ban jati hai"
                                 Click="ReportProblem_Click"
                                 Style="{StaticResource MaterialDesignOutlinedButton}" Height="32"/>

@@ -32,7 +32,8 @@
         </StackPanel>
 
         <materialDesign:Card Grid.Row="1" Padding="10">
-            <DataGrid ItemsSource="{Binding Events}" AutoGenerateColumns="False"
+            <DataGrid 
+                      helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding Events}" AutoGenerateColumns="False"
                       IsReadOnly="True" CanUserAddRows="False"
                       GridLinesVisibility="Horizontal" RowHeaderWidth="0">
                 <DataGrid.Columns>

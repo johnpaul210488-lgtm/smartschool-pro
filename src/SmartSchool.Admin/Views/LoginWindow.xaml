@@ -32,14 +32,18 @@
         <TextBlock Text="Admin Panel — Sign in" Grid.Row="2" FontSize="13" Opacity="0.7"
                    HorizontalAlignment="Center" Margin="0,0,0,18"/>
 
-        <TextBox Grid.Row="3" Margin="0,6"
-                 materialDesign:HintAssist.Hint="Username"
+        <!-- CHANGED: label above box (consistent professional look) -->
+        <TextBlock Grid.Row="3" Text="USERNAME" FontWeight="SemiBold" FontSize="11" Opacity="0.85" Margin="2,0,0,2"/>
+        <TextBox Grid.Row="3" Margin="0,20,0,6"
                  Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                 materialDesign:HintAssist.Hint="e.g. admin"
                  Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
 
-        <PasswordBox Grid.Row="4" Margin="0,6"
-                     materialDesign:HintAssist.Hint="Password"
+        <!-- CHANGED: label above box -->
+        <TextBlock Grid.Row="4" Text="PASSWORD" FontWeight="SemiBold" FontSize="11" Opacity="0.85" Margin="2,0,0,2"/>
+        <PasswordBox Grid.Row="4" Margin="0,20,0,6"
                      Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
+                     materialDesign:HintAssist.Hint="********"
                      helpers:PasswordBoxHelper.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
         <CheckBox Grid.Row="5" Content="Is PC par yaad rakho (secure)"
