@@ -81,33 +81,33 @@ public partial class MainViewModel : ObservableObject
         _ = CheckForUpdatesAsync();
     }
 
+    // SILENT AUTO-UPDATE: app khulte hi naya version background mein download ho kar
+    // khud install ho jata hai; click ki zaroorat nahi. Aakhir mein app khud restart ho jati hai.
     private async Task CheckForUpdatesAsync()
     {
-        var (has, latest, notes) = await UpdateService.Instance.CheckAsync();
-        HasUpdate = has;
-        if (has)
-        {
-            UpdateLabel = $"⬆ Update {latest}";
-            Toasts.Info("Update available!",
-                $"Naya version {latest} aagaya — neeche Update button dabayen, app khud update ho jayegi.");
-        }
-    }
-
-    [RelayCommand]
-    private async Task UpdateNow()
-    {
-        if (IsUpdating) return;
+        var (has, latest, _) = await UpdateService.Instance.CheckAsync();
+        if (!has || IsUpdating) return;
+        HasUpdate = true;
         IsUpdating = true;
-        UpdateLabel = "⬇ Shuru…";
-        var progress = new Progress<int>(p => UpdateLabel = $"⬇ {p}%");
+        UpdateLabel = $"⬇ {latest} 0%";
+        var progress = new Progress<int>(p => UpdateLabel = $"⬇ {latest} {p}%");
         var ok = await UpdateService.Instance.ApplyAsync(progress);
-        // Success → swapper script replaces the exe and relaunches; we only handle failure here.
         if (!ok)
         {
             UpdateLabel = "⚠ Update fail — dobara koshish";
             IsUpdating = false;
+            return;
         }
+        UpdateLabel = $"✅ {latest} lag gaya — restart…";
+        Toasts.Info("Auto-update complete", $"Naya version {latest} install ho gaya — app khud dobara khul rahi hai.");
+        await Task.Delay(2500); // toast parhne ka moqa
+        System.Windows.Application.Current.Shutdown(); // swapper script replace+relaunch karega
     }
+
+    [RelayCommand]
+    private Task UpdateNow()
+        => IsUpdating ? Task.CompletedTask : CheckForUpdatesAsync(); // silent flow pehle hi chal raha hota hai — button sirf backup
+
 
     partial void OnSelectedNavItemChanged(NavItem? value)
     {

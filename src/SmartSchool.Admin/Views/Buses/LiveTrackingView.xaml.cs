@@ -119,6 +119,7 @@ public partial class LiveTrackingView : UserControl
 
     private void ProviderPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (Map is null) return; // XAML parse ke waqt ComboBox control initialize hote hi fire karta hai — Map tabtak null hota hai
         Map.MapProvider = ProviderPicker.SelectedIndex switch
         {
             1 => GoogleSatelliteMapProvider.Instance,
