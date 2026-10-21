@@ -72,5 +72,32 @@ public static class ThemeHelper
         theme.SetPrimaryColor(p.Primary);
         theme.SetSecondaryColor(p.Secondary);
         palette.SetTheme(theme);
+
+        // CHANGED: PaletteHelper.SetPrimaryColor kabhi-kabhi bundled-theme brushes repaint nahi karta —
+        // standard MD key-brushes KHUD overwrite karo = 100% visible theme change har selection pe.
+        var res = System.Windows.Application.Current.Resources;
+        res["PrimaryHueLightBrush"] = new SolidColorBrush(Shade(p.Primary, 1.30));
+        res["PrimaryHueLightForegroundBrush"] = new SolidColorBrush(Colors.White);
+        res["PrimaryHueMidBrush"] = new SolidColorBrush(p.Primary);
+        res["PrimaryHueMidForegroundBrush"] = new SolidColorBrush(ForegroundFor(p.Primary));
+        res["PrimaryHueDarkBrush"] = new SolidColorBrush(Shade(p.Primary, 0.72));
+        res["PrimaryHueDarkForegroundBrush"] = new SolidColorBrush(Colors.White);
+        res["SecondaryHueBrush"] = new SolidColorBrush(p.Secondary);
+        res["SecondaryHueForegroundBrush"] = new SolidColorBrush(ForegroundFor(p.Secondary));
+    }
+
+    // CHANGED (helpers): shade/factor se naya color; dark colors par neeche, light se upar
+    private static Color Shade(Color c, double factor)
+    {
+        static byte Ch(double v) => (byte)Math.Round(Math.Clamp(v, 0, 255));
+        return factor >= 1
+            ? Color.FromRgb(Ch(c.R + (255 - c.R) * (factor - 1)), Ch(c.G + (255 - c.G) * (factor - 1)), Ch(c.B + (255 - c.B) * (factor - 1)))
+            : Color.FromRgb(Ch(c.R * factor), Ch(c.G * factor), Ch(c.B * factor));
+    }
+
+    private static Color ForegroundFor(Color c)
+    {
+        var lum = 0.299 * c.R + 0.587 * c.G + 0.114 * c.B;
+        return lum > 145 ? Colors.Black : Colors.White;
     }
 }

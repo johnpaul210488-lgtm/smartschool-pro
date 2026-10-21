@@ -34,6 +34,30 @@
             <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
                 <Setter Property="RowHeight" Value="42"/>
                 <Setter Property="Padding" Value="4,2"/>
+                <!-- CHANGED: Excel-jaisa grid — poori borders + zebra rows + sirf column headers -->
+                <Setter Property="GridLinesVisibility" Value="All"/>
+                <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource MaterialDesignDivider}"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource MaterialDesignDivider}"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="AlternationCount" Value="2"/>
+                <Setter Property="RowBackground" Value="{DynamicResource MaterialDesignPaper}"/>
+                <Setter Property="AlternatingRowBackground" Value="{DynamicResource MaterialDesignCardBackground}"/>
+            </Style>
+            <!-- CHANGED: header bold + border-bottom/top sath -->
+            <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Padding" Value="12,8"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesignDivider}"/>
+                <Setter Property="Background" Value="{DynamicResource MaterialDesignCardBackground}"/>
+            </Style>
+            <!-- CHANGED: harek cell ka content center-aligned (uper/neechay na dikhe) -->
+            <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="BorderThickness" Value="0,0,1,0"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesignDivider}"/>
+                <Setter Property="Padding" Value="8,0"/>
             </Style>
 
             <!-- App-wide value converters -->

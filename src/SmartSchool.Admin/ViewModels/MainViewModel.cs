@@ -82,8 +82,21 @@ public partial class MainViewModel : ObservableObject
         WeakReferenceMessenger.Default.Register<AdminAlertMessage>(this, (_, m) =>
             Toasts.Error($"⚠️ {m.Payload.Title}", m.Payload.Message));
 
-        // Background update check (graceful no-op if the server has no Update feed configured).
-        _ = CheckForUpdatesAsync();
+        // CHANGED: update sirf app-start par nahi dete — API uthne ka wait (45s) ke baad
+        // ek check, phir har 5 minute mein dobara. (Pehle: app start hotay hi check hota —
+        // API tabtak uthti nahi thi → sirf EK silent skip → update kabhi nahi deti.)
+        _ = AutoUpdateLoopAsync();
+    }
+
+    private async Task AutoUpdateLoopAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(45));
+        while (true)
+        {
+            await CheckForUpdatesAsync();
+            if (IsUpdating) return; // download shuru/complete → app khud restart hone wali hai
+            await Task.Delay(TimeSpan.FromMinutes(5));
+        }
     }
 
     // SILENT AUTO-UPDATE: app khulte hi naya version background mein download ho kar
