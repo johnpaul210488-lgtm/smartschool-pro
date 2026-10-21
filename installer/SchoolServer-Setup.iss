@@ -36,7 +36,10 @@ WizardStyle=modern
 
 [Files]
 ; API (Kestrel self-host — khud migrations+seed lagata hai startup par)
-Source: "..\build-artifacts\api\*"; DestDir: "{app}\api"; Flags: recursesubdirs ignoreversion
+; appsettings.json alag line se — sirf tab daalo jab file PEHLE se na ho (upgrade par school ki config
+; kabhi overwrite NAHI hoti: GitHub/ThingWorx/token waghaira settings mehfooz rehti hain)
+Source: "..\build-artifacts\api\*"; DestDir: "{app}\api"; Flags: recursesubdirs ignoreversion; Excludes: "appsettings.json"
+Source: "..\build-artifacts\api\appsettings.json"; DestDir: "{app}\api"; Flags: onlyifdoesntexist
 ; WPF Admin desktop (LocalAppData: self-updater kaam kare silently, koi UAC nahi)
 Source: "..\build-artifacts\admin\SmartSchool.Admin.exe"; DestDir: "{localappdata}\Programs\SmartSchool Admin"; Flags: ignoreversion
 ; 1-click diagnostics
