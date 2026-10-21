@@ -12,36 +12,47 @@ public sealed class GitHubIssueService
 {
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<GitHubIssueService> _logger;
-    private readonly string _owner;
-    private readonly string _repo;
-    private readonly string _token;
+
+    private readonly IConfiguration _config;
 
     public GitHubIssueService(IHttpClientFactory httpFactory, IConfiguration config,
         ILogger<GitHubIssueService> logger)
     {
         _httpFactory = httpFactory;
         _logger = logger;
-        var sec = config.GetSection("GitHub");
-        _owner = sec["Owner"] ?? "";
-        _repo = sec["Repo"] ?? "";
-        _token = sec["Token"] ?? "";
-        IsEnabled = sec.GetValue("Enabled", false);
+        _config = config;
+    }
+
+    // NOTE: values har request par fresh parhi jati hain — appsettings.json edit ke baad
+    // API restart ki zaroorat nahi rehti (pehle sirf startup par load hoti thi).
+    private bool IsEnabledNow
+    {
+        get
+        {
+            var sec = _config.GetSection("GitHub");
+            var t = sec["Token"] ?? "";
+            return sec.GetValue("Enabled", false) && t.Length > 0 &&
+                   (sec["Owner"] ?? "").Length > 0 && (sec["Repo"] ?? "").Length > 0;
+        }
     }
 
     public bool IsConfigured { get; }
-    public bool IsEnabled { get; }
+    public bool IsEnabled => IsEnabledNow;
 
     /// <summary>Returns the created issue number, or null when disabled/failed.</summary>
     public async Task<int?> CreateIssueAsync(string title, string body, IEnumerable<string> labels, CancellationToken ct)
     {
-        if (!IsEnabled || !IsConfigured || string.IsNullOrWhiteSpace(_token)) return null;
+        if (!IsEnabledNow) return null;
+        var owner = _config.GetSection("GitHub")["Owner"]!;
+        var repo = _config.GetSection("GitHub")["Repo"]!;
+        var token = _config.GetSection("GitHub")["Token"]!;
 
         try
         {
             var client = _httpFactory.CreateClient(nameof(GitHubIssueService));
             client.DefaultRequestHeaders.UserAgent.Clear();
             client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("SmartSchoolPro-API", "1.1"));
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
             var payload = new
@@ -51,7 +62,7 @@ public sealed class GitHubIssueService
                 labels = labels.ToArray()
             };
             using var resp = await client.PostAsJsonAsync(
-                $"https://api.github.com/repos/{_owner}/{_repo}/issues", payload, ct);
+                $"https://api.github.com/repos/{owner}/{repo}/issues", payload, ct);
             var json = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode)
             {
