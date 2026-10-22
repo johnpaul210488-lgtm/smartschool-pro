@@ -66,16 +66,25 @@ public static class ThemeHelper
 
     private static void Apply(Palette p)
     {
-        var palette = new PaletteHelper();
-        var theme = palette.GetTheme();
-        theme.SetBaseTheme(p.Dark ? BaseTheme.Dark : BaseTheme.Light);
+        var app = System.Windows.Application.Current;
+        if (app is null) return;
+
+        // CHANGED: PaletteHelper pe bharosa band — uska BundledTheme repaint har setup mein nahi karta.
+        // Ab poora theme dictionary nikaal kar naya banate hain + classic brush keys bhi khusud likhte hain.
+        var merged = app.Resources.MergedDictionaries;
+        var old = merged.LastOrDefault(d => d.Contains("PrimaryHueMidBrush"));
+        if (old is not null) merged.Remove(old);
+
+        var theme = new MaterialDesignThemes.Wpf.Theme();
         theme.SetPrimaryColor(p.Primary);
         theme.SetSecondaryColor(p.Secondary);
-        palette.SetTheme(theme);
+        if (p.Dark) theme.SetDarkTheme(); else theme.SetLightTheme();
+        var dict = new System.Windows.ResourceDictionary();
+        dict.SetTheme(theme); // MD 5 official: resource-dict level theme set (repaints DynamicResource consumers)
+        merged.Insert(0, dict);
 
-        // CHANGED: PaletteHelper.SetPrimaryColor kabhi-kabhi bundled-theme brushes repaint nahi karta —
-        // standard MD key-brushes KHUD overwrite karo = 100% visible theme change har selection pe.
-        var res = System.Windows.Application.Current.Resources;
+        // Sab classic keys bhi DIRECT overwrite — jo style StaticResource se bhi uthaya ho woh bhi refresh
+        var res = app.Resources;
         res["PrimaryHueLightBrush"] = new SolidColorBrush(Shade(p.Primary, 1.30));
         res["PrimaryHueLightForegroundBrush"] = new SolidColorBrush(Colors.White);
         res["PrimaryHueMidBrush"] = new SolidColorBrush(p.Primary);
