@@ -21,26 +21,26 @@
                 <Setter Property="Padding" Value="4,2"/>
                 <!-- CHANGED: Excel-jaisa grid — maroon-cream borders + zebra rows -->
                 <Setter Property="GridLinesVisibility" Value="All"/>
-                <Setter Property="VerticalGridLinesBrush" Value="#D8E6DA"/>
-                <Setter Property="HorizontalGridLinesBrush" Value="#D8E6DA"/>
+                <Setter Property="VerticalGridLinesBrush" Value="#E5D5DA"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#E5D5DA"/>
                 <Setter Property="HeadersVisibility" Value="Column"/>
                 <Setter Property="AlternationCount" Value="2"/>
                 <Setter Property="RowBackground" Value="White"/>
-                <Setter Property="AlternatingRowBackground" Value="#F5FAF6"/>
+                <Setter Property="AlternatingRowBackground" Value="#F9F2F4"/>
             </Style>
             <!-- CHANGED: harek cell ka content center-aligned (uper/neechay na dikhe) -->
             <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                 <Setter Property="HorizontalContentAlignment" Value="Left"/>
                 <Setter Property="BorderThickness" Value="0,0,1,0"/>
-                <Setter Property="BorderBrush" Value="#D8E6DA"/>
+                <Setter Property="BorderBrush" Value="#E5D5DA"/>
                 <Setter Property="Padding" Value="8,0"/>
             </Style>
 
             <!-- CHANGED: Waheed package ke mutabiq saaf cards (12px rounded, halka sa utha hua) -->
             <Style TargetType="materialDesign:Card" BasedOn="{StaticResource {x:Type materialDesign:Card}}">
                 <Setter Property="UniformCornerRadius" Value="12"/>
-                <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp2"/>
+                <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp3"/>
             </Style>
 
             <!-- App-wide value converters -->

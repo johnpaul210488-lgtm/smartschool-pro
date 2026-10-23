@@ -9,8 +9,8 @@ namespace SmartSchool.Admin.Services;
 /// </summary>
 public static class ThemeHelper
 {
-    private static readonly Color Primary = Color.FromRgb(0x2E, 0x7D, 0x32);   // CHANGED: Waheed green
-    private static readonly Color Secondary = Color.FromRgb(0x66, 0xBB, 0x6A); // light green accent
+    private static readonly Color Primary = Color.FromRgb(0x7B, 0x1F, 0x33);   // CHANGED: maroon accent
+    private static readonly Color Secondary = Color.FromRgb(0xB0, 0x54, 0x6A); // light maroon accent
 
     /// <summary>App start: maroon theme lagayein (light base).</summary>
     public static void ApplySaved() => SetDark(false);
