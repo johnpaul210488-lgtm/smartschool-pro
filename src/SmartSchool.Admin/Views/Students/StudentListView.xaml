@@ -119,12 +119,15 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Grid Width="32" Height="32" Margin="0,3">
-                                    <Ellipse Stroke="#E0E0E0" StrokeThickness="1"
-                                             Visibility="{Binding PhotoFullUrl, Converter={StaticResource NotEmptyToVis}}">
-                                        <Ellipse.Fill>
-                                            <ImageBrush ImageSource="{Binding PhotoFullUrl}" Stretch="UniformToFill"/>
-                                        </Ellipse.Fill>
-                                    </Ellipse>
+                                    <!-- CHANGED: async cached 96px decode; row render never waits on network -->
+                                    <helpers:FastPhotoImage UriSource="{Binding PhotoFullUrl}"
+                                        Width="32" Height="32" Stretch="UniformToFill"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Visibility="{Binding PhotoFullUrl, Converter={StaticResource NotEmptyToVis}}">
+                                        <Image.Clip>
+                                            <EllipseGeometry Center="16,16" RadiusX="16" RadiusY="16"/>
+                                        </Image.Clip>
+                                    </helpers:FastPhotoImage>
                                     <TextBlock Text="{Binding GenderIcon}" FontSize="15" HorizontalAlignment="Center"
                                                VerticalAlignment="Center" ToolTip="{Binding Gender}"
                                                Visibility="{Binding PhotoFullUrl, Converter={StaticResource EmptyToVis}}"/>

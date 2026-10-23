@@ -6,6 +6,7 @@ using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using SmartSchool.Admin.Helpers;
 using SmartSchool.Admin.Models;
 using SmartSchool.Admin.Services;
 
@@ -223,6 +224,8 @@ public partial class StudentFormViewModel : ObservableValidator
                         $"api/students/{stuId}/photo", bytes, "photo.jpg", "image/jpeg");
                     if (!upOk)
                         ToastService.Current.Info("Photo", $"Photo upload fail raha: {upErr}");
+                    else
+                        StudentPhotoCache.Invalidate(_api.BaseUrl.TrimEnd('/') + $"/uploads/students/{stuId}.jpg"); // CHANGED: fresh photo bypasses local cache
                 }
                 ToastService.Current.Info("Student", _studentId is null
                     ? $"{FullName} add ho gaya." : $"{FullName} update ho gaya.");
