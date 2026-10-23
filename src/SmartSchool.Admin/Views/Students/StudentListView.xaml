@@ -14,41 +14,61 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Toolbar -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12" VerticalAlignment="Center">
-            <TextBlock Text="🎓 Students" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
-            <TextBlock Text="{Binding TotalCount, StringFormat='{}{0} total'}" Opacity="0.65"
-                       VerticalAlignment="Center" Margin="12,4,0,0"/>
-            <!-- CHANGED: outlined search (consistent form styling) -->
-            <TextBox Width="230" Margin="18,0,8,0" VerticalAlignment="Center"
+        <!-- CHANGED: professional single-line student toolbar; flexible search and far-right actions -->
+        <Grid Grid.Row="0" Margin="0,0,0,12" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="2.4*" MinWidth="260"/>
+                <ColumnDefinition Width="1.1*" MinWidth="145"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="12"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" Text="🎓 Students" FontSize="24" FontWeight="Bold"
+                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBlock Grid.Column="1" Text="{Binding TotalCount, StringFormat='{}{0} total'}"
+                       Opacity="0.65" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+            <!-- CHANGED: wider, shorter, vertically centered search field -->
+            <TextBox Grid.Column="2" Height="36" MinWidth="260" Margin="0,0,8,0"
+                     VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="12,0"
                      Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                     materialDesign:HintAssist.Hint="🔍 Search name / roll no…"
+                     materialDesign:HintAssist.Hint="🔍  Search student name / roll no"
                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=400}"/>
-            <ComboBox Width="180" VerticalAlignment="Center"
+            <ComboBox Grid.Column="3" Height="36" MinWidth="145" VerticalAlignment="Center"
                       materialDesign:HintAssist.Hint="Class"
                       ItemsSource="{Binding Classes}"
                       DisplayMemberPath="DisplayName"
                       SelectedItem="{Binding SelectedClass, Mode=TwoWay}"/>
-            <Button Margin="8,0" VerticalAlignment="Center" Command="{Binding LoadCommand}"
-                    ToolTip="Refresh" Style="{StaticResource MaterialDesignIconButton}">
+            <Button Grid.Column="4" Width="38" Height="36" Margin="6,0" VerticalAlignment="Center"
+                    Command="{Binding LoadCommand}" ToolTip="Refresh students"
+                    Style="{StaticResource MaterialDesignIconButton}">
                 <materialDesign:PackIcon Kind="Refresh"/>
             </Button>
-            <Button Content="➕ New Student" Command="{Binding AddNewCommand}" Margin="10,0,0,0"
+            <ProgressBar Grid.Column="5" IsIndeterminate="{Binding IsBusy}"
+                Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"
+                Width="68" Height="4" VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+            <!-- CHANGED: primary actions anchored at far right, aligned with search and filter -->
+            <Button Grid.Column="7" Content="＋  New Student" Command="{Binding AddNewCommand}"
+                    Height="36" Margin="0,0,8,0" Padding="12,0"
                     Style="{StaticResource MaterialDesignRaisedButton}"/>
-            <Button Command="{Binding ImportExcelCommand}" Margin="8,0,0,0"
+            <Button Grid.Column="8" Height="36" Padding="12,0"
+                    Command="{Binding ImportExcelCommand}"
                     IsEnabled="{Binding IsImporting, Converter={StaticResource InverseBool}}"
                     Style="{StaticResource MaterialDesignOutlinedButton}"
                     ToolTip="Excel (.xlsx) ya CSV se students bulk-import karein — row 1 headers: Student Name, Father Name, Phone, Class, Roll No, Home Address, Bus #">
-                <StackPanel Orientation="Horizontal">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <ProgressBar Width="12" Height="12" IsIndeterminate="True"
                                  Visibility="{Binding IsImporting, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                     <TextBlock Text="📥 Import Excel" VerticalAlignment="Center" Margin="5,0,0,0"/>
                 </StackPanel>
             </Button>
-            <ProgressBar IsIndeterminate="{Binding IsBusy}" Visibility="{Binding IsBusy,
-                Converter={StaticResource BooleanToVisibilityConverter}}"
-                Width="140" Height="4" VerticalAlignment="Center" Margin="12,0,0,0"/>
-        </StackPanel>
+        </Grid>
 
         <!-- Excel import status line + expandable notes -->
         <Border Grid.Row="1" Margin="0,0,0,10" Padding="12,8" CornerRadius="8"
