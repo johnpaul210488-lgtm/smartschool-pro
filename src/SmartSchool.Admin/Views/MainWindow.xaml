@@ -7,7 +7,7 @@
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
-        Background="{DynamicResource Bg}"
+        Background="{DynamicResource SoftCanvas}"
         FontFamily="{DynamicResource MaterialDesignFont}">
 
     <Window.Resources>
@@ -22,7 +22,10 @@
         </Grid.ColumnDefinitions>
 
         <!-- ================= SIDEBAR ================= -->
-        <materialDesign:Card Grid.Column="0" Margin="0" UniformCornerRadius="0">
+        <!-- CHANGED: Waheed POS dark-green gradient sidebar (guide step-3) — andar saara text white/green-tint -->
+        <materialDesign:Card Grid.Column="0" Margin="0" UniformCornerRadius="0"
+                             Background="{StaticResource SidebarBrush}"
+                             TextElement.Foreground="#E8F5EC">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -33,9 +36,9 @@
                 <!-- Brand -->
                 <StackPanel Grid.Row="0" Margin="18,20,18,10">
                     <materialDesign:PackIcon Kind="School" Width="44" Height="44"
-                        HorizontalAlignment="Left" Foreground="{DynamicResource PrimaryHueMidBrush}"/>
-                    <TextBlock Text="SmartSchool Pro" FontSize="18" FontWeight="Bold" Margin="0,8,0,0"/>
-                    <TextBlock Text="Admin Panel" Opacity="0.65" FontSize="12"/>
+                        HorizontalAlignment="Left" Foreground="{StaticResource SecondaryBrush}"/>  <!-- CHANGED: green brand -->
+                    <TextBlock Text="SmartSchool Pro" FontSize="18" FontWeight="Bold" Margin="0,8,0,0" Foreground="White"/>
+                    <TextBlock Text="Admin Panel" Opacity="0.75" FontSize="12"/>
                 </StackPanel>
 
                 <!-- Nav -->
@@ -73,17 +76,20 @@
                         <!-- CHANGED: zoom in/out — choti laptop screens ke liye (Ctrl +/- / Ctrl+0 / Ctrl+wheel) -->
                         <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" VerticalAlignment="Center" Opacity="0.7"/>
                         <Button Content="−" ToolTip="Zoom out (Ctrl -)" Click="ZoomOut_Click"
-                                Style="{StaticResource MaterialDesignOutlinedButton}" Width="28" Height="32" Padding="0"/>
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Width="28" Height="32" Padding="0"
+                                Foreground="White"/> <!-- CHANGED: dark-green side par visible -->
                         <TextBlock x:Name="ZoomLabel" Text="100%" VerticalAlignment="Center" Margin="6,0" FontSize="11" Opacity="0.8"/>
                         <Button Content="+" ToolTip="Zoom in (Ctrl +)" Click="ZoomIn_Click"
-                                Style="{StaticResource MaterialDesignOutlinedButton}" Width="28" Height="32" Padding="0"/>
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Width="28" Height="32" Padding="0"
+                                Foreground="White"/>
                         <ToggleButton ToolTip="Dark / Light theme" Command="{Binding ToggleThemeCommand}"
                                       IsChecked="{Binding IsDarkTheme}" Margin="10,0,0,0">🌙</ToggleButton>
                         <Button Content="🐛" Margin="8,0,0,0" ToolTip="Koi masla? Report bhejein — GitHub issue khud ban jati hai"
                                 Click="ReportProblem_Click"
                                 Style="{StaticResource MaterialDesignOutlinedButton}" Height="32"/>
                         <Button Content="Logout" Margin="8,0,0,0" Command="{Binding LogoutCommand}"
-                                Style="{StaticResource MaterialDesignOutlinedButton}" Height="32"/>
+                                Style="{StaticResource MaterialDesignOutlinedButton}" Height="32"
+                                Foreground="White" BorderBrush="#89CFA6"/> <!-- CHANGED: dark-green sidebar par visible -->
                     </StackPanel>
                 </StackPanel>
             </Grid>

@@ -4,14 +4,13 @@ using MaterialDesignThemes.Wpf;
 namespace SmartSchool.Admin.Services;
 
 /// <summary>
-/// CHANGED: multi-palette theme-picker project band (user ne pancancel kar diya).
-/// Ab ek hi FIXED theme: MAROON & CREAM (Themes/MyTheme.xaml + yahan base colors).
-/// Sirf light/dark toggle bacha hai (Midnight-on-woff mode ke liye).
+/// CHANGED: FIXED Waheed POS theme (green soft look) — picker band.
+/// Sirf light/dark toggle bacha hai.
 /// </summary>
 public static class ThemeHelper
 {
-    private static readonly Color Primary = Color.FromRgb(0x7B, 0x1F, 0x33);   // Mar700
-    private static readonly Color Secondary = Color.FromRgb(0xB0, 0x54, 0x6A); // Mar500
+    private static readonly Color Primary = Color.FromRgb(0x2E, 0x7D, 0x32);   // CHANGED: Waheed green
+    private static readonly Color Secondary = Color.FromRgb(0x66, 0xBB, 0x6A); // light green accent
 
     /// <summary>App start: maroon theme lagayein (light base).</summary>
     public static void ApplySaved() => SetDark(false);

@@ -8,7 +8,7 @@
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
-        Background="{DynamicResource Bg}"
+        Background="{DynamicResource SoftCanvas}"
         FontFamily="{DynamicResource MaterialDesignFont}">
 
     <Grid Margin="36">
