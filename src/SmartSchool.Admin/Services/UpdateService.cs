@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SmartSchool.Admin.Services;
@@ -15,6 +18,7 @@ public sealed class UpdateService
     public static readonly UpdateService Instance = new();
 
     private string? _latest;
+    private string? _downloadUrl; // CHANGED: exact GitHub release asset URL for direct manual update
 
     /// <summary>Version stamped into the exe at publish time (from the git tag).</summary>
     public static string CurrentVersion
@@ -38,18 +42,46 @@ public sealed class UpdateService
         [JsonPropertyName("sizeHuman")] public string? SizeHuman { get; set; }
     }
 
-    /// <summary>(CheckSucceeded, HasUpdate, LatestVersion, Notes) — refresh=true bypasses server cache.</summary>
+    /// <summary>Manual refresh checks GitHub directly, bypassing any school-server release cache.</summary>
     public async Task<(bool CheckSucceeded, bool HasUpdate, string Latest, string Notes)> CheckAsync(bool forceRefresh = false)
     {
         try
         {
-            var url = forceRefresh ? "api/app-updates/admin?refresh=true" : "api/app-updates/admin";
-            var (ok, data, _, _) = await ApiClient.Instance.GetAsync<AppUpdateInfo>(url);
+            if (forceRefresh)
+            {
+                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+                http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("SmartSchoolUpdater", "1.0"));
+                http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+                using var response = await http.GetAsync("https://api.github.com/repos/johnpaul210488-lgtm/smartschool-pro/releases/latest");
+                if (!response.IsSuccessStatusCode) return (false, false, string.Empty, string.Empty);
+
+                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                var root = doc.RootElement;
+                var tag = root.GetProperty("tag_name").GetString() ?? string.Empty;
+                var version = tag.TrimStart('v', 'V');
+                var notes = root.TryGetProperty("body", out var body) ? body.GetString() ?? string.Empty : string.Empty;
+                _downloadUrl = null;
+                if (root.TryGetProperty("assets", out var assets))
+                    foreach (var asset in assets.EnumerateArray())
+                        if (asset.GetProperty("name").GetString() == "SmartSchool.Admin.exe")
+                        {
+                            _downloadUrl = asset.GetProperty("browser_download_url").GetString();
+                            break;
+                        }
+                if (string.IsNullOrWhiteSpace(version) || string.IsNullOrWhiteSpace(_downloadUrl))
+                    return (false, false, string.Empty, string.Empty);
+
+                _latest = version;
+                return (true, IsNewer(version, CurrentVersion), version, notes);
+            }
+
+            // Background check retains the school API feed, avoiding GitHub rate limits on the 5-minute loop.
+            var (ok, data, _, _) = await ApiClient.Instance.GetAsync<AppUpdateInfo>("api/app-updates/admin");
             if (!ok || data is null || !data.Configured || data.LatestVersion is null)
                 return (false, false, string.Empty, string.Empty);
-
+            _downloadUrl = null;
             _latest = data.LatestVersion;
-            return (true, IsNewer(data.LatestVersion, CurrentVersion), data.LatestVersion, data.Notes ?? "");
+            return (true, IsNewer(data.LatestVersion, CurrentVersion), data.LatestVersion, data.Notes ?? string.Empty);
         }
         catch
         {
@@ -67,8 +99,10 @@ public sealed class UpdateService
                 ?? throw new InvalidOperationException("Cannot resolve own exe path.");
 
             var tempExe = Path.Combine(Path.GetTempPath(), $"SmartSchool.Admin-{_latest ?? "new"}.exe");
-            var ok = await ApiClient.Instance.DownloadFileAsync("api/app-updates/admin/download", tempExe, progress);
-            if (!ok || new FileInfo(tempExe).Length < 1_000_000) return false;
+            var ok = !string.IsNullOrWhiteSpace(_downloadUrl)
+                ? await DownloadGitHubAssetAsync(_downloadUrl, tempExe, progress)
+                : await ApiClient.Instance.DownloadFileAsync("api/app-updates/admin/download", tempExe, progress);
+            if (!ok || !File.Exists(tempExe) || new FileInfo(tempExe).Length < 1_000_000) return false;
 
             // Tiny swapper: wait for exit → replace → relaunch. If Program Files
             // blocks the copy, retry ONCE with UAC elevation (single Yes-click).
@@ -91,6 +125,39 @@ public sealed class UpdateService
 
             System.Windows.Application.Current?.Dispatcher.Invoke(
                 () => System.Windows.Application.Current.Shutdown());
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // CHANGED: manual update asset is fetched from the exact GitHub release URL, not school API cache.
+    private static async Task<bool> DownloadGitHubAssetAsync(string url, string path, IProgress<int> progress)
+    {
+        try
+        {
+            using var http = new HttpClient(new HttpClientHandler
+            {
+                AutomaticDecompression = System.Net.DecompressionMethods.None
+            }) { Timeout = TimeSpan.FromMinutes(20) };
+            using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode) return false;
+
+            var total = response.Content.Headers.ContentLength ?? -1;
+            await using var source = await response.Content.ReadAsStreamAsync();
+            await using var target = File.Create(path);
+            var buffer = new byte[128 * 1024];
+            long received = 0;
+            int count;
+            while ((count = await source.ReadAsync(buffer)) > 0)
+            {
+                await target.WriteAsync(buffer.AsMemory(0, count));
+                received += count;
+                if (total > 0) progress.Report((int)(received * 100 / total));
+            }
+            progress.Report(100);
             return true;
         }
         catch
