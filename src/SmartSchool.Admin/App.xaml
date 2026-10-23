@@ -12,51 +12,28 @@
                                              PrimaryColor="Indigo"
                                              SecondaryColor="Cyan" />
                 <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
+                <!-- CHANGED: MAROON & CREAM luxury theme (WPF_THEME_TABS_GUIDE.md) — sab overrides isi file mein -->
+                <ResourceDictionary Source="Themes/MyTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- CHANGED: modern luxury look — rounded + elevated cards/buttons, soft shadows, roomy grids -->
-            <Style TargetType="materialDesign:Card" BasedOn="{StaticResource {x:Type materialDesign:Card}}">
-                <Setter Property="UniformCornerRadius" Value="14"/>
-                <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp4"/>
-            </Style>
-            <Style x:Key="MaterialDesignRaisedButton" TargetType="ButtonBase" BasedOn="{StaticResource MaterialDesignRaisedButton}">
-                <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="10"/>
-                <Setter Property="MinHeight" Value="36"/>
-                <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp4"/>
-            </Style>
-            <Style x:Key="MaterialDesignOutlinedButton" TargetType="ButtonBase" BasedOn="{StaticResource MaterialDesignOutlinedButton}">
-                <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="10"/>
-                <Setter Property="MinHeight" Value="36"/>
-            </Style>
-            <Style x:Key="MaterialDesignFilledComboBox" TargetType="ComboBox" BasedOn="{StaticResource MaterialDesignFilledComboBox}">
-                <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp2"/>
-            </Style>
             <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
                 <Setter Property="RowHeight" Value="42"/>
                 <Setter Property="Padding" Value="4,2"/>
-                <!-- CHANGED: Excel-jaisa grid — poori borders + zebra rows + sirf column headers -->
+                <!-- CHANGED: Excel-jaisa grid — maroon-cream borders + zebra rows -->
                 <Setter Property="GridLinesVisibility" Value="All"/>
-                <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource MaterialDesignDivider}"/>
-                <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource MaterialDesignDivider}"/>
+                <Setter Property="VerticalGridLinesBrush" Value="#E5D5C5"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#E5D5C5"/>
                 <Setter Property="HeadersVisibility" Value="Column"/>
                 <Setter Property="AlternationCount" Value="2"/>
-                <Setter Property="RowBackground" Value="{DynamicResource MaterialDesignPaper}"/>
-                <Setter Property="AlternatingRowBackground" Value="{DynamicResource MaterialDesignCardBackground}"/>
-            </Style>
-            <!-- CHANGED: header bold + border-bottom/top sath -->
-            <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
-                <Setter Property="FontWeight" Value="Bold"/>
-                <Setter Property="Padding" Value="12,8"/>
-                <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesignDivider}"/>
-                <Setter Property="Background" Value="{DynamicResource MaterialDesignCardBackground}"/>
+                <Setter Property="RowBackground" Value="White"/>
+                <Setter Property="AlternatingRowBackground" Value="#FDF8F2"/>
             </Style>
             <!-- CHANGED: harek cell ka content center-aligned (uper/neechay na dikhe) -->
             <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                 <Setter Property="HorizontalContentAlignment" Value="Left"/>
                 <Setter Property="BorderThickness" Value="0,0,1,0"/>
-                <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesignDivider}"/>
+                <Setter Property="BorderBrush" Value="#E5D5C5"/>
                 <Setter Property="Padding" Value="8,0"/>
             </Style>
 
