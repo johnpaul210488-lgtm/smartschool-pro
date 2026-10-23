@@ -38,6 +38,7 @@ public partial class TabItem : ObservableObject
     public UserControl? PageView { get; set; }
     public Func<UserControl> CreateView { get; init; } = null!;
     [ObservableProperty] private bool _isActive;
+    [ObservableProperty] private bool _isMinimized; // CHANGED: remains in bottom dock until restored/closed
 }
 
 public partial class MainViewModel : ObservableObject
@@ -182,6 +183,8 @@ public partial class MainViewModel : ObservableObject
 
     // ---- TABS (Chrome-style strip) ----
     public ObservableCollection<TabItem> Tabs { get; } = new();
+    public ObservableCollection<TabItem> MinimizedTabs { get; } = new(); // CHANGED: bottom horizontal dock
+    [ObservableProperty] private bool _hasMinimizedTabs;
     [ObservableProperty] private TabItem? _activeTab;
     [ObservableProperty] private bool _isPageFullScreen; // CHANGED: selected module covers app content area
     [ObservableProperty] private bool _isSidebarCollapsed;
@@ -242,6 +245,13 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ActivateTab(TabItem tab)
     {
+        // Restore a minimized page from the dock without rebuilding its view/state.
+        if (tab.IsMinimized)
+        {
+            tab.IsMinimized = false;
+            MinimizedTabs.Remove(tab);
+            HasMinimizedTabs = MinimizedTabs.Count > 0;
+        }
         ActiveTab = tab;
         foreach (var t in Tabs) t.IsActive = ReferenceEquals(t, tab);
         CurrentView = tab.PageView;
@@ -251,10 +261,17 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void MinimizeTab(TabItem tab)
     {
-        // CHANGED: page cached rahe; minimize par menu/Dashboard aur sidebar wapas
-        var home = Tabs.FirstOrDefault(t => t.IsPinned);
-        if (home is not null) ActivateTab(home);
-        IsPageFullScreen = false;
+        if (tab.IsPinned || tab.IsMinimized) return;
+        // CHANGED: keep page cached in the bottom dock until explicitly restored or closed.
+        tab.IsMinimized = true;
+        MinimizedTabs.Add(tab);
+        HasMinimizedTabs = true;
+        if (ReferenceEquals(ActiveTab, tab))
+        {
+            var home = Tabs.FirstOrDefault(t => t.IsPinned);
+            if (home is not null) ActivateTab(home);
+            else IsPageFullScreen = false;
+        }
     }
 
     [RelayCommand]
@@ -265,6 +282,9 @@ public partial class MainViewModel : ObservableObject
         if (idx < 0) return;
         if (tab.PageView?.DataContext is IDisposable d) d.Dispose(); // messenger/SignalR listeners saaf
         Tabs.RemoveAt(idx);
+        tab.IsMinimized = false;
+        MinimizedTabs.Remove(tab);
+        HasMinimizedTabs = MinimizedTabs.Count > 0;
         if (ActiveTab is null || ReferenceEquals(ActiveTab, tab))
         {
             // CHANGED: close returns to the main menu rather than unexpectedly opening another page.

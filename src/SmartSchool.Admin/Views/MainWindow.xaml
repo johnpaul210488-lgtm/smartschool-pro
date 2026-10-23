@@ -18,6 +18,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="58"/> <!-- CHANGED: always-visible app header -->
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/> <!-- CHANGED: minimized pages dock -->
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <!-- CHANGED: sidebar width animates between hidden, icon rail, and full width -->
@@ -82,7 +83,7 @@
 
         <!-- ================= SIDEBAR ================= -->
         <!-- CHANGED: Waheed POS dark-green gradient sidebar (guide step-3) — andar saara text white/green-tint -->
-        <materialDesign:Card Grid.Row="1" Grid.Column="0" Margin="0" UniformCornerRadius="0"
+        <materialDesign:Card Grid.Row="1" Grid.RowSpan="2" Grid.Column="0" Margin="0" UniformCornerRadius="0"
                              Background="{StaticResource SidebarBrush}"
                              TextElement.Foreground="#F5EBDC">
             <Grid>
@@ -200,6 +201,43 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </Grid>
+
+        <!-- CHANGED: persistent minimized-pages dock at bottom-right; horizontal like a taskbar -->
+        <Border Grid.Row="2" Grid.Column="1" Background="#F9F2F4" BorderBrush="#D9BAC2"
+                BorderThickness="0,1,0,0" Padding="8,5"
+                Visibility="{Binding HasMinimizedTabs, Converter={StaticResource BoolToVis}}">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding MinimizedTabs}" HorizontalAlignment="Right">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="White" BorderBrush="#D5AAB5" BorderThickness="1"
+                                    CornerRadius="7" Margin="4,1" Padding="2"
+                                    ToolTip="Minimized page — naam par click karke restore karein">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Command="{Binding DataContext.ActivateTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}" Background="Transparent" BorderThickness="0"
+                                            Padding="9,5" Cursor="Hand">
+                                        <StackPanel Orientation="Horizontal">
+                                            <materialDesign:PackIcon Kind="{Binding IconKind}" Width="16" Height="16"
+                                                Foreground="{StaticResource SoftPrimary}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold"
+                                                Foreground="{StaticResource SoftPrimary}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Content="✕" ToolTip="Page close karein"
+                                            Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}" Background="Transparent" BorderThickness="0"
+                                            Foreground="#8A263B" Width="26" Height="26" Padding="0" Margin="1,0,3,0"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
 
     </Grid>
 </Window>
