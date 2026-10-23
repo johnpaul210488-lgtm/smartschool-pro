@@ -208,7 +208,14 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void NavigateFromHeader(NavItem item) => SelectedNavItem = item;
+    private void NavigateFromHeader(NavItem item)
+    {
+        // CHANGED: clicking the already-selected module still navigates/restores instantly.
+        if (ReferenceEquals(SelectedNavItem, item))
+            OpenOrActivateTab(item);
+        else
+            SelectedNavItem = item; // property callback handles the first navigation
+    }
 
     private void OpenOrActivateTab(NavItem nav)
     {

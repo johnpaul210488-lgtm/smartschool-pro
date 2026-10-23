@@ -105,17 +105,20 @@
 
                 <!-- Nav -->
                 <ListBox Grid.Row="1" ItemsSource="{Binding NavItems}"
-                         SelectedItem="{Binding SelectedNavItem, Mode=TwoWay}"
-                         BorderThickness="0" Background="Transparent" Foreground="#F5EBDC"> <!-- CHANGED: cream nav -->
+                         BorderThickness="0" Background="Transparent" Foreground="#F5EBDC"> <!-- CHANGED: direct command navigation -->
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="{Binding IconKind}" Width="20" Height="20" Margin="0,0,12,0"
-                                    Foreground="#F5EBDC"/> <!-- CHANGED: cream page icon -->
-                                <TextBlock Text="{Binding Title}" FontSize="14" VerticalAlignment="Center"
-                                    Foreground="#F5EBDC"
-                                    Visibility="{Binding DataContext.IsSidebarCollapsed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVis}}"/> <!-- CHANGED: icon-only rail -->
-                            </StackPanel>
+                            <Button Command="{Binding DataContext.NavigateFromHeaderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}" HorizontalContentAlignment="Left"
+                                    Background="Transparent" BorderThickness="0" Padding="9,8" Cursor="Hand">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="{Binding IconKind}" Width="20" Height="20" Margin="0,0,12,0"
+                                        Foreground="#F5EBDC"/> <!-- CHANGED: cream page icon -->
+                                    <TextBlock Text="{Binding Title}" FontSize="14" VerticalAlignment="Center"
+                                        Foreground="#F5EBDC"
+                                        Visibility="{Binding DataContext.IsSidebarCollapsed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVis}}"/> <!-- CHANGED: icon-only rail -->
+                                </StackPanel>
+                            </Button>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
