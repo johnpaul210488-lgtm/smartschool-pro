@@ -15,15 +15,74 @@
     </Window.Resources>
 
     <Grid x:Name="MainRoot">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="58"/> <!-- CHANGED: always-visible app header -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <!-- Sidebar -->
-            <ColumnDefinition Width="230"/>
+            <!-- CHANGED: sidebar width animates between hidden, icon rail, and full width -->
+            <ColumnDefinition Width="{Binding SidebarColumnWidth}"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
+        <!-- CHANGED: global header with direct page switching icons -->
+        <Border Grid.Row="0" Grid.ColumnSpan="2" Background="{StaticResource SoftPrimary}" Padding="12,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Content="☰" Grid.Column="0" Width="40" Height="38" Margin="0,0,12,0"
+                        Command="{Binding ToggleSidebarCommand}" ToolTip="Sidebar: hide / icon rail / show"
+                        Background="#28FFFFFF" Foreground="#F5EBDC" BorderBrush="#70F5EBDC"
+                        FontSize="20" Padding="0"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="180">
+                    <materialDesign:PackIcon Kind="{Binding ActiveTab.IconKind}" Width="21" Height="21"
+                        Foreground="#F5EBDC" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding ActiveTab.Title}" Foreground="#F5EBDC"
+                        FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ItemsControl Grid.Column="2" ItemsSource="{Binding NavItems}" VerticalAlignment="Center"
+                              HorizontalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Command="{Binding DataContext.NavigateFromHeaderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}" ToolTip="{Binding Title}"
+                                    Width="42" Height="38" Margin="2,0" Padding="0"
+                                    Background="Transparent" BorderThickness="0" Cursor="Hand">
+                                <materialDesign:PackIcon Kind="{Binding IconKind}" Width="21" Height="21"
+                                    Foreground="#F5EBDC"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Grid.Column="3" Text="SmartSchool Pro" Foreground="#F5EBDC"
+                    FontSize="12" VerticalAlignment="Center" Margin="12,0,12,0"/>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center"
+                    Visibility="{Binding IsPageFullScreen, Converter={StaticResource BoolToVis}}">
+                    <Button Content="—" Width="34" Height="34" Margin="0,0,6,0"
+                        ToolTip="Minimize page — main menu par wapas"
+                        Command="{Binding MinimizeTabCommand}" CommandParameter="{Binding ActiveTab}"
+                        Background="#28FFFFFF" Foreground="#F5EBDC" BorderBrush="#70F5EBDC"
+                        FontSize="18" Padding="0"/>
+                    <Button Content="✕" Width="34" Height="34"
+                        ToolTip="Close page — main menu par wapas"
+                        Command="{Binding CloseTabCommand}" CommandParameter="{Binding ActiveTab}"
+                        Background="#35A00020" Foreground="#FFF0F0" BorderBrush="#80FFFFFF"
+                        FontSize="15" Padding="0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- ================= SIDEBAR ================= -->
         <!-- CHANGED: Waheed POS dark-green gradient sidebar (guide step-3) — andar saara text white/green-tint -->
-        <materialDesign:Card Grid.Column="0" Margin="0" UniformCornerRadius="0"
+        <materialDesign:Card Grid.Row="1" Grid.Column="0" Margin="0" UniformCornerRadius="0"
                              Background="{StaticResource SidebarBrush}"
                              TextElement.Foreground="#F5EBDC">
             <Grid>
@@ -34,11 +93,13 @@
                 </Grid.RowDefinitions>
 
                 <!-- Brand -->
-                <StackPanel Grid.Row="0" Margin="18,20,18,10">
-                    <materialDesign:PackIcon Kind="School" Width="44" Height="44"
+                <StackPanel Grid.Row="0" Margin="8,14,8,8">
+                    <materialDesign:PackIcon Kind="School" Width="36" Height="36"
                         HorizontalAlignment="Left" Foreground="{StaticResource SecondaryBrush}"/>  <!-- CHANGED: green brand -->
-                    <TextBlock Text="SmartSchool Pro" FontSize="18" FontWeight="Bold" Margin="0,8,0,0" Foreground="White"/>
-                    <TextBlock Text="Admin Panel" Opacity="0.75" FontSize="12"/>
+                    <TextBlock Text="SmartSchool Pro" FontSize="16" FontWeight="Bold" Margin="0,8,0,0" Foreground="White"
+                        Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}"/>
+                    <TextBlock Text="Admin Panel" Opacity="0.75" FontSize="12"
+                        Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}"/>
                 </StackPanel>
 
                 <!-- Nav -->
@@ -51,14 +112,16 @@
                                 <materialDesign:PackIcon Kind="{Binding IconKind}" Width="20" Height="20" Margin="0,0,12,0"
                                     Foreground="#F5EBDC"/> <!-- CHANGED: cream page icon -->
                                 <TextBlock Text="{Binding Title}" FontSize="14" VerticalAlignment="Center"
-                                    Foreground="#F5EBDC"/> <!-- CHANGED: cream page name -->
+                                    Foreground="#F5EBDC"
+                                    Visibility="{Binding DataContext.IsSidebarCollapsed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolToVis}}"/> <!-- CHANGED: icon-only rail -->
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
 
                 <!-- Bottom: user + live status + theme + logout -->
-                <StackPanel Grid.Row="2" Margin="14,8">
+                <StackPanel Grid.Row="2" Margin="8,8"
+                    Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}">
                     <Separator Margin="0,0,0,8"/>
                     <StackPanel Orientation="Horizontal" Margin="0,4">
                         <materialDesign:PackIcon Kind="AccountCircle" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -101,8 +164,9 @@
         </materialDesign:Card>
 
         <!-- ================= MAIN MENU / DASHBOARD ================= -->
-        <Grid Grid.Column="1">
-            <ContentControl Content="{Binding CurrentView}" Margin="18"/>
+        <Grid Grid.Row="1" Grid.Column="1">
+            <!-- CHANGED: single shared page host avoids a WPF view being attached twice (blank pages fix) -->
+            <ContentControl x:Name="PageHost" Content="{Binding CurrentView}" Margin="12"/>
 
             <!-- Toasts: top-right corner overlay (page area ke row par) -->
             <ItemsControl ItemsSource="{Binding Toasts.Items}"
@@ -137,43 +201,5 @@
             </ItemsControl>
         </Grid>
 
-        <!-- CHANGED: selected page takes the entire application area; no sidebar/tab bar -->
-        <Grid Grid.ColumnSpan="2" Panel.ZIndex="50"
-              Visibility="{Binding IsPageFullScreen, Converter={StaticResource BoolToVis}}"
-              Background="{DynamicResource SoftCanvas}">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="54"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <Border Grid.Row="0" Background="{StaticResource SoftPrimary}" Padding="18,0">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <materialDesign:PackIcon Kind="{Binding ActiveTab.IconKind}" Width="22" Height="22"
-                            Foreground="#F5EBDC" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBlock Text="{Binding ActiveTab.Title}" FontSize="17" FontWeight="SemiBold"
-                            Foreground="#F5EBDC" VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="—" Width="38" Height="34" Margin="0,0,8,0"
-                            ToolTip="Minimize page — main menu par wapas"
-                            Command="{Binding MinimizeTabCommand}"
-                            CommandParameter="{Binding ActiveTab}"
-                            Background="#30FFFFFF" Foreground="#F5EBDC" BorderBrush="#70F5EBDC"
-                            FontSize="20" Padding="0"/>
-                        <Button Content="✕" Width="38" Height="34"
-                            ToolTip="Close page — main menu par wapas"
-                            Command="{Binding CloseTabCommand}"
-                            CommandParameter="{Binding ActiveTab}"
-                            Background="#35A00020" Foreground="#FFF0F0" BorderBrush="#80FFFFFF"
-                            FontSize="16" Padding="0"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-            <ContentControl Grid.Row="1" Content="{Binding CurrentView}" Margin="12"/>
-        </Grid>
     </Grid>
 </Window>

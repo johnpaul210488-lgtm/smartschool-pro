@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using System.Windows.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -182,7 +183,29 @@ public partial class MainViewModel : ObservableObject
     // ---- TABS (Chrome-style strip) ----
     public ObservableCollection<TabItem> Tabs { get; } = new();
     [ObservableProperty] private TabItem? _activeTab;
-    [ObservableProperty] private bool _isPageFullScreen; // CHANGED: selected module covers entire app window
+    [ObservableProperty] private bool _isPageFullScreen; // CHANGED: selected module covers app content area
+    [ObservableProperty] private bool _isSidebarCollapsed;
+    public GridLength SidebarColumnWidth => IsPageFullScreen ? new GridLength(0) : IsSidebarCollapsed ? new GridLength(58) : new GridLength(230);
+
+    partial void OnIsPageFullScreenChanged(bool value) => OnPropertyChanged(nameof(SidebarColumnWidth));
+    partial void OnIsSidebarCollapsedChanged(bool value) => OnPropertyChanged(nameof(SidebarColumnWidth));
+
+    [RelayCommand]
+    private void ToggleSidebar()
+    {
+        if (IsPageFullScreen)
+        {
+            IsPageFullScreen = false;
+            IsSidebarCollapsed = true;
+        }
+        else
+        {
+            IsSidebarCollapsed = !IsSidebarCollapsed;
+        }
+    }
+
+    [RelayCommand]
+    private void NavigateFromHeader(NavItem item) => SelectedNavItem = item;
 
     private void OpenOrActivateTab(NavItem nav)
     {
