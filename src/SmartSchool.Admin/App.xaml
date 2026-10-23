@@ -16,7 +16,10 @@
                 <ResourceDictionary Source="Themes/WaheedTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- CHANGED: app-wide professional table typography and row rhythm -->
             <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="13"/>
                 <Setter Property="RowHeight" Value="42"/>
                 <Setter Property="Padding" Value="4,2"/>
                 <!-- CHANGED: Excel-jaisa grid — maroon-cream borders + zebra rows -->
@@ -29,12 +32,25 @@
                 <Setter Property="AlternatingRowBackground" Value="#F9F2F4"/>
             </Style>
             <!-- CHANGED: harek cell ka content center-aligned (uper/neechay na dikhe) -->
+            <!-- CHANGED: uniform professional cell typography + left-aligned data / vertically centered -->
             <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="13"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                 <Setter Property="HorizontalContentAlignment" Value="Left"/>
                 <Setter Property="BorderThickness" Value="0,0,1,0"/>
                 <Setter Property="BorderBrush" Value="#E5D5DA"/>
                 <Setter Property="Padding" Value="8,0"/>
+            </Style>
+            <!-- CHANGED: all grid column headings consistent, centered, vertically balanced -->
+            <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Padding" Value="10,8"/>
+                <Setter Property="MinHeight" Value="42"/>
             </Style>
 
             <!-- CHANGED: Waheed package ke mutabiq saaf cards (12px rounded, halka sa utha hua) -->
