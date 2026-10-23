@@ -26,6 +26,19 @@ public sealed class NavItem
     public Func<UserControl> CreateView { get; init; } = null!;
 }
 
+// CHANGED (added): Chrome-style tab — ek module per tab, state bach ke rehti hai
+public partial class TabItem : ObservableObject
+{
+    public string Title { get; init; } = string.Empty;
+    public string IconKind { get; init; } = "ViewDashboard";
+    /// <summary>Dashboard tab ko close nahi kar sakte (pinned home).</summary>
+    public bool IsPinned { get; init; }
+    /// <summary>Tab ka page — ek dafa banta hai, switch par wahi dikhta hai (form/drafts mehfooz).</summary>
+    public UserControl? PageView { get; set; }
+    public Func<UserControl> CreateView { get; init; } = null!;
+    [ObservableProperty] private bool _isActive;
+}
+
 public partial class MainViewModel : ObservableObject
 {
     private readonly SignalRClientService _signalR = new();
@@ -125,20 +138,87 @@ public partial class MainViewModel : ObservableObject
         => IsUpdating ? Task.CompletedTask : CheckForUpdatesAsync(); // silent flow pehle hi chal raha hota hai — button sirf backup
 
 
+    // CHANGED: nav selection ab Chrome-style tab kholta ya activate karta hai
     partial void OnSelectedNavItemChanged(NavItem? value)
     {
         if (value is null) return;
+        OpenOrActivateTab(value);
+    }
+
+    // ---- TABS (Chrome-style strip) ----
+    public ObservableCollection<TabItem> Tabs { get; } = new();
+    [ObservableProperty] private TabItem? _activeTab;
+
+    private void OpenOrActivateTab(NavItem nav)
+    {
+        var existing = Tabs.FirstOrDefault(t => t.Title == nav.Title);
+        if (existing is not null)
+        {
+            ActivateTab(existing);
+            return;
+        }
+        UserControl page;
         try
         {
-            CurrentView = value.CreateView();
+            page = nav.CreateView();
         }
         catch (Exception ex)
         {
-            // Page construct hote hi crash ho to blank na dikhe — user ko vaze error dikhega + report save.
+            // Page construct hote hi crash ho to blank na dikhe — tab mein error dikhega + report save.
             _ = Services.BugReportService.SendAsync("Error",
-                $"Navigation fail: {value.Title}", ex.Message, ex.ToString(), "MainViewModel");
-            CurrentView = new SmartSchool.Admin.Views.Common.ErrorHostView(value.Title, ex.ToString());
+                $"Navigation fail: {nav.Title}", ex.Message, ex.ToString(), "MainViewModel");
+            page = new SmartSchool.Admin.Views.Common.ErrorHostView(nav.Title, ex.ToString());
         }
+        var tab = new TabItem
+        {
+            Title = nav.Title,
+            IconKind = nav.IconKind,
+            IsPinned = nav.Title == "Dashboard",
+            CreateView = nav.CreateView,
+            PageView = page
+        };
+        Tabs.Add(tab);
+        ActivateTab(tab);
+    }
+
+    [RelayCommand]
+    private void ActivateTab(TabItem tab)
+    {
+        ActiveTab = tab;
+        foreach (var t in Tabs) t.IsActive = ReferenceEquals(t, tab);
+        CurrentView = tab.PageView;
+    }
+
+    [RelayCommand]
+    private void MinimizeTab(TabItem tab)
+    {
+        // page ko paas rahe hone do (state mehfooz) — view ko wapis Dashboard/home tab par le jao
+        var home = Tabs.FirstOrDefault(t => t.IsPinned);
+        if (home is not null && !ReferenceEquals(home, tab)) ActivateTab(home);
+        tab.IsActive = false;
+    }
+
+    [RelayCommand]
+    private void CloseTab(TabItem tab)
+    {
+        if (tab.IsPinned) return;
+        var idx = Tabs.IndexOf(tab);
+        if (idx < 0) return;
+        if (tab.PageView?.DataContext is IDisposable d) d.Dispose(); // messenger/SignalR listeners saaf
+        Tabs.RemoveAt(idx);
+        if (ActiveTab is null || ReferenceEquals(ActiveTab, tab))
+        {
+            var next = Tabs.ElementAtOrDefault(Math.Min(idx, Tabs.Count - 1)) ?? Tabs.FirstOrDefault();
+            if (next is not null) ActivateTab(next);
+        }
+    }
+
+    // CHANGED (added): page ke andar ki navigation (list → form → save ke baad NAYA list) agar
+    // tab ke page type se milti ho to tab ki cached PageView bhi sync — state hamesha fresh.
+    partial void OnCurrentViewChanged(UserControl? value)
+    {
+        if (ActiveTab is null || value is null || ActiveTab.PageView is null) return;
+        if (value.GetType() == ActiveTab.PageView.GetType()) ActiveTab.PageView = value;
     }
 
     // ---- simple pages ----
