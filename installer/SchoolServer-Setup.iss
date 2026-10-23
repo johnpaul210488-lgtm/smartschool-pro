@@ -1,5 +1,5 @@
 ; ============================================================================
-; SmartSchool Pro — One-Click SCHOOL SERVER installer (Inno Setup)
+; Queen International School — One-Click SCHOOL SERVER installer (Inno Setup)
 ;
 ; What it does, silently, in order:
 ;   1. Installs SQL Server 2022 LocalDB (bundled MSI)
@@ -21,14 +21,16 @@
 #endif
 
 [Setup]
-AppName=SmartSchool Pro (School Server)
+AppName=Queen International School
 AppVersion={#AppVersion}
-AppPublisher=SmartSchool Pro
+AppPublisher=Queen International School
 DefaultDirName={autopf}\SmartSchool Server
-DefaultGroupName=SmartSchool
+DefaultGroupName=Queen International School
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist\installer
-OutputBaseFilename=SmartSchoolServer-Setup-{#AppVersion}
+OutputBaseFilename=QueenInternationalSchool-Setup-{#AppVersion}
+SetupIconFile=Brand\QueenInternationalSchool.ico
+UninstallDisplayIcon={localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe
 PrivilegesRequired=admin
 Compression=lzma2
 SolidCompression=yes
@@ -50,11 +52,15 @@ Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
 [InstallDelete]
 ; Purani (Program Files) wali admin exe saaf kar do taake shortcut sirf nayi ki taraf jaaye
 Type: files; Name: "{app}\admin\SmartSchool.Admin.exe"
+; CHANGED: purane brand shortcuts hata do, naye Queen International School shortcuts duplicate na hon.
+Type: files; Name: "{group}\SmartSchool Admin.lnk"
+Type: files; Name: "{commondesktop}\SmartSchool Admin.lnk"
+Type: files; Name: "{commondesktop}\SmartSchool Diagnostics.lnk"
 
 [Icons]
-Name: "{group}\SmartSchool Admin"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
-Name: "{commondesktop}\SmartSchool Admin"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
-Name: "{commondesktop}\SmartSchool Diagnostics"; Filename: "{app}\SmartSchool-Diagnostics.bat"
+Name: "{group}\Queen International School"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"; IconFilename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
+Name: "{commondesktop}\Queen International School"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"; IconFilename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
+Name: "{commondesktop}\Queen School Diagnostics"; Filename: "{app}\SmartSchool-Diagnostics.bat"; IconFilename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
 ; API auto-start at EVERY login (all users) — runs as the interactive user whose
 ; per-user LocalDB is proven to work. "--hide-console" = seedha background (koi window nahi).
 Name: "{commonstartup}\SmartSchool API (background)"; Filename: "{app}\api\SmartSchool.API.exe"; \
@@ -80,4 +86,4 @@ Filename: "{sys}\sc.exe"; Parameters: "stop SmartSchoolApi"; Flags: runhidden wa
 Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden waituntilterminated
 
 [Messages]
-FinishedLabel=SmartSchool Server install ho gaya!%n%nAdmin app: Desktop shortcut «SmartSchool Admin»%nAPI: http://localhost:5000 — ABHI shuru ho gayi hai aur har PC-login par background mein khud uthe gi.%nLogin: admin / Admin@12345 — pehli dafa database apne aap ban jayegi.
+FinishedLabel=Queen International School install ho gaya!%n%nAdmin app: Desktop / Start Menu shortcut «Queen International School»%nAPI: http://localhost:5000 — ABHI shuru ho gayi hai aur har PC-login par background mein khud uthe gi.%nLogin: admin / Admin@12345 — pehli dafa database apne aap ban jayegi.

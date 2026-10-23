@@ -39,7 +39,7 @@ public partial class FeeReceiptViewModel : ObservableObject
             ColumnWidth = 450
         };
 
-        var school = new Paragraph(new Run("🏫 SmartSchool Pro Academy"))
+        var school = new Paragraph(new Run("🏫 Queen International School"))
         {
             FontSize = 24,
             FontWeight = FontWeights.Bold,
@@ -75,7 +75,7 @@ public partial class FeeReceiptViewModel : ObservableObject
         doc.Blocks.Add(new Paragraph(new Run("─".PadRight(48, '─'))) { Margin = new Thickness(0, 16, 0, 16) });
         doc.Blocks.Add(new Paragraph(new Run("Received by: ______________________        Parent signature: ______________________"))
         { FontSize = 12 });
-        doc.Blocks.Add(new Paragraph(new Run("SmartSchool Pro — automatic receipt. Kisi ghalti ki sorat mein office se rabta karein."))
+        doc.Blocks.Add(new Paragraph(new Run("Queen International School — automatic receipt. Kisi ghalti ki sorat mein office se rabta karein."))
         { FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 24, 0, 0), TextAlignment = TextAlignment.Center });
 
         return doc;

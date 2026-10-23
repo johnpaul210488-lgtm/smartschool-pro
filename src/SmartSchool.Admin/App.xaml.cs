@@ -33,7 +33,7 @@ public partial class App : Application
                 $"{reportLine}\n\n" +
                 $"Is issue par kaam shuru karne ke liye bas mujhe keh dein: 'GitHub par nayi bug report aayi hai'.\n\n" +
                 $"— Technical detail —\n{ex.GetType().Name}: {ex.Message}",
-                "SmartSchool Admin — Bug report", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "Queen International School — Bug report", MessageBoxButton.OK, MessageBoxImage.Warning);
             e.Handled = false;
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteCrash(e.ExceptionObject as Exception);

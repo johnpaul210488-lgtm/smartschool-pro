@@ -182,6 +182,6 @@ jobs:
           cp release-files/apks/*.apk dist/
           cp release-files/installer-exe/*.exe dist/
           gh release create "$RELEASE_TAG" dist/* \
-            --title "SmartSchool Pro $RELEASE_TAG" \
+            --title "Queen International School $RELEASE_TAG" \
             --generate-notes \
             --latest

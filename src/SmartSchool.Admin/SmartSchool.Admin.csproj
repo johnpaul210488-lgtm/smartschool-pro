@@ -10,9 +10,9 @@
     <EnableWindowsTargeting Condition="'$(OS)' != 'Windows_NT'">true</EnableWindowsTargeting>
     <RootNamespace>SmartSchool.Admin</RootNamespace>
     <AssemblyName>SmartSchool.Admin</AssemblyName>
-    <ApplicationIcon></ApplicationIcon>
-    <AssemblyTitle>SmartSchool Pro - Admin</AssemblyTitle>
-    <Description>Native Windows desktop admin panel for SmartSchool Pro</Description>
+    <ApplicationIcon>Brand\QueenInternationalSchool.ico</ApplicationIcon> <!-- CHANGED: QIS icon for exe, taskbar, shortcuts -->
+    <AssemblyTitle>Queen International School - Admin</AssemblyTitle>
+    <Description>Queen International School administration application</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +28,12 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <!-- Excel (.xlsx) reader for student/driver bulk import -->
     <PackageReference Include="ClosedXML" Version="0.104.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Brand\QueenInternationalSchool.png" />
+    <Resource Include="Brand\QueenInternationalSchool.ico" />
+    <Resource Include="Brand\favicon.ico" />
   </ItemGroup>
 
   <ItemGroup>
