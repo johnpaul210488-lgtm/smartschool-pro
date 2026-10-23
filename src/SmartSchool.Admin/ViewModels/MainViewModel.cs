@@ -148,6 +148,7 @@ public partial class MainViewModel : ObservableObject
     // ---- TABS (Chrome-style strip) ----
     public ObservableCollection<TabItem> Tabs { get; } = new();
     [ObservableProperty] private TabItem? _activeTab;
+    [ObservableProperty] private bool _isPageFullScreen; // CHANGED: selected module covers entire app window
 
     private void OpenOrActivateTab(NavItem nav)
     {
@@ -187,15 +188,16 @@ public partial class MainViewModel : ObservableObject
         ActiveTab = tab;
         foreach (var t in Tabs) t.IsActive = ReferenceEquals(t, tab);
         CurrentView = tab.PageView;
+        IsPageFullScreen = !tab.IsPinned; // CHANGED: module full-screen; Dashboard shows menu
     }
 
     [RelayCommand]
     private void MinimizeTab(TabItem tab)
     {
-        // page ko paas rahe hone do (state mehfooz) — view ko wapis Dashboard/home tab par le jao
+        // CHANGED: page cached rahe; minimize par menu/Dashboard aur sidebar wapas
         var home = Tabs.FirstOrDefault(t => t.IsPinned);
-        if (home is not null && !ReferenceEquals(home, tab)) ActivateTab(home);
-        tab.IsActive = false;
+        if (home is not null) ActivateTab(home);
+        IsPageFullScreen = false;
     }
 
     [RelayCommand]
@@ -208,8 +210,10 @@ public partial class MainViewModel : ObservableObject
         Tabs.RemoveAt(idx);
         if (ActiveTab is null || ReferenceEquals(ActiveTab, tab))
         {
-            var next = Tabs.ElementAtOrDefault(Math.Min(idx, Tabs.Count - 1)) ?? Tabs.FirstOrDefault();
-            if (next is not null) ActivateTab(next);
+            // CHANGED: close returns to the main menu rather than unexpectedly opening another page.
+            var home = Tabs.FirstOrDefault(t => t.IsPinned);
+            if (home is not null) ActivateTab(home);
+            else IsPageFullScreen = false;
         }
     }
 
