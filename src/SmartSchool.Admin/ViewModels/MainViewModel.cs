@@ -42,6 +42,7 @@ public partial class TabItem : ObservableObject
 public partial class MainViewModel : ObservableObject
 {
     private readonly SignalRClientService _signalR = new();
+    private readonly SemaphoreSlim _updateCheckGate = new(1, 1); // CHANGED: manual/auto checks cannot race
 
     [ObservableProperty] private UserControl? _currentView;
     [ObservableProperty] private NavItem? _selectedNavItem;
@@ -110,32 +111,65 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    // SILENT AUTO-UPDATE: app khulte hi naya version background mein download ho kar
-    // khud install ho jata hai; click ki zaroorat nahi. Aakhir mein app khud restart ho jati hai.
-    private async Task CheckForUpdatesAsync()
+    // CHANGED: auto check plus manual one-click check; manual path bypasses server's GitHub cache.
+    private async Task CheckForUpdatesAsync(bool forceRefresh = false, bool manual = false)
     {
-        var (has, latest, _) = await UpdateService.Instance.CheckAsync();
-        if (!has || IsUpdating) return;
-        HasUpdate = true;
-        IsUpdating = true;
-        UpdateLabel = $"⬇ {latest} 0%";
-        var progress = new Progress<int>(p => UpdateLabel = $"⬇ {latest} {p}%");
-        var ok = await UpdateService.Instance.ApplyAsync(progress);
-        if (!ok)
+        if (!await _updateCheckGate.WaitAsync(0))
         {
-            UpdateLabel = "⚠ Update fail — dobara koshish";
-            IsUpdating = false;
+            if (manual) UpdateLabel = "⟳ Update check chal raha hai…";
             return;
         }
-        UpdateLabel = $"✅ {latest} lag gaya — restart…";
-        Toasts.Info("Auto-update complete", $"Naya version {latest} install ho gaya — app khud dobara khul rahi hai.");
-        await Task.Delay(2500); // toast parhne ka moqa
-        System.Windows.Application.Current.Shutdown(); // swapper script replace+relaunch karega
+        try
+        {
+            if (IsUpdating) return;
+            if (manual)
+            {
+                IsUpdating = true;
+                UpdateLabel = "⟳ GitHub check ho raha hai…";
+            }
+
+            var (checkSucceeded, has, latest, _) = await UpdateService.Instance.CheckAsync(forceRefresh);
+            if (!checkSucceeded)
+            {
+                if (manual) UpdateLabel = "⚠ Check fail — dobara click karein";
+                return;
+            }
+            if (!has)
+            {
+                if (manual) UpdateLabel = "✓ Latest version installed";
+                return;
+            }
+
+            HasUpdate = true;
+            IsUpdating = true;
+            UpdateLabel = $"⬇ {latest} 0%";
+            var progress = new Progress<int>(p => UpdateLabel = $"⬇ {latest} {p}%");
+            var ok = await UpdateService.Instance.ApplyAsync(progress);
+            if (!ok)
+            {
+                UpdateLabel = "⚠ Download fail — dobara click karein";
+                return;
+            }
+            UpdateLabel = $"✅ {latest} lag gaya — restart…";
+            Toasts.Info("Update complete", $"Naya version {latest} install ho gaya — app dobara khul rahi hai.");
+            await Task.Delay(2500);
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch
+        {
+            if (manual) UpdateLabel = "⚠ Update check fail — dobara click karein";
+        }
+        finally
+        {
+            if (UpdateLabel.StartsWith("⚠") || UpdateLabel.StartsWith("✓"))
+                IsUpdating = false;
+            _updateCheckGate.Release();
+        }
     }
 
     [RelayCommand]
     private Task UpdateNow()
-        => IsUpdating ? Task.CompletedTask : CheckForUpdatesAsync(); // silent flow pehle hi chal raha hota hai — button sirf backup
+        => CheckForUpdatesAsync(forceRefresh: true, manual: true);
 
 
     // CHANGED: nav selection ab Chrome-style tab kholta ya activate karta hai

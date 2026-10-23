@@ -43,13 +43,13 @@ public sealed class AppUpdatesController : BaseApiController
 
     /// <summary>GET /api/app-updates/admin (or driver|parent) → newest version info.</summary>
     [HttpGet("{app}")]
-    public async Task<ActionResult<ApiResponse<AppUpdateInfo>>> GetInfo(string app, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<AppUpdateInfo>>> GetInfo(string app, [FromQuery] bool refresh, CancellationToken ct)
     {
         var assetName = AssetNameFor(app);
         if (assetName is null)
             return BadRequestEnvelope("app must be admin | driver | parent.");
 
-        var latest = await _provider.GetLatestAsync(ct);
+        var latest = await _provider.GetLatestAsync(ct, refresh);
         if (latest is null)
         {
             // Updates not configured (or GitHub unreachable): report "nothing new" gracefully.

@@ -70,9 +70,12 @@
                     <TextBlock Text="{Binding LiveStatus}" FontSize="10.5" Opacity="0.8"
                                TextWrapping="Wrap" Margin="0,6,0,4"/>
                     <TextBlock Text="{Binding AppVersionText}" FontSize="10" Opacity="0.5" Margin="0,0,0,4"/>
-                    <Button Content="{Binding UpdateLabel}" Command="{Binding UpdateNowCommand}"
-                            Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}"
-                            Style="{StaticResource MaterialDesignRaisedButton}" Height="30" Margin="0,2"/>
+                    <!-- CHANGED: always-visible one-click forced GitHub update check/download -->
+                    <Button Content="↻  Check for updates" Command="{Binding UpdateNowCommand}"
+                            Style="{StaticResource MaterialDesignRaisedButton}" Height="34" Margin="0,4,0,2"
+                            ToolTip="GitHub par abhi check karein; naya version ho to download aur install hoga"/>
+                    <TextBlock Text="{Binding UpdateLabel}" FontSize="10.5" TextWrapping="Wrap"
+                               Opacity="0.9" Margin="2,2,2,6"/>
                     <!-- CHANGED (removed): theme-picker combo — fixed maroon-cream theme only -->
                     <StackPanel Orientation="Horizontal" Margin="0,4">
                         <!-- CHANGED: zoom in/out — choti laptop screens ke liye (Ctrl +/- / Ctrl+0 / Ctrl+wheel) -->

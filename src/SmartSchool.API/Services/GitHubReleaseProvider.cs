@@ -51,15 +51,15 @@ public sealed class GitHubReleaseProvider
     }
 
     /// <summary>Latest release info (cached). Null if Updates:Repo is empty or GitHub is unreachable.</summary>
-    public async Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct)
+    public async Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct, bool forceRefresh = false)
     {
         if (!IsConfigured) return null;
-        if (_cache is not null && DateTime.UtcNow - _cacheAtUtc < _cacheTtl) return _cache;
+        if (!forceRefresh && _cache is not null && DateTime.UtcNow - _cacheAtUtc < _cacheTtl) return _cache;
 
         await _lock.WaitAsync(ct);
         try
         {
-            if (_cache is not null && DateTime.UtcNow - _cacheAtUtc < _cacheTtl) return _cache;
+            if (!forceRefresh && _cache is not null && DateTime.UtcNow - _cacheAtUtc < _cacheTtl) return _cache;
 
             using var client = CreateClient();
             using var response = await client.GetAsync(

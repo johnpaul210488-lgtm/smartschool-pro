@@ -33,25 +33,27 @@ public sealed class UpdateService
     {
         [JsonPropertyName("app")] public string? App { get; set; }
         [JsonPropertyName("latestVersion")] public string? LatestVersion { get; set; }
+        [JsonPropertyName("configured")] public bool Configured { get; set; }
         [JsonPropertyName("notes")] public string? Notes { get; set; }
         [JsonPropertyName("sizeHuman")] public string? SizeHuman { get; set; }
     }
 
-    /// <summary>(HasUpdate, LatestVersion, Notes) — never throws.</summary>
-    public async Task<(bool HasUpdate, string Latest, string Notes)> CheckAsync()
+    /// <summary>(CheckSucceeded, HasUpdate, LatestVersion, Notes) — refresh=true bypasses server cache.</summary>
+    public async Task<(bool CheckSucceeded, bool HasUpdate, string Latest, string Notes)> CheckAsync(bool forceRefresh = false)
     {
         try
         {
-            var (ok, data, _, _) = await ApiClient.Instance.GetAsync<AppUpdateInfo>("api/app-updates/admin");
-            if (!ok || data?.LatestVersion is null)
-                return (false, string.Empty, string.Empty);
+            var url = forceRefresh ? "api/app-updates/admin?refresh=true" : "api/app-updates/admin";
+            var (ok, data, _, _) = await ApiClient.Instance.GetAsync<AppUpdateInfo>(url);
+            if (!ok || data is null || !data.Configured || data.LatestVersion is null)
+                return (false, false, string.Empty, string.Empty);
 
             _latest = data.LatestVersion;
-            return (IsNewer(data.LatestVersion, CurrentVersion), data.LatestVersion, data.Notes ?? "");
+            return (true, IsNewer(data.LatestVersion, CurrentVersion), data.LatestVersion, data.Notes ?? "");
         }
         catch
         {
-            return (false, string.Empty, string.Empty); // offline/server-old: silently skip
+            return (false, false, string.Empty, string.Empty);
         }
     }
 
