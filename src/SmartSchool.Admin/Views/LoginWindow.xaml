@@ -5,61 +5,71 @@
         xmlns:helpers="clr-namespace:SmartSchool.Admin.Helpers"
         Title="Queen International School — Sign in"
         Icon="/Brand/QueenInternationalSchool.ico"
-        Width="420" Height="520"
+        Width="460" Height="620" MinWidth="420" MinHeight="560"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         TextElement.Foreground="{DynamicResource MaterialDesignBody}"
         Background="{DynamicResource SoftCanvas}"
         FontFamily="{DynamicResource MaterialDesignFont}">
 
-    <Grid Margin="36">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <!-- CHANGED: scroll-safe centered login card; form fields use separate rows, no overlap/cut-off -->
+    <Grid Background="{DynamicResource SoftCanvas}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <materialDesign:Card Padding="30" Margin="24" MaxWidth="400"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-        <Image Source="/Brand/QueenInternationalSchool.png" Width="78" Height="78" Grid.Row="0"
-               HorizontalAlignment="Center" Margin="0,8,0,4" Stretch="Uniform"/>
+                    <Image Grid.Row="0" Source="/Brand/QueenInternationalSchool.png" Width="82" Height="82"
+                           HorizontalAlignment="Center" Margin="0,0,0,8" Stretch="Uniform"/>
+                    <TextBlock Grid.Row="1" Text="Queen International School" FontSize="21" FontWeight="Bold"
+                               HorizontalAlignment="Center" TextAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Text="Administrator sign in" FontSize="13" Opacity="0.7"
+                               HorizontalAlignment="Center" Margin="0,4,0,22"/>
 
-        <TextBlock Text="Queen International School" Grid.Row="1" FontSize="21" FontWeight="Bold"
-                   HorizontalAlignment="Center" TextAlignment="Center"/>
-        <TextBlock Text="Administration — Sign in" Grid.Row="2" FontSize="13" Opacity="0.7"
-                   HorizontalAlignment="Center" Margin="0,0,0,18"/>
+                    <StackPanel Grid.Row="3" Margin="0,0,0,14">
+                        <TextBlock Text="USERNAME" FontWeight="SemiBold" FontSize="11" Opacity="0.8" Margin="2,0,0,5"/>
+                        <TextBox Height="44" VerticalContentAlignment="Center" Padding="12,0"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 materialDesign:HintAssist.Hint="Enter your username"
+                                 Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
 
-        <!-- CHANGED: label above box (consistent professional look) -->
-        <TextBlock Grid.Row="3" Text="USERNAME" FontWeight="SemiBold" FontSize="11" Opacity="0.85" Margin="2,0,0,2"/>
-        <TextBox Grid.Row="3" Margin="0,20,0,6"
-                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                 materialDesign:HintAssist.Hint="e.g. admin"
-                 Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
+                    <StackPanel Grid.Row="4" Margin="0,0,0,4">
+                        <TextBlock Text="PASSWORD" FontWeight="SemiBold" FontSize="11" Opacity="0.8" Margin="2,0,0,5"/>
+                        <PasswordBox Height="44" VerticalContentAlignment="Center" Padding="12,0"
+                                     KeyDown="PasswordBox_KeyDown"
+                                     Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
+                                     materialDesign:HintAssist.Hint="Enter your password"
+                                     helpers:PasswordBoxHelper.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
 
-        <!-- CHANGED: label above box -->
-        <TextBlock Grid.Row="4" Text="PASSWORD" FontWeight="SemiBold" FontSize="11" Opacity="0.85" Margin="2,0,0,2"/>
-        <PasswordBox Grid.Row="4" Margin="0,20,0,6" KeyDown="PasswordBox_KeyDown"
-                     Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
-                     materialDesign:HintAssist.Hint="********"
-                     helpers:PasswordBoxHelper.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/> <!-- CHANGED: Enter = login -->
+                    <CheckBox Grid.Row="5" Content="Remember me on this PC"
+                              IsChecked="{Binding RememberMe}" Margin="0,12,0,4"/>
+                    <TextBlock Grid.Row="6" Text="{Binding ErrorMessage}" Foreground="#B3261E"
+                               TextWrapping="Wrap" Margin="0,4,0,10" FontSize="12"/>
 
-        <CheckBox Grid.Row="5" Content="Is PC par yaad rakho (secure)"
-                  IsChecked="{Binding RememberMe}" Margin="0,4"/>
-
-        <TextBlock Grid.Row="6" Text="{Binding ErrorMessage}" Foreground="#F44336"
-                   TextWrapping="Wrap" Margin="0,6" FontSize="12"/>
-
-        <Button Grid.Row="7" Command="{Binding LoginCommand}"
-                Style="{StaticResource MaterialDesignRaisedButton}"
-                materialDesign:ButtonAssist.CornerRadius="6"
-                Height="44" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <materialDesign:PackIcon Kind="Login" Margin="0,0,8,0"/>
-                <TextBlock x:Name="LoginLabel" Text="LOGIN"/>
-            </StackPanel>
-        </Button>
+                    <Button Grid.Row="7" Command="{Binding LoginCommand}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            materialDesign:ButtonAssist.CornerRadius="8"
+                            Height="48" Margin="0,4,0,0"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <materialDesign:PackIcon Kind="Login" Margin="0,0,8,0"/>
+                            <TextBlock x:Name="LoginLabel" Text="SIGN IN" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </materialDesign:Card>
+        </ScrollViewer>
     </Grid>
 </Window>

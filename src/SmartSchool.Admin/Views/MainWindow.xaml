@@ -148,6 +148,9 @@
                             ToolTip="GitHub par foran update check karein; naya version ho to install hoga"/>
                     <TextBlock Text="{Binding UpdateLabel}" FontSize="10.5" TextWrapping="Wrap"
                                Opacity="0.9" Margin="2,4,2,2"/>
+                    <TextBlock FontSize="10" Opacity="0.68" Margin="2,3,2,0">
+                        <Run Text="Installed version: "/><Run Text="{Binding AppVersionText}"/>
+                    </TextBlock> <!-- CHANGED: current installed version always visible -->
                 </StackPanel>
             </Grid>
         </materialDesign:Card>
