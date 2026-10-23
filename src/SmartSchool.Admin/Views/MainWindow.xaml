@@ -44,12 +44,14 @@
                 <!-- Nav -->
                 <ListBox Grid.Row="1" ItemsSource="{Binding NavItems}"
                          SelectedItem="{Binding SelectedNavItem, Mode=TwoWay}"
-                         BorderThickness="0">
+                         BorderThickness="0" Background="Transparent" Foreground="#F5EBDC"> <!-- CHANGED: cream nav -->
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="{Binding IconKind}" Width="20" Height="20" Margin="0,0,12,0"/>
-                                <TextBlock Text="{Binding Title}" FontSize="14" VerticalAlignment="Center"/>
+                                <materialDesign:PackIcon Kind="{Binding IconKind}" Width="20" Height="20" Margin="0,0,12,0"
+                                    Foreground="#F5EBDC"/> <!-- CHANGED: cream page icon -->
+                                <TextBlock Text="{Binding Title}" FontSize="14" VerticalAlignment="Center"
+                                    Foreground="#F5EBDC"/> <!-- CHANGED: cream page name -->
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -120,7 +122,7 @@
                                     <Style TargetType="Border">
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                <Setter Property="Background" Value="White"/>
+                                                <Setter Property="Background" Value="{StaticResource SoftPrimary}"/>
                                                 <Setter Property="Opacity" Value="1"/>
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -132,17 +134,17 @@
                                             Command="{Binding DataContext.ActivateTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}"
                                             Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                            Padding="10,7">
+                                            Padding="10,7" Foreground="#F5EBDC">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="{Binding IconKind}" Width="15" Height="15"
-                                                VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#F5EBDC"/>
                                             <TextBlock Text="{Binding Title}" FontSize="12.5" FontWeight="SemiBold">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Foreground" Value="White"/>
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                <Setter Property="Foreground" Value="{StaticResource SoftPrimary}"/>
+                                                                <Setter Property="Foreground" Value="#F5EBDC"/>
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
