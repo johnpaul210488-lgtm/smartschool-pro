@@ -52,10 +52,19 @@ Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
 [InstallDelete]
 ; Purani (Program Files) wali admin exe saaf kar do taake shortcut sirf nayi ki taraf jaaye
 Type: files; Name: "{app}\admin\SmartSchool.Admin.exe"
-; CHANGED: purane brand shortcuts hata do, naye Queen International School shortcuts duplicate na hon.
+; CHANGED: old SmartSchool names (desktop + old Start Menu folder) hata kar Queen shortcut recreate karein.
 Type: files; Name: "{group}\SmartSchool Admin.lnk"
+Type: files; Name: "{group}\SmartSchool Pro.lnk"
+Type: files; Name: "{commonprograms}\SmartSchool\SmartSchool Admin.lnk"
+Type: files; Name: "{commonprograms}\SmartSchool\SmartSchool Pro.lnk"
+Type: files; Name: "{userprograms}\SmartSchool\SmartSchool Admin.lnk"
+Type: files; Name: "{userprograms}\SmartSchool\SmartSchool Pro.lnk"
 Type: files; Name: "{commondesktop}\SmartSchool Admin.lnk"
+Type: files; Name: "{commondesktop}\SmartSchool Pro.lnk"
 Type: files; Name: "{commondesktop}\SmartSchool Diagnostics.lnk"
+Type: files; Name: "{userdesktop}\SmartSchool Admin.lnk"
+Type: files; Name: "{userdesktop}\SmartSchool Pro.lnk"
+Type: files; Name: "{userdesktop}\SmartSchool Diagnostics.lnk"
 
 [Icons]
 Name: "{group}\Queen International School"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"; IconFilename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
