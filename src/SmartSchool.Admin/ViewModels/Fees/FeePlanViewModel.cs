@@ -77,7 +77,7 @@ public partial class FeePlanViewModel : ObservableObject
             if (version != _loadVersion) return;
             if (!result.Ok || result.Data is null)
             {
-                SetMessage(result.Error, true);
+                SetApiError(result.Error); // <-- CHANGED: identify an outdated/missing API route
                 return;
             }
 
@@ -121,9 +121,10 @@ public partial class FeePlanViewModel : ObservableObject
                 }).ToList()
             };
             var result = await _api.SaveClassFeePlanAsync(SelectedClass.Id, request);
-            SetMessage(result.Ok
-                ? $"{SelectedClass.DisplayName} draft plan saved. No invoices or charges were generated."
-                : result.Error, !result.Ok);
+            if (result.Ok)
+                SetMessage($"{SelectedClass.DisplayName} draft plan saved. No invoices or charges were generated.", false);
+            else
+                SetApiError(result.Error); // <-- CHANGED: explain outdated/missing server route
         }
         finally
         {
@@ -132,6 +133,17 @@ public partial class FeePlanViewModel : ObservableObject
     }
 
     [RelayCommand] private void Back() => BackRequested?.Invoke();
+
+    // <-- CHANGED: a missing route usually means Admin was updated without the school-server API.
+    private void SetApiError(string error)
+    {
+        if (error.Contains("404", StringComparison.OrdinalIgnoreCase))
+        {
+            SetMessage("Fee Plan API route is missing on the server (HTTP 404). Update the School Server/API using the QueenInternationalSchool setup package; updating only the Admin app is not enough.", true);
+            return;
+        }
+        SetMessage(error, true);
+    }
 
     private void SetMessage(string message, bool isError)
     {
