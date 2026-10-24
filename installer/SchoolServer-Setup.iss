@@ -94,5 +94,17 @@ Filename: "{sys}\taskkill.exe"; Parameters: "/f /im SmartSchool.API.exe"; Flags:
 Filename: "{sys}\sc.exe"; Parameters: "stop SmartSchoolApi"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden waituntilterminated
 
+; CHANGED: stop a previously running API before replacing its binaries during an upgrade.
+[Code]
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  if not Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM SmartSchool.API.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Result := 'Could not stop the existing SmartSchool API process. Close it and run setup again.'
+  else
+    Result := '';
+end;
+
 [Messages]
 FinishedLabel=Queen International School install ho gaya!%n%nAdmin app: Desktop / Start Menu shortcut «Queen International School»%nAPI: http://localhost:5000 — ABHI shuru ho gayi hai aur har PC-login par background mein khud uthe gi.%nLogin: admin / Admin@12345 — pehli dafa database apne aap ban jayegi.
