@@ -52,6 +52,9 @@ Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
 [InstallDelete]
 ; Purani (Program Files) wali admin exe saaf kar do taake shortcut sirf nayi ki taraf jaaye
 Type: files; Name: "{app}\admin\SmartSchool.Admin.exe"
+; CHANGED: remove the old API entry points so the new publish payload must replace them.
+Type: files; Name: "{app}\api\SmartSchool.API.exe"
+Type: files; Name: "{app}\api\SmartSchool.API.dll"
 ; CHANGED: old SmartSchool names (desktop + old Start Menu folder) hata kar Queen shortcut recreate karein.
 Type: files; Name: "{group}\SmartSchool Admin.lnk"
 Type: files; Name: "{group}\SmartSchool Pro.lnk"

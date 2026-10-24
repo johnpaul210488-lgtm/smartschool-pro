@@ -129,7 +129,8 @@ jobs:
         shell: pwsh
         run: |
           $v = $env:RELEASE_TAG.TrimStart('v','V')
-          dotnet publish src/SmartSchool.API/SmartSchool.API.csproj -c Release -o build-artifacts/api
+          # CHANGED: stamp the API binaries so the installed server version is verifiable.
+          dotnet publish src/SmartSchool.API/SmartSchool.API.csproj -c Release -p:Version=$v -p:InformationalVersion=$v -o build-artifacts/api
           Copy-Item installer/appsettings.installer.json build-artifacts/api/appsettings.json -Force
           $key = -join ((48..57)+(65..90)+(97..122) | Get-Random -Count 64 | % {[char]$_})
           (Get-Content build-artifacts/api/appsettings.json) -replace '__JWT_KEY__', $key | Set-Content build-artifacts/api/appsettings.json
