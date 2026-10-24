@@ -7,46 +7,58 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Header cards -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
-            <materialDesign:Card Padding="18" Margin="0,0,10,0" UniformCornerRadius="8" Background="#E53935">
-                <StackPanel>
-                    <TextBlock Text="Unpaid (dues)" Foreground="White" Opacity="0.85"/>
-                    <TextBlock Text="{Binding TotalUnpaidCount, StringFormat='{}{0} slips'}"
-                               Foreground="White" FontSize="22" FontWeight="Bold"/>
+        <!-- CHANGED: fees title, dues summary, filters and pagination on one aligned toolbar line -->
+        <Grid Grid.Row="0" Margin="0,0,0,12" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="12"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="💰 Fees &amp; payments" FontSize="23" FontWeight="Bold"
+                       VerticalAlignment="Center" Margin="0,0,14,0"/>
+            <Border Grid.Column="1" Background="#F7ECEF" BorderBrush="#E5D5DA" BorderThickness="1"
+                    CornerRadius="9" Padding="12,7" VerticalAlignment="Center" Margin="0,0,12,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding TotalUnpaidCount, StringFormat='{}{0} unpaid'}"
+                               FontSize="12" FontWeight="SemiBold" Foreground="#5C1220" VerticalAlignment="Center"/>
+                    <Border Width="1" Height="20" Background="#D9BAC2" Margin="10,0"/>
                     <TextBlock Text="{Binding TotalUnpaidAmount, StringFormat='Rs {0:N0}'}"
-                               Foreground="White" FontSize="16"/>
+                               FontSize="13" FontWeight="Bold" Foreground="#7B1F33" VerticalAlignment="Center"/>
                 </StackPanel>
-            </materialDesign:Card>
-            <TextBlock Text="💰 Fees" FontSize="26" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,0,0"/>
-        </StackPanel>
-
-        <!-- Filters -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
-            <!-- CHANGED: outlined month filter -->
-            <TextBox Width="110" Style="{StaticResource MaterialDesignOutlinedTextBox}"
+            </Border>
+            <TextBox Grid.Column="3" Width="140" Height="36" VerticalAlignment="Center"
+                     VerticalContentAlignment="Center" Padding="10,0"
+                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
                      materialDesign:HintAssist.Hint="Month (yyyy-MM)"
                      Text="{Binding MonthFilter, UpdateSourceTrigger=PropertyChanged, Delay=500}"/>
-            <ComboBox Width="140" Margin="8,0" ItemsSource="{Binding StatusFilters}"
+            <ComboBox Grid.Column="4" Width="130" Height="36" Margin="8,0,0,0" VerticalAlignment="Center"
+                      ItemsSource="{Binding StatusFilters}"
                       materialDesign:HintAssist.Hint="Status"
                       SelectedItem="{Binding StatusFilter, Mode=TwoWay}"/>
-            <Button Command="{Binding LoadCommand}" ToolTip="Refresh" VerticalAlignment="Center"
+            <Button Grid.Column="5" Width="38" Height="36" Margin="6,0,0,0" Command="{Binding LoadCommand}"
+                    ToolTip="Refresh fee records" VerticalAlignment="Center"
                     Style="{StaticResource MaterialDesignIconButton}">
                 <materialDesign:PackIcon Kind="Refresh"/>
             </Button>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="24,0,0,0">
-                <Button Content="◀" Command="{Binding PrevPageCommand}" Style="{StaticResource MaterialDesignIconButton}"/>
-                <TextBlock Text="{Binding Page, StringFormat='Page {0}'}" VerticalAlignment="Center" Margin="6,0"/>
-                <Button Content="▶" Command="{Binding NextPageCommand}" Style="{StaticResource MaterialDesignIconButton}"/>
+            <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                <Button Content="◀" Command="{Binding PrevPageCommand}" ToolTip="Previous page"
+                        Style="{StaticResource MaterialDesignIconButton}"/>
+                <TextBlock Text="{Binding Page, StringFormat='Page {0}'}" VerticalAlignment="Center"
+                           HorizontalAlignment="Center" Margin="4,0" FontSize="12"/>
+                <Button Content="▶" Command="{Binding NextPageCommand}" ToolTip="Next page"
+                        Style="{StaticResource MaterialDesignIconButton}"/>
             </StackPanel>
-        </StackPanel>
+        </Grid>
 
         <!-- Grid -->
-        <materialDesign:Card Grid.Row="2" Padding="10">
+        <materialDesign:Card Grid.Row="1" Padding="10">
             <DataGrid 
                       helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding Fees}" AutoGenerateColumns="False"
                       IsReadOnly="True" CanUserAddRows="False"

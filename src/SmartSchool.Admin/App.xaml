@@ -20,6 +20,7 @@
             <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
                 <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="FontSize" Value="13"/>
+                <Setter Property="helpers:GridAlignmentHelper.CenterRowText" Value="True"/> <!-- CHANGED: all grid row text horizontally+vertically centered -->
                 <Setter Property="RowHeight" Value="42"/>
                 <Setter Property="Padding" Value="4,2"/>
                 <!-- CHANGED: Excel-jaisa grid — maroon-cream borders + zebra rows -->
@@ -32,12 +33,12 @@
                 <Setter Property="AlternatingRowBackground" Value="#F9F2F4"/>
             </Style>
             <!-- CHANGED: harek cell ka content center-aligned (uper/neechay na dikhe) -->
-            <!-- CHANGED: uniform professional cell typography + left-aligned data / vertically centered -->
+            <!-- CHANGED: uniform professional cell typography; all row content centered middle -->
             <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
                 <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="FontSize" Value="13"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
-                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/> <!-- CHANGED: table cells centered -->
                 <Setter Property="BorderThickness" Value="0,0,1,0"/>
                 <Setter Property="BorderBrush" Value="#E5D5DA"/>
                 <Setter Property="Padding" Value="8,0"/>
