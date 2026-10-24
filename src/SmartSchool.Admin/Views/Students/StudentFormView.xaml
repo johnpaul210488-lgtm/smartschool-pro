@@ -1,6 +1,9 @@
+<!-- CHANGED: Enter and smart arrow focus navigation for form entry; Tab/Shift+Tab remain native. -->
 <UserControl x:Class="SmartSchool.Admin.Views.Students.StudentFormView"
+             helpers:FormKeyboardNavigation.IsEnabled="True"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:SmartSchool.Admin.Helpers"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
     <UserControl.Resources>
         <!-- Har field: upar wazeh label + neeche outlined box. Baar baar likhne ke bajaye yahan Style: -->

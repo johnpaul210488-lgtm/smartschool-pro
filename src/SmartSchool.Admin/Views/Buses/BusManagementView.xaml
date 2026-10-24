@@ -4,7 +4,8 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:helpers="clr-namespace:SmartSchool.Admin.Helpers">
 
-    <Grid>
+    <!-- CHANGED: form Enter/arrow navigation; Tab and Shift+Tab use WPF traversal. -->
+    <Grid helpers:FormKeyboardNavigation.IsEnabled="True">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="340"/>
             <ColumnDefinition/>
