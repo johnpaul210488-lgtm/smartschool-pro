@@ -261,6 +261,10 @@
         <Setter Property="Background" Value="#FFFFFF"/>
         <Setter Property="BorderBrush" Value="#DCBFC6"/>
         <Setter Property="Padding" Value="8,4"/>
+        <!-- CHANGED: clear, on-brand mouse/keyboard text selection and caret. -->
+        <Setter Property="SelectionBrush" Value="#7B1F33"/>
+        <Setter Property="SelectionOpacity" Value="0.28"/>
+        <Setter Property="CaretBrush" Value="#7B1F33"/>
         <Style.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True">
                 <Setter Property="BorderBrush" Value="#7B1F33"/>

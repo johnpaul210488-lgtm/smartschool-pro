@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace SmartSchool.Admin.Helpers;
 
@@ -26,6 +27,16 @@ public static class GridAlignmentHelper
 
     private static void Apply(DataGrid grid)
     {
+        // CHANGED: also center TextBlocks inside hand-authored DataGridTemplateColumn cells.
+        grid.Resources[typeof(TextBlock)] = CenteredTextStyle;
+        // CHANGED: give each grid its own mouse-accessible Copy/Select All menu.
+        if (grid.ContextMenu is null)
+        {
+            var menu = new ContextMenu();
+            menu.Items.Add(new MenuItem { Header = "Copy", Command = ApplicationCommands.Copy, CommandTarget = grid });
+            menu.Items.Add(new MenuItem { Header = "Select all", Command = ApplicationCommands.SelectAll, CommandTarget = grid });
+            grid.ContextMenu = menu;
+        }
         foreach (var column in grid.Columns) ApplyColumn(column);
     }
 

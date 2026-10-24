@@ -21,6 +21,10 @@
                 <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="FontSize" Value="13"/>
                 <Setter Property="helpers:GridAlignmentHelper.CenterRowText" Value="True"/> <!-- CHANGED: all grid row text horizontally+vertically centered -->
+                <!-- CHANGED: spreadsheet-style cell selection and built-in Ctrl+C support. -->
+                <Setter Property="SelectionMode" Value="Extended"/>
+                <Setter Property="SelectionUnit" Value="CellOrRowHeader"/>
+                <Setter Property="ClipboardCopyMode" Value="IncludeHeader"/>
                 <Setter Property="RowHeight" Value="42"/>
                 <Setter Property="Padding" Value="4,2"/>
                 <!-- CHANGED: Excel-jaisa grid — maroon-cream borders + zebra rows -->
@@ -31,8 +35,20 @@
                 <Setter Property="AlternationCount" Value="2"/>
                 <Setter Property="RowBackground" Value="White"/>
                 <Setter Property="AlternatingRowBackground" Value="#F9F2F4"/>
+                <!-- CHANGED: center text in hand-authored DataGridTemplateColumn cells. -->
+                <Style.Resources>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="TextAlignment" Value="Center"/>
+                    </Style>
+                </Style.Resources>
             </Style>
-            <!-- CHANGED: harek cell ka content center-aligned (uper/neechay na dikhe) -->
+            <!-- CHANGED: all table row content is vertically and horizontally centered. -->
+            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            </Style>
             <!-- CHANGED: uniform professional cell typography; all row content centered middle -->
             <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
                 <Setter Property="FontFamily" Value="Segoe UI"/>

@@ -102,9 +102,10 @@
 
         <!-- Grid -->
         <materialDesign:Card Grid.Row="2" Padding="10">
+            <!-- CHANGED: global extended cell selection enables spreadsheet-style copy. -->
             <DataGrid 
                       helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding StudentsView}" AutoGenerateColumns="False"
-                      IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single"
+                      IsReadOnly="True" CanUserAddRows="False"
                       SelectedItem="{Binding SelectedStudent, Mode=TwoWay}"
                       GridLinesVisibility="Horizontal" RowHeaderWidth="0">
                 <DataGrid.Columns>

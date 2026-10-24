@@ -10,6 +10,9 @@ public partial class App : Application
 {
     public App()
     {
+        // CHANGED: mouse-accessible Cut/Copy/Paste/Select All for all app text fields.
+        Helpers.TextClipboardBehavior.Register();
+
         // OpenStreetMap tile policy: identifiable app User-Agent/Referer required,
         // warna OSM server tiles pe "Access blocked" 403 laga deta hai.
         // OpenStreetMap tile usage policy: identifiable app User-Agent required (ya
