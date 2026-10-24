@@ -238,6 +238,14 @@ public sealed class ApiClient
         return GetAsync<PagedResult<FeeListItem>>(q);
     }
 
+    // CHANGED: fee-plan setup reads and saves class templates without issuing invoices.
+    public Task<(bool Ok, List<ClassFeePlanItemDto>? Data, string Error, string Msg)> ClassFeePlanAsync(int classId)
+        => GetAsync<List<ClassFeePlanItemDto>>($"api/fee-plans/classes/{classId}");
+
+    public Task<(bool Ok, object? Data, string Error, string Msg)> SaveClassFeePlanAsync(
+        int classId, SaveClassFeePlanRequest request)
+        => PutAsync<object>($"api/fee-plans/classes/{classId}", request);
+
     public Task<(bool Ok, DuesSummaryResponse? Data, string Error, string Msg)> DuesAsync()
         => GetAsync<DuesSummaryResponse>("api/fees/dues");
 

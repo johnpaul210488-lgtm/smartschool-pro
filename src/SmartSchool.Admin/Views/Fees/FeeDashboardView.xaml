@@ -15,6 +15,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*" MinWidth="12"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -23,7 +24,15 @@
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="💰 Fees &amp; payments" FontSize="23" FontWeight="Bold"
                        VerticalAlignment="Center" Margin="0,0,14,0"/>
-            <Border Grid.Column="1" Background="#F7ECEF" BorderBrush="#E5D5DA" BorderThickness="1"
+            <!-- CHANGED: open the draft class fee-plan editor from the fee dashboard. -->
+            <Button Grid.Column="1" Command="{Binding ManagePlansCommand}" Style="{StaticResource QisOutlineButton}"
+                    VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Configure fee heads and class-wise draft amounts">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="CogOutline" Width="16" Height="16" Margin="0,0,6,0"/>
+                    <TextBlock Text="Fee plans"/>
+                </StackPanel>
+            </Button>
+            <Border Grid.Column="2" Background="#F7ECEF" BorderBrush="#E5D5DA" BorderThickness="1"
                     CornerRadius="9" Padding="12,7" VerticalAlignment="Center" Margin="0,0,12,0">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding TotalUnpaidCount, StringFormat='{}{0} unpaid'}"
@@ -33,22 +42,22 @@
                                FontSize="13" FontWeight="Bold" Foreground="#7B1F33" VerticalAlignment="Center"/>
                 </StackPanel>
             </Border>
-            <TextBox Grid.Column="3" Width="140" Height="36" VerticalAlignment="Center"
+            <TextBox Grid.Column="4" Width="140" Height="36" VerticalAlignment="Center"
                      VerticalContentAlignment="Center" Padding="10,0"
                      Style="{StaticResource MaterialDesignOutlinedTextBox}"
                      materialDesign:HintAssist.Hint="Month (yyyy-MM)"
                      Text="{Binding MonthFilter, UpdateSourceTrigger=PropertyChanged, Delay=500}"/>
-            <ComboBox Grid.Column="4" Width="130" Height="36" Margin="8,0,0,0" VerticalAlignment="Center"
+            <ComboBox Grid.Column="5" Width="130" Height="36" Margin="8,0,0,0" VerticalAlignment="Center"
                       ItemsSource="{Binding StatusFilters}"
                       materialDesign:HintAssist.Hint="Status"
                       SelectedItem="{Binding StatusFilter, Mode=TwoWay}"/>
             <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
-            <Button Grid.Column="5" Width="38" Height="36" Margin="6,0,0,0" Command="{Binding LoadCommand}"
+            <Button Grid.Column="6" Width="38" Height="36" Margin="6,0,0,0" Command="{Binding LoadCommand}"
                     ToolTip="Refresh fee records" VerticalAlignment="Center"
                     Style="{StaticResource QisIconButton}">
                 <materialDesign:PackIcon Kind="Refresh"/>
             </Button>
-            <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+            <StackPanel Grid.Column="7" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                 <Button Command="{Binding PrevPageCommand}" ToolTip="Previous page"
                         Style="{StaticResource QisIconButton}">
                     <materialDesign:PackIcon Kind="ChevronLeft" Width="18" Height="18"/>

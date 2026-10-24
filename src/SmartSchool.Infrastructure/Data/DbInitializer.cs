@@ -36,6 +36,33 @@ public static class DbInitializer
             await db.Database.EnsureCreatedAsync();
         }
 
+        // CHANGED: seed an all-inclusive, zero-price catalog for the first fee-plan review.
+        // No fee is charged until an admin explicitly includes a priced head in a class plan.
+        if (!await db.FeeHeads.AnyAsync())
+        {
+            db.FeeHeads.AddRange(
+                new FeeHead { Code = "TUITION", Name = "Tuition Fee", Category = "Monthly", DefaultCycle = FeeBillingCycle.Monthly },
+                new FeeHead { Code = "TRANSPORT", Name = "Transport Fee", Category = "Transport", DefaultCycle = FeeBillingCycle.Monthly, IsOptionalForStudent = true },
+                new FeeHead { Code = "COMPUTER", Name = "Computer Fee", Category = "Academic", DefaultCycle = FeeBillingCycle.Monthly, IsOptionalForStudent = true },
+                new FeeHead { Code = "LAB", Name = "Laboratory Fee", Category = "Academic", DefaultCycle = FeeBillingCycle.Monthly, IsOptionalForStudent = true },
+                new FeeHead { Code = "LIBRARY", Name = "Library Fee", Category = "Academic", DefaultCycle = FeeBillingCycle.Monthly, IsOptionalForStudent = true },
+                new FeeHead { Code = "ACTIVITY", Name = "Activity Fee", Category = "Activities", DefaultCycle = FeeBillingCycle.Monthly, IsOptionalForStudent = true },
+                new FeeHead { Code = "ADMISSION", Name = "Admission Fee", Category = "One-time", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true },
+                new FeeHead { Code = "REGISTRATION", Name = "Registration Fee", Category = "One-time", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true },
+                new FeeHead { Code = "SECURITY", Name = "Security Deposit", Category = "One-time", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true },
+                new FeeHead { Code = "ID_CARD", Name = "ID Card Fee", Category = "One-time", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true },
+                new FeeHead { Code = "DIARY", Name = "Diary Fee", Category = "One-time", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true },
+                new FeeHead { Code = "BOOKS", Name = "Books Fee", Category = "One-time", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true },
+                new FeeHead { Code = "UNIFORM", Name = "Uniform Fee", Category = "One-time", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true },
+                new FeeHead { Code = "ANNUAL", Name = "Annual Charges", Category = "Annual", DefaultCycle = FeeBillingCycle.Annually, IsOptionalForStudent = true },
+                new FeeHead { Code = "EXAM", Name = "Examination Fee", Category = "Term", DefaultCycle = FeeBillingCycle.PerTerm, IsOptionalForStudent = true },
+                new FeeHead { Code = "SPORTS", Name = "Sports Fee", Category = "Annual", DefaultCycle = FeeBillingCycle.Annually, IsOptionalForStudent = true },
+                new FeeHead { Code = "LATE", Name = "Late Payment Fee", Category = "Adjustment", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true },
+                new FeeHead { Code = "FINE", Name = "Fine", Category = "Adjustment", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true },
+                new FeeHead { Code = "OTHER", Name = "Other / Miscellaneous Fee", Category = "Other", DefaultCycle = FeeBillingCycle.OneTime, IsOptionalForStudent = true });
+            await db.SaveChangesAsync();
+        }
+
         // ---- 1 admin user ----
         if (!await db.Users.AnyAsync())
         {

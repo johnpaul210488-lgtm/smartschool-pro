@@ -12,6 +12,9 @@ public sealed class SchoolDbContext : DbContext
     public DbSet<SchoolClass> Classes => Set<SchoolClass>();
     public DbSet<Teacher> Teachers => Set<Teacher>();
     public DbSet<Fee> Fees => Set<Fee>();
+    // CHANGED: configurable fee-head catalog and class fee-plan templates.
+    public DbSet<FeeHead> FeeHeads => Set<FeeHead>();
+    public DbSet<ClassFeePlanItem> ClassFeePlanItems => Set<ClassFeePlanItem>();
     public DbSet<Bus> Buses => Set<Bus>();
     public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<Trip> Trips => Set<Trip>();
@@ -117,6 +120,28 @@ public sealed class SchoolDbContext : DbContext
              .HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.StudentId, x.Month });
             e.HasIndex(x => x.Status);
+        });
+
+        // CHANGED: draft fee heads and class-specific fee plan amounts; plans do not create bills.
+        mb.Entity<FeeHead>(e =>
+        {
+            e.ToTable("FeeHeads");
+            e.Property(x => x.Code).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.Category).HasMaxLength(40).IsRequired();
+            e.Property(x => x.DefaultCycle).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(x => x.Code).IsUnique();
+        });
+
+        mb.Entity<ClassFeePlanItem>(e =>
+        {
+            e.ToTable("ClassFeePlanItems");
+            e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.BillingCycle).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(x => new { x.ClassId, x.FeeHeadId }).IsUnique();
+            e.HasOne(x => x.Class).WithMany().HasForeignKey(x => x.ClassId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.FeeHead).WithMany(h => h.ClassPlanItems)
+                .HasForeignKey(x => x.FeeHeadId).OnDelete(DeleteBehavior.Restrict);
         });
 
         mb.Entity<Trip>(e =>

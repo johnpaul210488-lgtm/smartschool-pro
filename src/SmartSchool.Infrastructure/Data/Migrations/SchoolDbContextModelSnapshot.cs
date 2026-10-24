@@ -158,6 +158,44 @@ namespace SmartSchool.Infrastructure.Data.Migrations
                     b.ToTable("BusAttendance", (string)null);
                 });
 
+            modelBuilder.Entity("SmartSchool.Core.Models.ClassFeePlanItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BillingCycle")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("ClassId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FeeHeadId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsIncluded")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsOptionalForStudent")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FeeHeadId");
+
+                    b.HasIndex("ClassId", "FeeHeadId")
+                        .IsUnique();
+
+                    b.ToTable("ClassFeePlanItems", (string)null);
+                });
+
             modelBuilder.Entity("SmartSchool.Core.Models.DeviceToken", b =>
                 {
                     b.Property<long>("Id")
@@ -346,6 +384,48 @@ namespace SmartSchool.Infrastructure.Data.Migrations
                     b.HasIndex("StudentId", "Month");
 
                     b.ToTable("Fees", (string)null);
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.Models.FeeHead", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("DefaultCycle")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsOptionalForStudent")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("FeeHeads", (string)null);
                 });
 
             modelBuilder.Entity("SmartSchool.Core.Models.ParentStudent", b =>
@@ -713,6 +793,25 @@ namespace SmartSchool.Infrastructure.Data.Migrations
                     b.Navigation("Trip");
                 });
 
+            modelBuilder.Entity("SmartSchool.Core.Models.ClassFeePlanItem", b =>
+                {
+                    b.HasOne("SmartSchool.Core.Models.SchoolClass", "Class")
+                        .WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SmartSchool.Core.Models.FeeHead", "FeeHead")
+                        .WithMany("ClassPlanItems")
+                        .HasForeignKey("FeeHeadId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Class");
+
+                    b.Navigation("FeeHead");
+                });
+
             modelBuilder.Entity("SmartSchool.Core.Models.DeviceToken", b =>
                 {
                     b.HasOne("SmartSchool.Core.Models.User", "User")
@@ -844,6 +943,11 @@ namespace SmartSchool.Infrastructure.Data.Migrations
                     b.Navigation("AssignedBus");
 
                     b.Navigation("Trips");
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.Models.FeeHead", b =>
+                {
+                    b.Navigation("ClassPlanItems");
                 });
 
             modelBuilder.Entity("SmartSchool.Core.Models.SchoolClass", b =>

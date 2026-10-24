@@ -1,0 +1,106 @@
+<UserControl x:Class="SmartSchool.Admin.Views.Fees.FeePlanView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- CHANGED: first fee-plan setup page; every row is a draft head until explicitly included. -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Command="{Binding BackCommand}" Style="{StaticResource QisOutlineButton}"
+                    VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="ArrowLeft" Width="16" Height="16" Margin="0,0,6,0"/>
+                    <TextBlock Text="Back to fees"/>
+                </StackPanel>
+            </Button>
+            <TextBlock Grid.Column="1" Text="Class fee plans" FontSize="22" FontWeight="Bold"
+                       VerticalAlignment="Center" Margin="12,0,16,0"/>
+            <ComboBox Grid.Column="3" Width="180" Height="36" Margin="0,0,8,0"
+                      ItemsSource="{Binding Classes}" DisplayMemberPath="DisplayName"
+                      SelectedItem="{Binding SelectedClass, Mode=TwoWay}"
+                      materialDesign:HintAssist.Hint="Select class"/>
+            <Button Grid.Column="4" Command="{Binding LoadCommand}" ToolTip="Reload this plan"
+                    Style="{StaticResource QisIconButton}" VerticalAlignment="Center">
+                <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18"/>
+            </Button>
+        </Grid>
+
+        <Border Grid.Row="1" Background="#FFF7E8" BorderBrush="#E8D4A7" BorderThickness="1"
+                CornerRadius="8" Padding="10,7" Margin="0,0,0,10">
+            <TextBlock Text="Review the suggested heads and enter class amounts. Unchecked heads are not in the plan; saving does not issue bills or charge families."
+                       TextWrapping="Wrap" FontSize="12" Foreground="#684D18"/>
+        </Border>
+
+        <materialDesign:Card Grid.Row="2" Padding="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <DataGrid Grid.Row="0" ItemsSource="{Binding Items}" AutoGenerateColumns="False"
+                          IsReadOnly="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                          SelectionMode="Extended" SelectionUnit="CellOrRowHeader"
+                          HeadersVisibility="Column" RowHeaderWidth="0" MinHeight="250">
+                    <DataGrid.Columns>
+                        <DataGridCheckBoxColumn Header="Include" Binding="{Binding IsIncluded, UpdateSourceTrigger=PropertyChanged}" Width="78"/>
+                        <DataGridTextColumn Header="Fee head" Binding="{Binding Name}" IsReadOnly="True" Width="2*"/>
+                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" IsReadOnly="True" Width="*"/>
+                        <DataGridTemplateColumn Header="Billing cycle" Width="150">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate><TextBlock Text="{Binding BillingCycle}"/></DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <ComboBox ItemsSource="{Binding DataContext.BillingCycles, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                              SelectedItem="{Binding BillingCycle, UpdateSourceTrigger=PropertyChanged}"
+                                              MinWidth="125"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Amount (Rs)" Binding="{Binding Amount, UpdateSourceTrigger=LostFocus, StringFormat='{}{0:N2}'}"
+                                            Width="130"/>
+                        <DataGridCheckBoxColumn Header="Optional for student" Binding="{Binding IsOptionalForStudent, UpdateSourceTrigger=PropertyChanged}" Width="145"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <Grid Grid.Row="1" Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding Message}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="2,0,10,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#386641"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsError}" Value="True">
+                                        <Setter Property="Foreground" Value="#A12C3E"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <Button Grid.Column="1" Command="{Binding SaveCommand}" Style="{StaticResource QisPrimaryButton}"
+                            MinWidth="150" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="ContentSaveOutline" Width="16" Height="16" Margin="0,0,7,0"/>
+                            <TextBlock Text="Save draft plan"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Grid>
+        </materialDesign:Card>
+    </Grid>
+</UserControl>

@@ -23,6 +23,8 @@ public partial class FeeDashboardViewModel : ObservableObject
 
     /// <summary>Fired when the user wants to collect a fee (opens collection page).</summary>
     public event Action<FeeListItem>? CollectRequested;
+    // CHANGED: open the class fee-plan setup without leaving the fee module.
+    public event Action? ManagePlansRequested;
 
     private bool _reloadPending; // CHANGED: filters/paging clicked while loading are queued, not ignored
 
@@ -85,4 +87,7 @@ public partial class FeeDashboardViewModel : ObservableObject
     [RelayCommand] private void PrevPage() { if (Page > 1) { Page--; _ = LoadAsync(); } }
 
     [RelayCommand] private void Collect(FeeListItem? f) { if (f is not null) CollectRequested?.Invoke(f); }
+
+    // CHANGED: fee-plan configuration is a separate screen; this dashboard remains focused on collection.
+    [RelayCommand] private void ManagePlans() => ManagePlansRequested?.Invoke();
 }

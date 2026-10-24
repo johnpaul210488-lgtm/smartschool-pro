@@ -222,6 +222,34 @@ public sealed class DuesSummaryResponse
     [JsonPropertyName("items")] public List<FeeListItem> Items { get; set; } = new();
 }
 
+// CHANGED: configurable draft fee plan; enum values are strings for the API's enum converter.
+public sealed class ClassFeePlanItemDto
+{
+    [JsonPropertyName("feeHeadId")] public int FeeHeadId { get; set; }
+    [JsonPropertyName("code")] public string Code { get; set; } = string.Empty;
+    [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+    [JsonPropertyName("category")] public string Category { get; set; } = string.Empty;
+    [JsonPropertyName("defaultCycle")] public string DefaultCycle { get; set; } = "Monthly";
+    [JsonPropertyName("billingCycle")] public string BillingCycle { get; set; } = "Monthly";
+    [JsonPropertyName("amount")] public decimal Amount { get; set; }
+    [JsonPropertyName("isIncluded")] public bool IsIncluded { get; set; }
+    [JsonPropertyName("isOptionalForStudent")] public bool IsOptionalForStudent { get; set; }
+}
+
+public sealed class SaveClassFeePlanRequest
+{
+    [JsonPropertyName("items")] public List<SaveClassFeePlanItemRequest> Items { get; set; } = new();
+}
+
+public sealed class SaveClassFeePlanItemRequest
+{
+    [JsonPropertyName("feeHeadId")] public int FeeHeadId { get; set; }
+    [JsonPropertyName("billingCycle")] public string BillingCycle { get; set; } = "Monthly";
+    [JsonPropertyName("amount")] public decimal Amount { get; set; }
+    [JsonPropertyName("isIncluded")] public bool IsIncluded { get; set; }
+    [JsonPropertyName("isOptionalForStudent")] public bool IsOptionalForStudent { get; set; }
+}
+
 // ============ Bus attendance / tracking ============
 public sealed class BusEventListItem
 {
