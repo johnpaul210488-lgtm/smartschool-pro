@@ -33,11 +33,17 @@
                            Visibility="{Binding Error, Converter={StaticResource NotEmptyToVis}}"/>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                    <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
                     <Button Content="Cancel" Command="{Binding CancelCommand}"
-                            Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,10,0"/>
-                    <Button Content="✅ CONFIRM PAYMENT" Command="{Binding ConfirmPaymentCommand}"
+                            Style="{StaticResource QisOutlineButton}" Margin="0,0,10,0"/>
+                    <Button Command="{Binding ConfirmPaymentCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
-                            Style="{StaticResource MaterialDesignRaisedButton}"/>
+                            Style="{StaticResource QisPrimaryButton}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="CheckCircleOutline" Width="17" Height="17" Margin="0,0,7,0"/>
+                            <TextBlock Text="Confirm payment"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </StackPanel>
         </materialDesign:Card>

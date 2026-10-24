@@ -38,12 +38,17 @@
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,14,0,0">
             <CheckBox x:Name="ScreenCheck" IsChecked="True" VerticalAlignment="Center"
                       Content="Current screen/app version ke saath bhejein" FontSize="12" Opacity="0.8"/>
-            <Button Grid.Column="1" x:Name="SendBtn" Content="📤 Report bhejein"
-                    Margin="24,0,8,0" Width="180" HorizontalAlignment="Right"
-                    Style="{StaticResource MaterialDesignRaisedButton}"
-                    Click="Send_Click"/>
-            <Button Content="Bhai mat bhejein" Width="110"
-                    Style="{StaticResource MaterialDesignOutlinedButton}"
+            <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
+            <Button Grid.Column="1" x:Name="SendBtn"
+                    Margin="20,0,8,0" Width="154" Height="36" HorizontalAlignment="Right"
+                    Style="{StaticResource QisPrimaryButton}" Click="Send_Click">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Send" Width="16" Height="16" Margin="0,0,6,0"/>
+                    <TextBlock Text="Send report"/>
+                </StackPanel>
+            </Button>
+            <Button Content="Cancel" Width="90" Height="36"
+                    Style="{StaticResource QisOutlineButton}"
                     Click="Cancel_Click"/>
         </StackPanel>
     </Grid>

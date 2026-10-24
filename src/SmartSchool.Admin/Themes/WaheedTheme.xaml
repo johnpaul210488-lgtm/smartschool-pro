@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
 
     <!-- ════════════════════════════════════════════════════════════════
          WAHEED POS THEME — mukammal front-end look
@@ -54,8 +55,15 @@
     <!-- ═══════════ 3) BUTTONS ═══════════ -->
     <!-- Base (har button par halka hover/disabled) -->
     <Style TargetType="Button">
-        <Setter Property="Margin" Value="1"/>
+        <!-- CHANGED: quiet, compact defaults for custom/nav buttons -->
+        <Setter Property="Margin" Value="2"/>
+        <Setter Property="Padding" Value="9,5"/>
+        <Setter Property="MinHeight" Value="32"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="6"/>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True"><Setter Property="Opacity" Value="0.94"/></Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.48"/></Trigger>
@@ -156,6 +164,57 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- CHANGED: compact, consistent maroon-gold 3D button system -->
+    <LinearGradientBrush x:Key="QisButtonMaroonBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#92344A" Offset="0"/>
+        <GradientStop Color="#7B1F33" Offset="0.48"/>
+        <GradientStop Color="#641729" Offset="1"/>
+    </LinearGradientBrush>
+    <Style x:Key="QisPrimaryButton" TargetType="Button" BasedOn="{StaticResource Soft3DActionButton}">
+        <Setter Property="Background" Value="{StaticResource QisButtonMaroonBrush}"/>
+        <Setter Property="Foreground" Value="#FFF8F0"/>
+        <Setter Property="MinHeight" Value="34"/>
+        <Setter Property="Padding" Value="13,6"/>
+        <Setter Property="Margin" Value="2"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="7"/>
+        <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp2"/>
+    </Style>
+    <Style x:Key="QisOutlineButton" TargetType="Button" BasedOn="{StaticResource BtnOutline}">
+        <Setter Property="MinHeight" Value="34"/>
+        <Setter Property="Padding" Value="12,5"/>
+        <Setter Property="Margin" Value="2"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="7"/>
+        <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp1"/>
+    </Style>
+    <Style x:Key="QisIconButton" TargetType="Button" BasedOn="{StaticResource MaterialDesignIconButton}">
+        <Setter Property="Width" Value="34"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="MinWidth" Value="34"/>
+        <Setter Property="MinHeight" Value="34"/>
+        <Setter Property="Padding" Value="5"/>
+        <Setter Property="Margin" Value="2"/>
+        <Setter Property="Foreground" Value="{StaticResource SoftPrimary}"/>
+        <Setter Property="Background" Value="#FFF9F6"/>
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="7"/>
+        <Setter Property="materialDesign:ElevationAssist.Elevation" Value="Dp1"/>
+    </Style>
+    <Style x:Key="QisDangerButton" TargetType="Button" BasedOn="{StaticResource Soft3DActionButton}">
+        <Setter Property="Background" Value="#9A3549"/>
+        <Setter Property="Foreground" Value="#FFF8F0"/>
+        <Setter Property="MinHeight" Value="34"/>
+        <Setter Property="Padding" Value="12,5"/>
+        <Setter Property="Margin" Value="2"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="materialDesign:ButtonAssist.CornerRadius" Value="7"/>
     </Style>
 
     <!-- ═══════════ 4) CARDS (Border-based — MaterialDesign ki zaroorat nahi) ═══════════ -->

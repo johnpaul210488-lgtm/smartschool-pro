@@ -17,8 +17,9 @@
             <TextBox Width="110" Margin="16,0,0,0" Style="{StaticResource MaterialDesignOutlinedTextBox}"
                      materialDesign:HintAssist.Hint="Month (yyyy-MM)"
                      Text="{Binding Month, UpdateSourceTrigger=PropertyChanged, Delay=500}"/>
+            <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
             <Button Command="{Binding LoadCommand}" ToolTip="Refresh" VerticalAlignment="Center"
-                    Style="{StaticResource MaterialDesignIconButton}">
+                    Style="{StaticResource QisIconButton}">
                 <materialDesign:PackIcon Kind="Refresh"/>
             </Button>
         </StackPanel>

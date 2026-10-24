@@ -79,13 +79,24 @@
                                 </Grid>
                             </Border>
 
-                            <Button Content="📷  Photo Choose Karein" Command="{Binding PickPhotoCommand}"
-                                    Style="{StaticResource MaterialDesignRaisedButton}"
-                                    Width="172" Height="36" Margin="0,12,0,0" HorizontalAlignment="Center"/>
-                            <Button Content="✕  Clear" Command="{Binding RemovePhotoCommand}"
-                                    Style="{StaticResource MaterialDesignOutlinedButton}"
-                                    Width="172" Height="32" Margin="0,8,0,0" HorizontalAlignment="Center"
-                                    Visibility="{Binding HasPhotoPreview, Converter={StaticResource BoolToVis}}"/>
+                            <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
+                            <Button Command="{Binding PickPhotoCommand}"
+                                    Style="{StaticResource QisOutlineButton}"
+                                    Width="158" Height="34" Margin="0,12,0,0" HorizontalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="CameraOutline" Width="16" Height="16" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Choose photo"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding RemovePhotoCommand}"
+                                    Style="{StaticResource QisOutlineButton}"
+                                    Width="158" Height="32" Margin="0,7,0,0" HorizontalAlignment="Center"
+                                    Visibility="{Binding HasPhotoPreview, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <materialDesign:PackIcon Kind="Close" Width="15" Height="15" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Remove photo"/>
+                                </StackPanel>
+                            </Button>
                             <TextBlock Text="JPG / PNG • 8MB tak&#x0a;Auto-resize ho jayegi"
                                        FontSize="10.5" Opacity="0.55" TextAlignment="Center"
                                        Margin="0,10,0,0" TextWrapping="Wrap"/>
@@ -270,12 +281,17 @@
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
                     <Button Content="Cancel" Command="{Binding CancelCommand}"
-                            Style="{StaticResource MaterialDesignOutlinedButton}"
-                            Width="120" Height="40" Margin="0,0,12,0"/>
-                    <Button Content="💾 SAVE STUDENT" Command="{Binding SaveCommand}"
+                            Style="{StaticResource QisOutlineButton}"
+                            Width="100" Height="36" Margin="0,0,10,0"/>
+                    <Button Command="{Binding SaveCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}"
-                            Style="{StaticResource MaterialDesignRaisedButton}"
-                            Width="190" Height="40"/>
+                            Style="{StaticResource QisPrimaryButton}"
+                            Width="150" Height="36">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="ContentSaveOutline" Width="16" Height="16" Margin="0,0,6,0"/>
+                            <TextBlock Text="Save student"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
             </StackPanel>

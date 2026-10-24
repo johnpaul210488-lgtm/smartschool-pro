@@ -58,8 +58,9 @@
                     <TextBlock Grid.Row="6" Text="{Binding ErrorMessage}" Foreground="#B3261E"
                                TextWrapping="Wrap" Margin="0,4,0,10" FontSize="12"/>
 
+                    <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
                     <Button Grid.Row="7" Command="{Binding LoginCommand}"
-                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Style="{StaticResource QisPrimaryButton}"
                             materialDesign:ButtonAssist.CornerRadius="8"
                             Height="48" Margin="0,4,0,0"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">

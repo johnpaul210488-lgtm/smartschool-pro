@@ -16,8 +16,9 @@
         <!-- Profile card -->
         <materialDesign:Card Grid.Column="0" Padding="26" Margin="0,0,12,0" VerticalAlignment="Top">
             <StackPanel>
+                <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
                 <Button Content="← Back" Command="{Binding BackCommand}" HorizontalAlignment="Left"
-                        Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,0,0,12"/>
+                        Style="{StaticResource QisOutlineButton}" Margin="0,0,0,12"/>
                 <!-- CHANGED: profile photo circle (photo na ho to purana AccountCircle icon) -->
                 <Grid Width="84" Height="84" HorizontalAlignment="Center">
                     <!-- CHANGED: same async disk/memory-cached image used by list rows -->

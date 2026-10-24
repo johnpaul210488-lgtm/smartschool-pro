@@ -44,9 +44,10 @@
                       ItemsSource="{Binding Classes}"
                       DisplayMemberPath="DisplayName"
                       SelectedItem="{Binding SelectedClass, Mode=TwoWay}"/>
+            <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
             <Button Grid.Column="4" Width="38" Height="36" Margin="6,0" VerticalAlignment="Center"
                     Command="{Binding LoadCommand}" ToolTip="Refresh students"
-                    Style="{StaticResource MaterialDesignIconButton}">
+                    Style="{StaticResource QisIconButton}">
                 <materialDesign:PackIcon Kind="Refresh"/>
             </Button>
             <ProgressBar Grid.Column="5" IsIndeterminate="{Binding IsBusy}"
@@ -54,13 +55,18 @@
                 Width="68" Height="4" VerticalAlignment="Center" Margin="0,0,6,0"/>
 
             <!-- CHANGED: primary actions anchored at far right, aligned with search and filter -->
-            <Button Grid.Column="7" Content="＋  New Student" Command="{Binding AddNewCommand}"
+            <Button Grid.Column="7" Command="{Binding AddNewCommand}"
                     Height="36" Margin="0,0,8,0" Padding="12,0"
-                    Style="{StaticResource MaterialDesignRaisedButton}"/>
+                    Style="{StaticResource QisPrimaryButton}">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="AccountPlusOutline" Width="17" Height="17" Margin="0,0,7,0"/>
+                    <TextBlock Text="New student"/>
+                </StackPanel>
+            </Button>
             <Button Grid.Column="8" Height="36" Padding="12,0"
                     Command="{Binding ImportExcelCommand}"
                     IsEnabled="{Binding IsImporting, Converter={StaticResource InverseBool}}"
-                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Style="{StaticResource QisOutlineButton}"
                     ToolTip="Excel (.xlsx) ya CSV se students bulk-import karein — row 1 headers: Student Name, Father Name, Phone, Class, Roll No, Home Address, Bus #">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <ProgressBar Width="12" Height="12" IsIndeterminate="True"
@@ -79,10 +85,12 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="{Binding ImportStatus}" FontWeight="SemiBold" FontSize="13"
                                VerticalAlignment="Center" TextWrapping="Wrap"/>
-                    <Button Content="✕" Margin="10,0,0,0" VerticalAlignment="Center"
-                            Style="{StaticResource MaterialDesignIconButton}"
+                    <Button Margin="10,0,0,0" VerticalAlignment="Center"
+                            Style="{StaticResource QisIconButton}"
                             ToolTip="Message band karein"
-                            Click="DismissImport_Click"/>
+                            Click="DismissImport_Click">
+                        <materialDesign:PackIcon Kind="Close" Width="16" Height="16"/>
+                    </Button>
                 </StackPanel>
                 <TextBox Text="{Binding ImportDetails, Mode=OneWay}" IsReadOnly="True"
                          TextWrapping="Wrap" FontSize="12" Opacity="0.8" Margin="0,6,0,0"
@@ -156,22 +164,28 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal">
-                                    <Button Content="👁" ToolTip="Profile"
+                                    <Button ToolTip="View student profile"
                                             Command="{Binding DataContext.ViewProfileCommand,
                                                 RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"
-                                            Style="{StaticResource MaterialDesignIconButton}"/>
-                                    <Button Content="✏️" ToolTip="Edit"
+                                            Style="{StaticResource QisIconButton}">
+                                        <materialDesign:PackIcon Kind="EyeOutline" Width="18" Height="18"/>
+                                    </Button>
+                                    <Button ToolTip="Edit student"
                                             Command="{Binding DataContext.EditCommand,
                                                 RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"
-                                            Style="{StaticResource MaterialDesignIconButton}"/>
-                                    <Button Content="🗑" ToolTip="Deactivate"
+                                            Style="{StaticResource QisIconButton}">
+                                        <materialDesign:PackIcon Kind="PencilOutline" Width="18" Height="18"/>
+                                    </Button>
+                                    <Button ToolTip="Deactivate student"
                                             Command="{Binding DataContext.DeactivateCommand,
                                                 RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"
-                                            Style="{StaticResource MaterialDesignIconButton}"
-                                            Foreground="#F44336"/>
+                                            Style="{StaticResource QisIconButton}"
+                                            Foreground="#9A3549">
+                                        <materialDesign:PackIcon Kind="DeleteOutline" Width="18" Height="18"/>
+                                    </Button>
                                 </StackPanel>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>

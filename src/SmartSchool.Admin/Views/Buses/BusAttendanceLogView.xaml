@@ -25,8 +25,9 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
+            <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
             <Button Command="{Binding LoadCommand}" ToolTip="Refresh" VerticalAlignment="Center"
-                    Style="{StaticResource MaterialDesignIconButton}">
+                    Style="{StaticResource QisIconButton}">
                 <materialDesign:PackIcon Kind="Refresh"/>
             </Button>
         </StackPanel>

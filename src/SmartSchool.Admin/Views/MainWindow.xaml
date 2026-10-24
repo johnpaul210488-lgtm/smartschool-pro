@@ -37,10 +37,13 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Button Content="☰" Grid.Column="0" Width="40" Height="38" Margin="0,0,12,0"
+                <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
+                <Button Grid.Column="0" Width="40" Height="38" Margin="0,0,12,0"
                         Command="{Binding ToggleSidebarCommand}" ToolTip="Sidebar: hide / icon rail / show"
-                        Background="#28FFFFFF" Foreground="#F5EBDC" BorderBrush="#70F5EBDC"
-                        FontSize="20" Padding="0"/>
+                        Style="{StaticResource QisIconButton}"
+                        Background="#28FFFFFF" BorderBrush="#70F5EBDC">
+                    <materialDesign:PackIcon Kind="Menu" Width="21" Height="21" Foreground="#F5EBDC"/>
+                </Button>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" MinWidth="180">
                     <materialDesign:PackIcon Kind="{Binding ActiveTab.IconKind}" Width="21" Height="21"
                         Foreground="#F5EBDC" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -57,6 +60,7 @@
                             <Button Command="{Binding DataContext.NavigateFromHeaderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}" ToolTip="{Binding Title}"
                                     Width="42" Height="38" Margin="2,0" Padding="0"
+                                    Style="{StaticResource QisIconButton}"
                                     Background="Transparent" BorderThickness="0" Cursor="Hand">
                                 <materialDesign:PackIcon Kind="{Binding IconKind}" Width="21" Height="21"
                                     Foreground="#F5EBDC"/>
@@ -66,32 +70,34 @@
                 </ItemsControl>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center"
                     Visibility="{Binding IsPageFullScreen, Converter={StaticResource BoolToVis}}">
-                    <Button Content="—" Width="34" Height="34" Margin="0,0,6,0"
+                    <Button Width="34" Height="34" Margin="0,0,6,0"
                         ToolTip="Minimize page — main menu par wapas"
                         Command="{Binding MinimizeTabCommand}" CommandParameter="{Binding ActiveTab}"
-                        Background="#28FFFFFF" Foreground="#F5EBDC" BorderBrush="#70F5EBDC"
-                        FontSize="18" Padding="0"/>
-                    <Button Content="✕" Width="34" Height="34"
+                        Style="{StaticResource QisIconButton}" Background="#28FFFFFF" BorderBrush="#70F5EBDC">
+                        <materialDesign:PackIcon Kind="WindowMinimize" Width="17" Height="17" Foreground="#F5EBDC"/>
+                    </Button>
+                    <Button Width="34" Height="34"
                         ToolTip="Close page — main menu par wapas"
                         Command="{Binding CloseTabCommand}" CommandParameter="{Binding ActiveTab}"
-                        Background="#35A00020" Foreground="#FFF0F0" BorderBrush="#80FFFFFF"
-                        FontSize="15" Padding="0"/>
+                        Style="{StaticResource QisIconButton}" Background="#35A00020" BorderBrush="#80FFFFFF">
+                        <materialDesign:PackIcon Kind="Close" Width="16" Height="16" Foreground="#FFF0F0"/>
+                    </Button>
                 </StackPanel>
                 <!-- CHANGED: zoom and logout controls moved from the sidebar to the top-right header -->
                 <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
                     <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" VerticalAlignment="Center"
                         Foreground="#F5EBDC" Margin="0,0,4,0"/>
                     <Button Content="−" ToolTip="Zoom out (Ctrl -)" Click="ZoomOut_Click"
-                            Style="{StaticResource MaterialDesignOutlinedButton}" Width="30" Height="32" Padding="0"
-                            Foreground="#F5EBDC" BorderBrush="#70F5EBDC"/>
+                            Style="{StaticResource QisOutlineButton}" Width="30" Height="32" Padding="0"
+                            Foreground="#F5EBDC" BorderBrush="#70F5EBDC" Background="#28FFFFFF"/>
                     <TextBlock x:Name="ZoomLabel" Text="100%" VerticalAlignment="Center" Margin="6,0"
                         FontSize="11" Foreground="#F5EBDC"/>
                     <Button Content="+" ToolTip="Zoom in (Ctrl +)" Click="ZoomIn_Click"
-                            Style="{StaticResource MaterialDesignOutlinedButton}" Width="30" Height="32" Padding="0"
-                            Foreground="#F5EBDC" BorderBrush="#70F5EBDC"/>
+                            Style="{StaticResource QisOutlineButton}" Width="30" Height="32" Padding="0"
+                            Foreground="#F5EBDC" BorderBrush="#70F5EBDC" Background="#28FFFFFF"/>
                     <Button Content="Logout" Margin="10,0,0,0" Command="{Binding LogoutCommand}"
-                            Style="{StaticResource MaterialDesignOutlinedButton}" Height="32" Padding="10,0"
-                            Foreground="#F5EBDC" BorderBrush="#70F5EBDC"/>
+                            Style="{StaticResource QisOutlineButton}" Height="32" Padding="10,0"
+                            Foreground="#F5EBDC" BorderBrush="#70F5EBDC" Background="#28FFFFFF"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -143,9 +149,14 @@
                 <StackPanel Grid.Row="2" Margin="8,8"
                     Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBoolToVis}}">
                     <Separator Margin="0,0,0,8"/>
-                    <Button Content="↻  Check for updates" Command="{Binding UpdateNowCommand}"
-                            Style="{StaticResource MaterialDesignRaisedButton}" Height="36" Margin="0,2"
-                            ToolTip="GitHub par foran update check karein; naya version ho to install hoga"/>
+                    <Button Command="{Binding UpdateNowCommand}"
+                            Style="{StaticResource QisPrimaryButton}" Height="36" Margin="0,2"
+                            ToolTip="GitHub par foran update check karein; naya version ho to install hoga">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Update" Width="16" Height="16" Margin="0,0,7,0"/>
+                            <TextBlock Text="Check for updates"/>
+                        </StackPanel>
+                    </Button>
                     <TextBlock Text="{Binding UpdateLabel}" FontSize="10.5" TextWrapping="Wrap"
                                Opacity="0.9" Margin="2,4,2,2"/>
                     <TextBlock FontSize="10" Opacity="0.68" Margin="2,3,2,0">
@@ -210,7 +221,7 @@
                                 <StackPanel Orientation="Horizontal">
                                     <Button Command="{Binding DataContext.ActivateTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}" Background="Transparent" BorderThickness="0"
-                                            Padding="9,5" Cursor="Hand">
+                                            Padding="9,5" Cursor="Hand" Style="{StaticResource QisOutlineButton}">
                                         <StackPanel Orientation="Horizontal">
                                             <materialDesign:PackIcon Kind="{Binding IconKind}" Width="16" Height="16"
                                                 Foreground="{StaticResource SoftPrimary}" VerticalAlignment="Center" Margin="0,0,6,0"/>
@@ -218,10 +229,13 @@
                                                 Foreground="{StaticResource SoftPrimary}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button Content="✕" ToolTip="Page close karein"
+                                    <Button ToolTip="Page close karein"
                                             Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}" Background="Transparent" BorderThickness="0"
-                                            Foreground="#8A263B" Width="26" Height="26" Padding="0" Margin="1,0,3,0"/>
+                                            Foreground="#8A263B" Width="28" Height="28" Padding="0" Margin="1,0,3,0"
+                                            Style="{StaticResource QisIconButton}">
+                                        <materialDesign:PackIcon Kind="Close" Width="15" Height="15"/>
+                                    </Button>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
