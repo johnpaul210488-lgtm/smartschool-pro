@@ -60,6 +60,30 @@
                 <Setter Property="BorderThickness" Value="0,0,1,0"/>
                 <Setter Property="BorderBrush" Value="#E5D5DA"/>
                 <Setter Property="Padding" Value="8,0"/>
+                <!-- FIX: cell content ko explicitly row ke beech (vertical center) rakhte hain.
+                     Default template kabhi VerticalContentAlignment ignore karta tha, text upar reh jata tha. -->
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="DataGridCell">
+                            <Border x:Name="PART_CellBorder"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter VerticalAlignment="Center"
+                                                  HorizontalAlignment="Center"
+                                                  Margin="{TemplateBinding Padding}"
+                                                  SnapsToDevicePixels="True"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="PART_CellBorder" Property="Background" Value="#E9C6CF"/>
+                                    <Setter Property="Foreground" Value="#1A1A1A"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
             <!-- CHANGED: all grid column headings consistent, centered, vertically balanced -->
             <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
