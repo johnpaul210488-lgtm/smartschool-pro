@@ -271,33 +271,39 @@ public sealed class FeesController : BaseApiController
     [Authorize(Roles = AppRoles.Staff)]
     public async Task<ActionResult<ApiResponse<FeeListItem>>> Pay(int id, PayFeeRequest? request, CancellationToken ct)
     {
-        await using var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
-        var fee = await _db.Fees.Include(f => f.Student).ThenInclude(s => s.Class).FirstOrDefaultAsync(f => f.Id == id, ct);
-        if (fee is null) return NotFoundEnvelope($"Fee {id} was not found.");
-        var balance = Math.Max(0m, fee.Amount - fee.AmountPaid);
-        if (balance <= 0m) return ConflictEnvelope($"Fee {id} is already fully paid.");
-        var amount = request?.Amount ?? balance;
-        if (amount <= 0m || amount > balance)
-            return BadRequestEnvelope($"Payment must be greater than zero and no more than the remaining balance Rs {balance:N2}.");
-
-        var paidDate = request?.PaidDate ?? PkTime.TodayPk;
-        var payment = new FeePayment
+        // The app uses EnableRetryOnFailure, so user-initiated transactions must run inside
+        // the execution strategy (otherwise EF throws at runtime).
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync<ActionResult<ApiResponse<FeeListItem>>>(async () =>
         {
-            FeeId = fee.Id,
-            Amount = amount,
-            PaidDate = paidDate,
-            ReceiptNo = $"PAY-{fee.Id:D6}-{Guid.NewGuid():N}"[..23].ToUpperInvariant(),
-            Method = string.IsNullOrWhiteSpace(request?.Method) ? "Cash" : request.Method.Trim(),
-            Notes = request?.Notes,
-            CreatedAtUtc = DateTime.UtcNow
-        };
-        _db.FeePayments.Add(payment);
-        fee.AmountPaid += amount;
-        fee.Status = fee.AmountPaid >= fee.Amount ? FeeStatus.Paid : FeeStatus.Partial;
-        fee.PaidDate = fee.Status == FeeStatus.Paid ? paidDate : null;
-        fee.ReceiptNo = payment.ReceiptNo;
-        await _db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return OkEnvelope(ToDto(fee, amount), $"Payment Rs {amount:N2} recorded. Remaining balance Rs {Math.Max(0m, fee.Amount - fee.AmountPaid):N2}; receipt {payment.ReceiptNo}.");
+            await using var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+            var fee = await _db.Fees.Include(f => f.Student).ThenInclude(s => s.Class).FirstOrDefaultAsync(f => f.Id == id, ct);
+            if (fee is null) return NotFoundEnvelope($"Fee {id} was not found.");
+            var balance = Math.Max(0m, fee.Amount - fee.AmountPaid);
+            if (balance <= 0m) return ConflictEnvelope($"Fee {id} is already fully paid.");
+            var amount = request?.Amount ?? balance;
+            if (amount <= 0m || amount > balance)
+                return BadRequestEnvelope($"Payment must be greater than zero and no more than the remaining balance Rs {balance:N2}.");
+
+            var paidDate = request?.PaidDate ?? PkTime.TodayPk;
+            var payment = new FeePayment
+            {
+                FeeId = fee.Id,
+                Amount = amount,
+                PaidDate = paidDate,
+                ReceiptNo = $"PAY-{fee.Id:D6}-{Guid.NewGuid():N}"[..23].ToUpperInvariant(),
+                Method = string.IsNullOrWhiteSpace(request?.Method) ? "Cash" : request.Method.Trim(),
+                Notes = request?.Notes,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+            _db.FeePayments.Add(payment);
+            fee.AmountPaid += amount;
+            fee.Status = fee.AmountPaid >= fee.Amount ? FeeStatus.Paid : FeeStatus.Partial;
+            fee.PaidDate = fee.Status == FeeStatus.Paid ? paidDate : null;
+            fee.ReceiptNo = payment.ReceiptNo;
+            await _db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return OkEnvelope(ToDto(fee, amount), $"Payment Rs {amount:N2} recorded. Remaining balance Rs {Math.Max(0m, fee.Amount - fee.AmountPaid):N2}; receipt {payment.ReceiptNo}.");
+        });
     }
 }

@@ -14,7 +14,21 @@ PASSWORD="${API_PASS:-Admin@12345}"
 command -v jq >/dev/null || { echo "jq is required"; exit 1; }
 
 pass=0
-fail() { echo "❌ $*" >&2; exit 1; }
+LAST_BODY=""
+# Failures are also emitted as a GitHub annotation so CI output is readable via the API.
+fail() {
+  local msg="❌ $*"
+  echo "$msg" >&2
+  local detail
+  detail="$(printf '%s' "$msg")"
+  if [ -n "$LAST_BODY" ]; then
+    echo "--- response ---" >&2
+    echo "$LAST_BODY" >&2
+    detail="$detail%0A$(printf '%s' "$LAST_BODY" | tr '\n' ' ' | cut -c1-1200)"
+  fi
+  echo "::error title=Smoke test failed::$detail"
+  exit 1
+}
 ok() { pass=$((pass + 1)); echo "✅ $*"; }
 
 api() { # api METHOD PATH [BODY]
@@ -33,7 +47,9 @@ code_of() { printf '%s' "$1" | tail -n1; }
 
 expect_code() { # expect_code RESPONSE EXPECTED LABEL
   local code; code="$(code_of "$1")"
-  [ "$code" = "$2" ] || { echo "--- body ---"; body_of "$1" | jq . 2>/dev/null || body_of "$1"; fail "$3: expected HTTP $2, got $code"; }
+  LAST_BODY="$(body_of "$1" | jq -c . 2>/dev/null || body_of "$1")"
+  [ "$code" = "$2" ] || fail "$3: expected HTTP $2, got $code"
+  LAST_BODY=""
 }
 
 # ---------------------------------------------------------------- health / login

@@ -85,9 +85,11 @@ jobs:
       - name: Fee plan + partial payment smoke test
         run: bash scripts/fees-api-smoke-test.sh
 
-      - name: API log (always)
-        if: always()
-        run: tail -n 200 /tmp/api.log || true
+      - name: API log on failure (as annotation)
+        if: failure()
+        run: |
+          python3 -c "import io;log=open('/tmp/api.log',errors='replace').read()[-3000:];print('::error title=API log tail::'+log.replace(chr(13),'').replace(chr(10),'%0A'))" || true
+          tail -n 200 /tmp/api.log || true
 
   flutter-parent:
     name: Parent app analyze
