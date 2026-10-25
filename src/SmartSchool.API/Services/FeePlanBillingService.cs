@@ -97,14 +97,8 @@ public sealed class FeePlanBillingService
                 if (custom?.EffectiveFrom is DateOnly customEffective && customEffective > itemEffectiveFrom)
                     itemEffectiveFrom = customEffective;
 
-                var studentCreatedDate = DateOnly.FromDateTime(student.CreatedAtUtc);
-                var firstOccurrenceFrom = cycle == FeeBillingCycle.OneTime && studentCreatedDate > itemEffectiveFrom
-                    ? studentCreatedDate
-                    : itemEffectiveFrom;
-
-                foreach (var occurrence in GetDuePeriods(today, schedule, cycle, firstOccurrenceFrom))
+                foreach (var occurrence in GetDuePeriods(today, schedule, cycle, itemEffectiveFrom))
                 {
-                    if (occurrence.Start < itemEffectiveFrom || occurrence.Start < studentCreatedDate) continue;
                     var key = cycle == FeeBillingCycle.OneTime ? "ONETIME" : $"{cycle}:{occurrence.Start:yyyy-MM}";
                     if (!existingKeys.Add((student.Id, head.Id, key))) { skipped++; continue; }
 
@@ -150,6 +144,9 @@ public sealed class FeePlanBillingService
     private static IEnumerable<(DateOnly Start, DateOnly DueDate)> GetDuePeriods(
         DateOnly today, FeePlanAssignment schedule, FeeBillingCycle cycle, DateOnly effectiveFrom)
     {
+        // Nothing is billed before the plan's effective date (future activation waits).
+        if (effectiveFrom > today) yield break;
+
         if (cycle == FeeBillingCycle.OneTime)
         {
             var oneTimeDue = DueDate(effectiveFrom, schedule.DueDay);
@@ -178,9 +175,13 @@ public sealed class FeePlanBillingService
                 yield break;
         }
 
-        // Only the current eligible period is issued; missed older periods are never back-billed.
-        if (periodStart >= effectiveFrom && periodStart <= today)
-            yield return (periodStart, DueDate(periodStart, schedule.DueDay));
+        // Only the CURRENT period (the one containing today) is issued. Earlier periods are never
+        // back-billed, and a plan activated mid-period still bills that period.
+        if (periodStart > currentMonth) yield break;
+
+        var dueDate = DueDate(periodStart, schedule.DueDay);
+        if (dueDate < effectiveFrom) dueDate = effectiveFrom; // never create an instantly-overdue bill
+        yield return (periodStart, dueDate);
     }
 
     private static DateOnly DueDate(DateOnly periodStart, int dueDay)
