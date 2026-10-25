@@ -296,7 +296,9 @@ public sealed class ApiClient
     public Task<(bool Ok, List<StudentFeeSummaryDto>? Data, string Error, string Msg)> StudentFeeSummariesAsync(
         string? search, int? classId, string status)
     {
-        var q = $"api/FeeCharges/students?status={Uri.EscapeDataString(status)}";
+        // onlyDue=false: dashboard par Paid / Partial / Unpaid students bhi hamesha dikhen (pehle sirf baqaya wale aate the,
+        // is liye fees poori paid hote hi student list se ghaib ho jata tha). Status filter server par alag se lagta hai.
+        var q = $"api/FeeCharges/students?onlyDue=false&status={Uri.EscapeDataString(status)}";
         if (!string.IsNullOrWhiteSpace(search)) q += $"&search={Uri.EscapeDataString(search.Trim())}";
         if (classId is not null) q += $"&classId={classId}";
         return GetAsync<List<StudentFeeSummaryDto>>(q);

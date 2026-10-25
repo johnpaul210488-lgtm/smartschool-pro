@@ -111,9 +111,12 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <!-- Paid = green, Partial = yellow, Due = red, Unpaid = blue (background ke saath font ka rang bhi) -->
-                                <Border x:Name="StatusBadge" Padding="8,3" CornerRadius="10" HorizontalAlignment="Center" Background="#9E9E9E">
+                                <Border x:Name="StatusBadge" Padding="8,3" CornerRadius="10" HorizontalAlignment="Center">
                                     <Border.Style>
                                         <Style TargetType="Border">
+                                            <Style.Setters>
+                                                <Setter Property="Background" Value="#9E9E9E"/>
+                                            </Style.Setters>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding StatusText}" Value="Paid"><Setter Property="Background" Value="#2E7D32"/></DataTrigger>
                                                 <DataTrigger Binding="{Binding StatusText}" Value="Partial"><Setter Property="Background" Value="#FBC02D"/></DataTrigger>
