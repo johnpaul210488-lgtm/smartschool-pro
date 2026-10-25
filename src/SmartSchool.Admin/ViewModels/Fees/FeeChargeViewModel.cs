@@ -12,12 +12,11 @@ using SmartSchool.Admin.Services;
 namespace SmartSchool.Admin.ViewModels.Fees;
 
 /// <summary>
-/// Simple fee screen:
-///  1. Class-wise or Single student (search by name / roll no).
-///  2. Pick Monthly / Quarterly / Yearly / One-time → the fees of that type are listed.
-///  3. Tick the fees and enter amounts → "Add to balance" bills them to the class or student.
-///  4. Click a student → full fee history (what is paid, what is due, every payment with date & time),
-///     printable / PDF, and WhatsApp share.
+/// Fee screen (student-wise):
+///  - Live search by name / roll no (every keystroke, debounced) with an optional class filter.
+///  - Class-wise mode: pick a class → its fee plan and students; tick fees → add to balance.
+///  - Click a student → statement: bills (edit/delete if unpaid), every payment with date & time,
+///    collect new money (oldest bill first), reverse a wrong payment, print / PDF / WhatsApp.
 /// </summary>
 public partial class FeeChargeViewModel : ObservableObject
 {
@@ -25,6 +24,7 @@ public partial class FeeChargeViewModel : ObservableObject
     private readonly DispatcherTimer _searchTimer;
     private int _itemsVersion;
     private int _historyVersion;
+    private int _listVersion;
 
     [ObservableProperty] private bool _isStudentMode;
     [ObservableProperty] private ClassListItem? _selectedClass;
@@ -38,14 +38,28 @@ public partial class FeeChargeViewModel : ObservableObject
     [ObservableProperty] private string _message = string.Empty;
     [ObservableProperty] private bool _isError;
 
-    // History panel (right side)
+    // Statement (right side)
     [ObservableProperty] private StudentFeeHistoryDto? _history;
     [ObservableProperty] private bool _hasHistory;
     [ObservableProperty] private string _historyTitle = string.Empty;
     [ObservableProperty] private string _historyInfo = string.Empty;
+    [ObservableProperty] private string _historyError = string.Empty;
     [ObservableProperty] private decimal _totalAmount;
     [ObservableProperty] private decimal _totalPaid;
     [ObservableProperty] private decimal _totalBalance;
+
+    // Collect new money
+    [ObservableProperty] private decimal _collectAmount;
+    [ObservableProperty] private string _collectMethod = "Cash";
+    [ObservableProperty] private DateTime? _collectDate = DateTime.Today;
+    [ObservableProperty] private string _collectNotes = string.Empty;
+
+    // Selected bill (edit / delete) and selected payment (reverse)
+    [ObservableProperty] private FeeHistoryRowDto? _selectedBill;
+    [ObservableProperty] private decimal _editBillAmount;
+    [ObservableProperty] private DateTime? _editBillDue;
+    [ObservableProperty] private FeeHistoryPaymentDto? _selectedPayment;
+    [ObservableProperty] private string _reverseReason = string.Empty;
 
     public ObservableCollection<ClassListItem> Classes { get; } = new();
     public ObservableCollection<StudentListItem> Students { get; } = new();
@@ -53,6 +67,7 @@ public partial class FeeChargeViewModel : ObservableObject
     public ICollectionView FeeLinesView { get; }
     public ObservableCollection<FeeHistoryRowDto> HistoryFees { get; } = new();
     public ObservableCollection<FeeHistoryPaymentDto> HistoryPayments { get; } = new();
+    public string[] PaymentMethods { get; } = { "Cash", "Bank Transfer", "Cheque", "Online" };
 
     public event Action? BackRequested;
     public event Action? AutoBillingRequested;
@@ -62,11 +77,11 @@ public partial class FeeChargeViewModel : ObservableObject
         FeeLinesView = CollectionViewSource.GetDefaultView(FeeLines);
         FeeLinesView.Filter = o => o is ChargeLine line && line.Cycle == SelectedCycle;
 
-        _searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+        _searchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _searchTimer.Tick += (_, _) =>
         {
             _searchTimer.Stop();
-            _ = SearchStudentsAsync();
+            _ = RefreshStudentListAsync();
         };
 
         _ = InitAsync();
@@ -86,32 +101,36 @@ public partial class FeeChargeViewModel : ObservableObject
         ClearHistory();
         SetMessage(string.Empty, false);
 
-        if (value)
-        {
-            SetMessage("Naam ya roll number likh kar student search karein, phir student par click karein.", false);
-        }
-        else if (SelectedClass is not null)
-        {
-            _ = LoadClassAsync(SelectedClass.Id);
-        }
+        if (value) _ = RefreshStudentListAsync();
+        else if (SelectedClass is not null) _ = LoadClassAsync(SelectedClass.Id);
         UpdateSummary();
     }
 
+    /// <summary>Student mode: class is a filter on the list. Class mode: class is the fee target.</summary>
     partial void OnSelectedClassChanged(ClassListItem? value)
     {
-        if (IsStudentMode || value is null) return;
+        if (IsStudentMode)
+        {
+            _ = RefreshStudentListAsync();
+            return;
+        }
+        if (value is null)
+        {
+            Students.Clear();
+            SelectedStudent = null;
+            FeeLines.Clear();
+            ClearHistory();
+            UpdateSummary();
+            return;
+        }
         _ = LoadClassAsync(value.Id);
     }
 
+    /// <summary>Every keystroke restarts the short debounce timer → live search.</summary>
     partial void OnStudentSearchChanged(string value)
     {
         if (!IsStudentMode) return;
         _searchTimer.Stop();
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            Students.Clear();
-            return;
-        }
         _searchTimer.Start();
     }
 
@@ -130,6 +149,12 @@ public partial class FeeChargeViewModel : ObservableObject
         UpdateSummary();
     }
 
+    partial void OnSelectedBillChanged(FeeHistoryRowDto? value)
+    {
+        EditBillAmount = value?.Amount ?? 0m;
+        EditBillDue = value is null ? null : value.DueDate.ToDateTime(TimeOnly.MinValue);
+    }
+
     private async Task InitAsync()
     {
         IsBusy = true;
@@ -139,7 +164,8 @@ public partial class FeeChargeViewModel : ObservableObject
             if (!result.Ok || result.Data is null) { SetMessage(result.Error, true); return; }
             Classes.Clear();
             foreach (var c in result.Data) Classes.Add(c);
-            SelectedClass = Classes.FirstOrDefault();
+            // No class pre-selected: student search works across all classes from the start.
+            SetMessage("Naam ya roll number likhein (har harf par search hoga), ya class chunein.", false);
         }
         finally { IsBusy = false; }
     }
@@ -149,10 +175,46 @@ public partial class FeeChargeViewModel : ObservableObject
     {
         if (IsStudentMode)
         {
+            await RefreshStudentListAsync();
             if (SelectedStudent is not null) await LoadHistoryAsync(SelectedStudent.Id);
             return;
         }
         if (SelectedClass is not null) await LoadClassAsync(SelectedClass.Id);
+    }
+
+    [RelayCommand]
+    private void ClearClassFilter() => SelectedClass = null;
+
+    /// <summary>Student list = search term (name / roll / father / phone) narrowed by the class filter.</summary>
+    private async Task RefreshStudentListAsync()
+    {
+        if (!IsStudentMode) return;
+        var version = Interlocked.Increment(ref _listVersion);
+        var term = StudentSearch.Trim();
+        var classId = SelectedClass?.Id;
+
+        if (term.Length == 0 && classId is null)
+        {
+            Students.Clear();
+            SetMessage("Naam ya roll number likhein, ya upar se class chunein.", false);
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var result = await _api.StudentsAsync(
+                search: term.Length == 0 ? null : term, classId: classId, pageSize: 100);
+            if (version != _listVersion) return;
+            if (!result.Ok || result.Data is null) { SetMessage(result.Error, true); return; }
+
+            Students.Clear();
+            foreach (var s in result.Data.Items) Students.Add(s);
+            SetMessage(Students.Count == 0
+                ? "Koi active student nahi mila."
+                : $"{Students.Count} student(s) mile. Kisi par click karein.", false);
+        }
+        finally { if (version == _listVersion) IsBusy = false; }
     }
 
     /// <summary>Class mode: class fee plan (amounts per fee) and the class's students.</summary>
@@ -177,7 +239,7 @@ public partial class FeeChargeViewModel : ObservableObject
             if (students.Ok && students.Data is not null)
                 foreach (var s in students.Data.Items) Students.Add(s);
 
-            SelectedStudent = null; // history resets when the class changes
+            SelectedStudent = null;
             ClearHistory();
             UpdateSummary();
             SetMessage($"{Students.Count} student(s) in this class. Fee tick karein aur 'Balance mein add' dabayein.", false);
@@ -190,7 +252,6 @@ public partial class FeeChargeViewModel : ObservableObject
     {
         var version = Interlocked.Increment(ref _itemsVersion);
         IsBusy = true;
-        SetMessage(string.Empty, false);
         try
         {
             var plan = await _api.StudentFeePlanAsync(studentId);
@@ -200,7 +261,6 @@ public partial class FeeChargeViewModel : ObservableObject
             ReplaceFeeLines(plan.Data.Select(x => new ChargeLine(
                 x.FeeHeadId, x.Name, x.Category, ToUiCycle(x.BillingCycle), x.Amount,
                 isSelected: x.IsIncluded && x.Amount > 0m && (!x.IsOptionalForStudent || x.IsOptedIn))));
-            SetMessage("Fee tick karein, amount check karein, phir 'Balance mein add' dabayein.", false);
         }
         finally { if (version == _itemsVersion) IsBusy = false; }
     }
@@ -292,24 +352,6 @@ public partial class FeeChargeViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
-    [RelayCommand]
-    private async Task SearchStudentsAsync()
-    {
-        var term = StudentSearch.Trim();
-        if (!IsStudentMode || term.Length == 0)
-        {
-            Students.Clear();
-            return;
-        }
-
-        var result = await _api.StudentsAsync(search: term, pageSize: 50);
-        if (!result.Ok || result.Data is null) { SetMessage(result.Error, true); return; }
-
-        Students.Clear();
-        foreach (var s in result.Data.Items) Students.Add(s);
-        if (Students.Count == 0) SetMessage("Is naam/roll par koi active student nahi mila.", false);
-    }
-
     private async Task LoadHistoryAsync(int studentId)
     {
         var version = Interlocked.Increment(ref _historyVersion);
@@ -318,6 +360,8 @@ public partial class FeeChargeViewModel : ObservableObject
         if (!result.Ok || result.Data is null)
         {
             ClearHistory();
+            HistoryError = $"Is student ki history nahi aayi: {result.Error}. " +
+                           "Agar 'Not Found' ya 404 aa raha hai to server ko v1.1.54 par update karein.";
             SetMessage(result.Error, true);
             return;
         }
@@ -328,11 +372,18 @@ public partial class FeeChargeViewModel : ObservableObject
     {
         History = h;
         HasHistory = true;
+        HistoryError = string.Empty;
         HistoryTitle = $"{h.StudentName}  ·  Class {h.ClassName}";
         HistoryInfo = $"Roll {h.RollNo}   ·   Father: {h.FatherName}   ·   Phone: {h.FatherPhone}";
         TotalAmount = h.TotalAmount;
         TotalPaid = h.TotalPaid;
         TotalBalance = h.TotalBalance;
+        CollectAmount = h.TotalBalance;
+        CollectNotes = string.Empty;
+        ReverseReason = string.Empty;
+
+        SelectedBill = null;
+        SelectedPayment = null;
 
         HistoryFees.Clear();
         foreach (var r in h.Fees) HistoryFees.Add(r);
@@ -344,13 +395,140 @@ public partial class FeeChargeViewModel : ObservableObject
     {
         History = null;
         HasHistory = false;
+        HistoryError = string.Empty;
         HistoryTitle = string.Empty;
         HistoryInfo = string.Empty;
         TotalAmount = 0m;
         TotalPaid = 0m;
         TotalBalance = 0m;
+        CollectAmount = 0m;
+        SelectedBill = null;
+        SelectedPayment = null;
         HistoryFees.Clear();
         HistoryPayments.Clear();
+    }
+
+    [RelayCommand]
+    private async Task CollectAsync()
+    {
+        if (History is null) return;
+        if (CollectAmount <= 0m) { SetMessage("Jo amount lena hai woh likhein.", true); return; }
+        if (CollectAmount > TotalBalance)
+        {
+            SetMessage($"Amount baaqi balance Rs {TotalBalance:N0} se zyada nahi ho sakta.", true);
+            return;
+        }
+        if (CollectDate is null) { SetMessage("Payment ki tareekh select karein.", true); return; }
+
+        var confirm = MessageBox.Show(
+            $"{History.StudentName} se Rs {CollectAmount:N0} ({CollectMethod}) lene hain?\n\n" +
+            "Yeh amount khud purane bills mein, oldest due date se, allocate hoga.",
+            "Confirm: Payment", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        IsBusy = true;
+        try
+        {
+            var r = await _api.CollectStudentFeeAsync(History.StudentId, new
+            {
+                Amount = CollectAmount,
+                PaidDate = DateOnly.FromDateTime(CollectDate.Value),
+                Method = CollectMethod,
+                Notes = string.IsNullOrWhiteSpace(CollectNotes) ? null : CollectNotes.Trim()
+            });
+            if (!r.Ok || r.Data is null) { SetMessage(r.Error, true); return; }
+
+            SetMessage(string.IsNullOrWhiteSpace(r.Msg) ? "Payment record ho gayi." : r.Msg, false);
+            await LoadHistoryAsync(History.StudentId);
+        }
+        finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task ReversePaymentAsync()
+    {
+        if (History is null) return;
+        if (SelectedPayment is null)
+        {
+            SetMessage("Pehle payment list mein woh payment select karein jo ghalat thi.", true);
+            return;
+        }
+        if (SelectedPayment.Amount <= 0m)
+        {
+            SetMessage("Reversal entry ko dobara reverse nahi kiya ja sakta.", true);
+            return;
+        }
+        if (ReverseReason.Trim().Length < 3)
+        {
+            SetMessage("Reversal ki wajah likhein (kam az kam 3 huruf).", true);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Rs {SelectedPayment.Amount:N0} ki payment ({SelectedPayment.ReceiptNo}) reverse karni hai?\n\n" +
+            "Record delete nahi hoga; ek reversal entry banegi aur balance dobara baaqi ho jayega.",
+            "Confirm: Reverse payment", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        IsBusy = true;
+        try
+        {
+            var r = await _api.ReverseFeePaymentAsync(SelectedPayment.PaymentId, ReverseReason.Trim());
+            if (!r.Ok || r.Data is null) { SetMessage(r.Error, true); return; }
+
+            SetMessage(string.IsNullOrWhiteSpace(r.Msg) ? "Payment reverse ho gayi." : r.Msg, false);
+            await LoadHistoryAsync(History.StudentId);
+        }
+        finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task SaveBillAsync()
+    {
+        if (History is null || SelectedBill is null) { SetMessage("Pehle neeche se bill select karein.", true); return; }
+        if (EditBillAmount <= 0m) { SetMessage("Bill ka amount zero se zyada hona chahiye.", true); return; }
+        if (EditBillDue is null) { SetMessage("Due date select karein.", true); return; }
+
+        IsBusy = true;
+        try
+        {
+            var r = await _api.UpdateFeeBillAsync(SelectedBill.FeeId, new
+            {
+                StudentId = History.StudentId,
+                Amount = EditBillAmount,
+                Month = SelectedBill.Month,
+                DueDate = DateOnly.FromDateTime(EditBillDue.Value),
+                Notes = (string?)null
+            });
+            if (!r.Ok) { SetMessage(r.Error, true); return; }
+
+            SetMessage("Bill update ho gaya.", false);
+            await LoadHistoryAsync(History.StudentId);
+        }
+        finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task DeleteBillAsync()
+    {
+        if (History is null || SelectedBill is null) { SetMessage("Pehle neeche se bill select karein.", true); return; }
+
+        var confirm = MessageBox.Show(
+            $"{SelectedBill.FeeHead} ({SelectedBill.Month}, Rs {SelectedBill.Amount:N0}) ka bill delete karna hai?\n\n" +
+            "Sirf bina payment ke bill delete hota hai.",
+            "Confirm: Delete bill", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        IsBusy = true;
+        try
+        {
+            var r = await _api.DeleteFeeBillAsync(SelectedBill.FeeId);
+            if (!r.Ok) { SetMessage(r.Error, true); return; }
+
+            SetMessage("Bill delete ho gaya.", false);
+            await LoadHistoryAsync(History.StudentId);
+        }
+        finally { IsBusy = false; }
     }
 
     [RelayCommand]

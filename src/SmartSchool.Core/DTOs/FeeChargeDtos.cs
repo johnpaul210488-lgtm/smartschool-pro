@@ -64,3 +64,21 @@ public sealed record StudentFeeHistoryDto(
     decimal TotalBalance,
     IReadOnlyList<FeeHistoryRow> Fees,
     IReadOnlyList<FeeHistoryPayment> Payments);
+
+/// <summary>Collect money from one student; it is spread over their open bills, oldest due date first.</summary>
+public sealed class CollectStudentFeeRequest
+{
+    public decimal Amount { get; set; }
+    /// <summary>Defaults to today (Pakistan time).</summary>
+    public DateOnly? PaidDate { get; set; }
+    public string? Method { get; set; }
+    public string? Notes { get; set; }
+}
+
+public sealed record FeeCollectResult(decimal Collected, decimal RemainingBalance, int BillsTouched);
+
+/// <summary>Reverse one payment. The original stays in the ledger; a negative entry is added beside it.</summary>
+public sealed class ReversePaymentRequest
+{
+    public string Reason { get; set; } = string.Empty;
+}

@@ -276,6 +276,22 @@ public sealed class ApiClient
     public Task<(bool Ok, StudentFeeHistoryDto? Data, string Error, string Msg)> StudentFeeHistoryAsync(int studentId)
         => GetAsync<StudentFeeHistoryDto>($"api/FeeCharges/student/{studentId}/history");
 
+    // Fee screen: collect a payment from a student (spread over open bills, oldest first).
+    public Task<(bool Ok, FeeCollectResultDto? Data, string Error, string Msg)> CollectStudentFeeAsync(int studentId, object request)
+        => PostAsync<FeeCollectResultDto>($"api/FeeCharges/student/{studentId}/collect", request);
+
+    // Fee screen: reverse a wrong payment (adds a negative ledger entry; the original stays).
+    public Task<(bool Ok, FeeCollectResultDto? Data, string Error, string Msg)> ReverseFeePaymentAsync(int paymentId, string reason)
+        => PostAsync<FeeCollectResultDto>($"api/FeeCharges/payments/{paymentId}/reverse", new { reason });
+
+    // Fee screen: correct an unpaid bill (server refuses when the bill already has payments).
+    public Task<(bool Ok, object? Data, string Error, string Msg)> UpdateFeeBillAsync(int feeId, object request)
+        => PutAsync<object>($"api/fees/{feeId}", request);
+
+    // Fee screen: delete an unpaid manual bill (server refuses when it has payments).
+    public Task<(bool Ok, string Error)> DeleteFeeBillAsync(int feeId)
+        => DeleteAsync($"api/fees/{feeId}");
+
     public Task<(bool Ok, DuesSummaryResponse? Data, string Error, string Msg)> DuesAsync()
         => GetAsync<DuesSummaryResponse>("api/fees/dues");
 

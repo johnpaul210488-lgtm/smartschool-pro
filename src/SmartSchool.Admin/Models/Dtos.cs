@@ -433,3 +433,10 @@ public sealed class StudentFeeHistoryDto
     [JsonPropertyName("fees")] public List<FeeHistoryRowDto> Fees { get; set; } = new();
     [JsonPropertyName("payments")] public List<FeeHistoryPaymentDto> Payments { get; set; } = new();
 }
+
+public sealed class FeeCollectResultDto
+{
+    [JsonPropertyName("collected")] public decimal Collected { get; set; }
+    [JsonPropertyName("remainingBalance")] public decimal RemainingBalance { get; set; }
+    [JsonPropertyName("billsTouched")] public int BillsTouched { get; set; }
+}

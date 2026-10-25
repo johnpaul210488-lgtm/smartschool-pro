@@ -182,4 +182,163 @@ public sealed class FeeChargesController : BaseApiController
 
         return OkEnvelope(dto);
     }
+
+    /// <summary>
+    /// Collect a payment from a student. The amount is spread over their open bills,
+    /// oldest due date first; one immutable payment row is written per bill touched.
+    /// </summary>
+    [HttpPost("student/{studentId:int}/collect")]
+    [Authorize(Roles = AppRoles.Staff)]
+    public async Task<ActionResult<ApiResponse<FeeCollectResult>>> Collect(
+        int studentId, CollectStudentFeeRequest? request, CancellationToken ct)
+    {
+        if (request is null || request.Amount <= 0m)
+            return BadRequestEnvelope("Amount must be greater than zero.");
+        if (request.Amount > 10_000_000m)
+            return BadRequestEnvelope("Amount must not exceed 10,000,000.");
+
+        var paidDate = request.PaidDate ?? PkTime.TodayPk;
+        if (paidDate > PkTime.TodayPk)
+            return BadRequestEnvelope("Paid date cannot be in the future.");
+
+        var method = string.IsNullOrWhiteSpace(request.Method) ? "Cash" : request.Method.Trim();
+        if (method.Length > 30) return BadRequestEnvelope("Method must be 30 characters or fewer.");
+        var notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+        if (notes is not null && notes.Length > 300) return BadRequestEnvelope("Notes must be 300 characters or fewer.");
+
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync<ActionResult<ApiResponse<FeeCollectResult>>>(async () =>
+        {
+            await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+
+            if (!await _db.Students.AnyAsync(s => s.Id == studentId, ct))
+                return NotFoundEnvelope($"Student {studentId} was not found.");
+
+            var bills = await _db.Fees
+                .Where(f => f.StudentId == studentId && f.AmountPaid < f.Amount)
+                .OrderBy(f => f.DueDate).ThenBy(f => f.Id)
+                .ToListAsync(ct);
+
+            var balance = bills.Sum(f => f.Amount - f.AmountPaid);
+            if (balance <= 0m)
+                return ConflictEnvelope("This student has no balance to collect.");
+            if (request.Amount > balance)
+                return BadRequestEnvelope($"Amount cannot exceed the balance Rs {balance:N2}.");
+
+            var remaining = request.Amount;
+            var touched = 0;
+            foreach (var fee in bills)
+            {
+                if (remaining <= 0m) break;
+                var pay = Math.Min(fee.Amount - fee.AmountPaid, remaining);
+
+                var receipt = NewReceiptNo("PAY", fee.Id);
+                _db.FeePayments.Add(new FeePayment
+                {
+                    FeeId = fee.Id,
+                    Amount = pay,
+                    PaidDate = paidDate,
+                    ReceiptNo = receipt,
+                    Method = method,
+                    Notes = notes,
+                    CreatedAtUtc = DateTime.UtcNow
+                });
+                fee.AmountPaid += pay;
+                fee.ReceiptNo = receipt;
+                ApplyStatus(fee, paidDate);
+
+                remaining -= pay;
+                touched++;
+            }
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            var left = balance - request.Amount;
+            return OkEnvelope(new FeeCollectResult(request.Amount, left, touched),
+                $"Rs {request.Amount:N2} collected. Remaining balance Rs {left:N2}.");
+        });
+    }
+
+    /// <summary>
+    /// Reverse a wrongly entered payment. Nothing is deleted: a negative "Reversal" row is
+    /// added to the ledger and the bill balance is restored. A payment can be reversed once.
+    /// </summary>
+    [HttpPost("payments/{paymentId:int}/reverse")]
+    [Authorize(Roles = AppRoles.Staff)]
+    public async Task<ActionResult<ApiResponse<FeeCollectResult>>> ReversePayment(
+        int paymentId, ReversePaymentRequest? request, CancellationToken ct)
+    {
+        var reason = request?.Reason?.Trim() ?? string.Empty;
+        if (reason.Length < 3) return BadRequestEnvelope("Reversal ki wajah likhein (kam az kam 3 huruf).");
+        if (reason.Length > 200) return BadRequestEnvelope("Reason must be 200 characters or fewer.");
+
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync<ActionResult<ApiResponse<FeeCollectResult>>>(async () =>
+        {
+            await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+
+            var payment = await _db.FeePayments.FirstOrDefaultAsync(p => p.Id == paymentId, ct);
+            if (payment is null)
+                return NotFoundEnvelope($"Payment {paymentId} was not found.");
+            if (payment.Amount <= 0m)
+                return ConflictEnvelope("Yeh ek reversal entry hai; ise reverse nahi kiya ja sakta.");
+
+            var marker = $"[REV#{payment.Id}]";
+            if (await _db.FeePayments.AnyAsync(p => p.Notes != null && p.Notes.StartsWith(marker), ct))
+                return ConflictEnvelope("Yeh payment pehle hi reverse ho chuki hai.");
+
+            var fee = await _db.Fees.FirstOrDefaultAsync(f => f.Id == payment.FeeId, ct);
+            if (fee is null)
+                return NotFoundEnvelope($"Fee {payment.FeeId} was not found.");
+
+            // Receipt that the bill should point to after the reversal (latest surviving payment).
+            var lastReceipt = await _db.FeePayments
+                .Where(p => p.FeeId == fee.Id && p.Amount > 0m && p.Id != payment.Id)
+                .OrderByDescending(p => p.CreatedAtUtc).ThenByDescending(p => p.Id)
+                .Select(p => p.ReceiptNo)
+                .FirstOrDefaultAsync(ct);
+
+            var noteText = $"{marker} {reason}";
+            _db.FeePayments.Add(new FeePayment
+            {
+                FeeId = fee.Id,
+                Amount = -payment.Amount,
+                PaidDate = PkTime.TodayPk,
+                ReceiptNo = NewReceiptNo("REV", fee.Id),
+                Method = "Reversal",
+                Notes = noteText.Length > 300 ? noteText[..300] : noteText,
+                CreatedAtUtc = DateTime.UtcNow
+            });
+
+            fee.AmountPaid = Math.Max(0m, fee.AmountPaid - payment.Amount);
+            fee.ReceiptNo = lastReceipt;
+            ApplyStatus(fee, PkTime.TodayPk);
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            var left = Math.Max(0m, fee.Amount - fee.AmountPaid);
+            return OkEnvelope(new FeeCollectResult(-payment.Amount, left, 1),
+                $"Rs {payment.Amount:N2} payment reverse ho gayi. Is bill ka baaqi balance Rs {left:N2}.");
+        });
+    }
+
+    private static string NewReceiptNo(string prefix, int feeId)
+        => $"{prefix}-{feeId:D6}-{Guid.NewGuid():N}"[..23].ToUpperInvariant();
+
+    /// <summary>Recomputes status from the paid amount. Same rules as the Pay endpoint.</summary>
+    private static void ApplyStatus(Fee fee, DateOnly paidDate)
+    {
+        if (fee.Amount > 0m && fee.AmountPaid >= fee.Amount)
+        {
+            fee.Status = FeeStatus.Paid;
+            fee.PaidDate = paidDate;
+        }
+        else
+        {
+            fee.Status = fee.AmountPaid > 0m ? FeeStatus.Partial : FeeStatus.Pending;
+            fee.PaidDate = null;
+        }
+    }
 }
