@@ -34,6 +34,29 @@ class _FeesScreenState extends State<FeesScreen> {
     }
   }
 
+  // CHANGED: show receipt-level history, including partial payments.
+  Future<void> _openPaymentHistory(FeeRow row) async {
+    final future = context.read<FeesProvider>().paymentHistory(row.id);
+    await showDialog<void>(context: context, builder: (context) => AlertDialog(
+      title: Text('Payment history — ${row.studentName}'),
+      content: SizedBox(width: 420, child: FutureBuilder<List<FeePaymentRow>>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return Text('Could not load payment history: ${snapshot.error}');
+          final rows = snapshot.data ?? const <FeePaymentRow>[];
+          if (rows.isEmpty) return const Text('No payments have been recorded for this fee yet.');
+          return ListView(shrinkWrap: true, children: rows.map((p) => ListTile(
+            dense: true,
+            title: Text('Rs ${p.amount} — ${p.method ?? 'Payment'}'),
+            subtitle: Text('${p.paidDate} • ${p.receiptNo}'),
+          )).toList());
+        },
+      )),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = context.watch<LocaleProvider>();
@@ -71,12 +94,12 @@ class _FeesScreenState extends State<FeesScreen> {
                   const SizedBox(height: 12),
                   if (fees.pending.isNotEmpty)
                     _SectionTitle(text: loc.t('pending_dues')),
-                  ...fees.pending.map((r) => _FeeTile(row: r, pending: true, loc: loc)),
+                  ...fees.pending.map((r) => _FeeTile(row: r, pending: true, loc: loc, onHistory: _openPaymentHistory)),
 
                   const SizedBox(height: 12),
                   if (fees.paid.isNotEmpty)
                     _SectionTitle(text: loc.t('paid_history')),
-                  ...fees.paid.map((r) => _FeeTile(row: r, pending: false, loc: loc, onReceipt: _openReceipt)),
+                  ...fees.paid.map((r) => _FeeTile(row: r, pending: false, loc: loc, onReceipt: _openReceipt, onHistory: _openPaymentHistory)),
 
                   if (fees.rows.isEmpty && !fees.loading)
                     Padding(
@@ -101,11 +124,12 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _FeeTile extends StatelessWidget {
-  const _FeeTile({required this.row, required this.pending, required this.loc, this.onReceipt});
+  const _FeeTile({required this.row, required this.pending, required this.loc, this.onReceipt, this.onHistory});
   final FeeRow row;
   final bool pending;
   final LocaleProvider loc;
   final Future<void> Function(FeeRow)? onReceipt;
+  final Future<void> Function(FeeRow)? onHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -123,17 +147,18 @@ class _FeeTile extends StatelessWidget {
           backgroundColor: pending ? (isOverdue ? Colors.red : Colors.orange) : Colors.green,
           child: Icon(pending ? Icons.schedule : Icons.check, color: Colors.white),
         ),
-        title: Text('${row.studentName}  —  ${row.month}',
+        onTap: onHistory == null ? null : () => onHistory!(row),
+        title: Text('${row.studentName}  —  ${row.feeHeadName ?? 'Fee'} (${row.month})',
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(pending
-            ? '${loc.t('due_on')}: ${row.dueDate}'
+            ? '${loc.t('due_on')}: ${row.dueDate}  •  Invoice Rs ${row.amount}  •  Paid Rs ${row.amountPaid}'
             : '${loc.t('paid_on')}: ${row.paidDate ?? ''}  •  ${row.receiptNo ?? ''}'),
         trailing: pending
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('${loc.t('rs')} ${row.amount}',
+                  Text('${loc.t('rs')} ${row.balance}',
                       style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -142,6 +167,8 @@ class _FeeTile extends StatelessWidget {
                     Text(loc.t('overdue'),
                         style: const TextStyle(
                             color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                  if (!isOverdue && row.amountPaid > 0)
+                    const Text('Partially paid', style: TextStyle(color: Colors.deepOrange, fontSize: 11)), // CHANGED
                 ],
               )
             : row.receiptNo != null

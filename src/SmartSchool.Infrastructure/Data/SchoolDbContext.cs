@@ -15,6 +15,10 @@ public sealed class SchoolDbContext : DbContext
     // CHANGED: configurable fee-head catalog and class fee-plan templates.
     public DbSet<FeeHead> FeeHeads => Set<FeeHead>();
     public DbSet<ClassFeePlanItem> ClassFeePlanItems => Set<ClassFeePlanItem>();
+    // <-- CHANGED: active plan schedules, student-specific overrides, and payment history.
+    public DbSet<FeePlanAssignment> FeePlanAssignments => Set<FeePlanAssignment>();
+    public DbSet<StudentFeePlanItem> StudentFeePlanItems => Set<StudentFeePlanItem>();
+    public DbSet<FeePayment> FeePayments => Set<FeePayment>();
     public DbSet<Bus> Buses => Set<Bus>();
     public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<Trip> Trips => Set<Trip>();
@@ -111,8 +115,12 @@ public sealed class SchoolDbContext : DbContext
         {
             e.ToTable("Fees");
             e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.AmountPaid).HasColumnType("decimal(18,2)");
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
-            e.Property(x => x.Month).HasMaxLength(7).IsRequired();
+            e.Property(x => x.Month).HasMaxLength(20).IsRequired(); // <-- CHANGED: quarterly/yearly period labels too.
+            e.Property(x => x.BillingCycle).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.BillingPeriodKey).HasMaxLength(40);
+            e.Property(x => x.FeeHeadNameSnapshot).HasMaxLength(100);
             e.Property(x => x.ReceiptNo).HasMaxLength(30);
             e.HasIndex(x => x.ReceiptNo).IsUnique().HasFilter("[ReceiptNo] IS NOT NULL");
             e.Property(x => x.Notes).HasMaxLength(300);
@@ -120,6 +128,9 @@ public sealed class SchoolDbContext : DbContext
              .HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.StudentId, x.Month });
             e.HasIndex(x => x.Status);
+            e.HasIndex(x => new { x.StudentId, x.FeeHeadId, x.BillingPeriodKey })
+                .IsUnique().HasFilter("[FeeHeadId] IS NOT NULL AND [BillingPeriodKey] IS NOT NULL");
+            e.HasOne(x => x.FeeHead).WithMany().HasForeignKey(x => x.FeeHeadId).OnDelete(DeleteBehavior.Restrict);
         });
 
         // CHANGED: draft fee heads and class-specific fee plan amounts; plans do not create bills.
@@ -142,6 +153,42 @@ public sealed class SchoolDbContext : DbContext
             e.HasOne(x => x.Class).WithMany().HasForeignKey(x => x.ClassId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.FeeHead).WithMany(h => h.ClassPlanItems)
                 .HasForeignKey(x => x.FeeHeadId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // CHANGED: one active billing schedule per class or individually assigned student.
+        mb.Entity<FeePlanAssignment>(e =>
+        {
+            e.ToTable("FeePlanAssignments", t => t.HasCheckConstraint(
+                "CK_FeePlanAssignments_ExactlyOneScope",
+                "([ClassId] IS NOT NULL AND [StudentId] IS NULL) OR ([ClassId] IS NULL AND [StudentId] IS NOT NULL)"));
+            e.HasIndex(x => x.ClassId).IsUnique().HasFilter("[ClassId] IS NOT NULL");
+            e.HasIndex(x => x.StudentId).IsUnique().HasFilter("[StudentId] IS NOT NULL");
+            e.HasOne(x => x.Class).WithMany().HasForeignKey(x => x.ClassId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // CHANGED: nullable per-head overrides inherit class settings; IsOptedIn gates optional billing.
+        mb.Entity<StudentFeePlanItem>(e =>
+        {
+            e.ToTable("StudentFeePlanItems");
+            e.Property(x => x.AmountOverride).HasColumnType("decimal(18,2)");
+            e.Property(x => x.BillingCycleOverride).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(x => new { x.StudentId, x.FeeHeadId }).IsUnique();
+            e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.FeeHead).WithMany().HasForeignKey(x => x.FeeHeadId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // CHANGED: immutable payment rows provide partial-payment balances and receipts.
+        mb.Entity<FeePayment>(e =>
+        {
+            e.ToTable("FeePayments");
+            e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.ReceiptNo).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Method).HasMaxLength(30);
+            e.Property(x => x.Notes).HasMaxLength(300);
+            e.HasIndex(x => x.ReceiptNo).IsUnique();
+            e.HasIndex(x => new { x.FeeId, x.PaidDate });
+            e.HasOne(x => x.Fee).WithMany(f => f.Payments).HasForeignKey(x => x.FeeId).OnDelete(DeleteBehavior.Cascade);
         });
 
         mb.Entity<Trip>(e =>

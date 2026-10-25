@@ -69,7 +69,9 @@ public partial class FeeReceiptViewModel : ObservableObject
         Row("Student", _fee.StudentName);
         Row("Class", _fee.ClassName);
         Row("Fee Month", _fee.Month);
-        Row("Amount Paid", $"Rs {_fee.Amount:N0}");
+        Row("Invoice amount", $"Rs {_fee.Amount:N2}");
+        Row("This payment", $"Rs {(_fee.LastPaymentAmount > 0m ? _fee.LastPaymentAmount : _fee.Amount):N2}");
+        Row("Balance remaining", $"Rs {_fee.Balance:N2}");
         Row("Status", _fee.Status);
 
         doc.Blocks.Add(new Paragraph(new Run("─".PadRight(48, '─'))) { Margin = new Thickness(0, 16, 0, 16) });

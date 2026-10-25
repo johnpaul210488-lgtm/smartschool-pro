@@ -81,7 +81,10 @@
                     <DataGridTextColumn Header="Student" Binding="{Binding StudentName}" Width="2*"/>
                     <DataGridTextColumn Header="Class" Binding="{Binding ClassName}" Width="*"/>
                     <DataGridTextColumn Header="Month" Binding="{Binding Month}" Width="80"/>
-                    <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat='Rs {0:N0}'}" Width="*"/>
+                    <DataGridTextColumn Header="Fee head" Binding="{Binding FeeHeadName}" Width="*"/>
+                    <DataGridTextColumn Header="Invoice" Binding="{Binding Amount, StringFormat='Rs {0:N2}'}" Width="*"/>
+                    <DataGridTextColumn Header="Paid" Binding="{Binding AmountPaid, StringFormat='Rs {0:N2}'}" Width="*"/>
+                    <DataGridTextColumn Header="Balance" Binding="{Binding Balance, StringFormat='Rs {0:N2}'}" Width="*"/>
                     <DataGridTextColumn Header="Due" Binding="{Binding DueDate, StringFormat='dd MMM'}" Width="70"/>
                     <DataGridTextColumn Header="Paid on" Binding="{Binding PaidDate, StringFormat='dd MMM', TargetNullValue='—'}" Width="80"/>
                     <DataGridTemplateColumn Header="Status" Width="100">
@@ -115,7 +118,7 @@
                                 <Button ToolTip="Collect fee"
                                         Command="{Binding DataContext.CollectCommand,
                                             RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}"
+                                        CommandParameter="{Binding}" IsEnabled="{Binding HasBalance}"
                                         Style="{StaticResource QisIconButton}">
                                     <materialDesign:PackIcon Kind="CashPlus" Width="18" Height="18"/>
                                 </Button>

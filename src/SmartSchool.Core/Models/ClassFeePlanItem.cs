@@ -14,4 +14,5 @@ public sealed class ClassFeePlanItem
     public FeeBillingCycle BillingCycle { get; set; }
     public bool IsIncluded { get; set; }
     public bool IsOptionalForStudent { get; set; }
+    public DateOnly? EffectiveFrom { get; set; }
 }

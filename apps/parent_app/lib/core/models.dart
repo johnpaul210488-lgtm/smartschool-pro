@@ -60,6 +60,7 @@ class ParentSettings {
       );
 }
 
+// CHANGED: includes outstanding balance, amount paid, fee-head label, and partial status.
 class FeeRow {
   FeeRow({
     required this.id,
@@ -73,6 +74,9 @@ class FeeRow {
     required this.status,
     this.receiptNo,
     this.notes,
+    required this.amountPaid,
+    required this.balance,
+    this.feeHeadName,
   });
 
   final int id;
@@ -80,30 +84,54 @@ class FeeRow {
   final String studentName;
   final String className;
   final num amount;
+  final num amountPaid;
+  final num balance;
+  final String? feeHeadName;
   final String month;
   final String dueDate;
   final String? paidDate;
 
-  /// Pending | Paid | Overdue
+  /// Pending | Paid | Overdue | Partial
   final String status;
   final String? receiptNo;
   final String? notes;
 
   bool get isPaid => status == 'Paid';
 
-  factory FeeRow.fromJson(Map<String, dynamic> j) => FeeRow(
-        id: j['id'] as int,
-        studentId: j['studentId'] as int,
-        studentName: j['studentName'] as String? ?? '',
-        className: j['className'] as String? ?? '',
-        amount: j['amount'] as num? ?? 0,
-        month: j['month'] as String? ?? '',
-        dueDate: j['dueDate'] as String? ?? '',
-        paidDate: j['paidDate'] as String?,
-        status: j['status'] as String? ?? 'Pending',
-        receiptNo: j['receiptNo'] as String?,
-        notes: j['notes'] as String?,
-      );
+  factory FeeRow.fromJson(Map<String, dynamic> j) {
+    final amount = j['amount'] as num? ?? 0;
+    final paid = j['amountPaid'] as num? ?? 0;
+    return FeeRow(
+      id: j['id'] as int,
+      studentId: j['studentId'] as int,
+      studentName: j['studentName'] as String? ?? '',
+      className: j['className'] as String? ?? '',
+      amount: amount,
+      amountPaid: paid,
+      balance: j['balance'] as num? ?? (amount - paid),
+      feeHeadName: j['feeHeadName'] as String?,
+      month: j['month'] as String? ?? '',
+      dueDate: j['dueDate'] as String? ?? '',
+      paidDate: j['paidDate'] as String?,
+      status: j['status'] as String? ?? 'Pending',
+      receiptNo: j['receiptNo'] as String?,
+      notes: j['notes'] as String?,
+    );
+  }
+}
+
+class FeePaymentRow {
+  const FeePaymentRow({required this.amount, required this.paidDate, required this.receiptNo, this.method});
+  final num amount;
+  final String paidDate;
+  final String receiptNo;
+  final String? method;
+  factory FeePaymentRow.fromJson(Map<String, dynamic> j) => FeePaymentRow(
+    amount: j['amount'] as num? ?? 0,
+    paidDate: j['paidDate'] as String? ?? '',
+    receiptNo: j['receiptNo'] as String? ?? '',
+    method: j['method'] as String?,
+  );
 }
 
 class ReceiptData {

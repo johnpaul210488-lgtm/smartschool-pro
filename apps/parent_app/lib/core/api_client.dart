@@ -122,6 +122,14 @@ class ApiClient {
     return ReceiptData.fromJson(env['data'] as Map<String, dynamic>);
   }
 
+  // CHANGED: fetch payment-by-payment history for a fee invoice.
+  Future<List<FeePaymentRow>> getFeePaymentHistory(int feeId) async {
+    final env = await _send('GET', '/api/fees/$feeId/payments');
+    return (env['data'] as List? ?? [])
+        .map((e) => FeePaymentRow.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // ---------- Alerts / announcements ----------
   Future<List<AlertItem>> getStudentEvents(int studentId) async {
     final env = await _send('GET', '/api/bus-attendance/student/$studentId?page=1&pageSize=30');

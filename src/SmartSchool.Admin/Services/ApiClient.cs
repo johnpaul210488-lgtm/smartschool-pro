@@ -246,6 +246,24 @@ public sealed class ApiClient
         int classId, SaveClassFeePlanRequest request)
         => PutAsync<object>($"api/fee-plans/classes/{classId}", request);
 
+    // CHANGED: schedule activation and individually searched student overrides.
+    public Task<(bool Ok, FeePlanAssignmentDto? Data, string Error, string Msg)> ClassPlanAssignmentAsync(int classId)
+        => GetAsync<FeePlanAssignmentDto>($"api/fee-plans/assignments/class/{classId}");
+    public Task<(bool Ok, FeePlanAssignmentDto? Data, string Error, string Msg)> SaveClassPlanAssignmentAsync(int classId, SaveFeePlanAssignmentRequest request)
+        => PutAsync<FeePlanAssignmentDto>($"api/fee-plans/assignments/class/{classId}", request);
+    public Task<(bool Ok, List<StudentFeePlanItemDto>? Data, string Error, string Msg)> StudentFeePlanAsync(int studentId)
+        => GetAsync<List<StudentFeePlanItemDto>>($"api/fee-plans/students/{studentId}");
+    public Task<(bool Ok, object? Data, string Error, string Msg)> SaveStudentFeePlanAsync(int studentId, SaveStudentFeePlanRequest request)
+        => PutAsync<object>($"api/fee-plans/students/{studentId}", request);
+    public Task<(bool Ok, FeePlanAssignmentDto? Data, string Error, string Msg)> StudentPlanAssignmentAsync(int studentId)
+        => GetAsync<FeePlanAssignmentDto>($"api/fee-plans/assignments/student/{studentId}");
+    public Task<(bool Ok, FeePlanAssignmentDto? Data, string Error, string Msg)> SaveStudentPlanAssignmentAsync(int studentId, SaveFeePlanAssignmentRequest request)
+        => PutAsync<FeePlanAssignmentDto>($"api/fee-plans/assignments/student/{studentId}", request);
+
+    // CHANGED: expose immutable payment ledger rows in the collect-fee screen.
+    public Task<(bool Ok, List<FeePaymentItem>? Data, string Error, string Msg)> FeePaymentHistoryAsync(int feeId)
+        => GetAsync<List<FeePaymentItem>>($"api/fees/{feeId}/payments");
+
     public Task<(bool Ok, DuesSummaryResponse? Data, string Error, string Msg)> DuesAsync()
         => GetAsync<DuesSummaryResponse>("api/fees/dues");
 

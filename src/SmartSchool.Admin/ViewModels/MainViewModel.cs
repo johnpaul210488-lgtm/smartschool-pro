@@ -363,6 +363,7 @@ public partial class MainViewModel : ObservableObject
                 rvm.BackRequested += () => CurrentView = OpenFeeDashboard();
                 CurrentView = new FeeReceiptView { DataContext = rvm };
             };
+            cvm.PartialPaymentRecorded += _ => CurrentView = OpenFeeDashboard(); // <-- CHANGED: refresh balances after a partial receipt.
             cvm.Cancelled += () => CurrentView = OpenFeeDashboard();
             CurrentView = new FeeCollectionView { DataContext = cvm };
         };
