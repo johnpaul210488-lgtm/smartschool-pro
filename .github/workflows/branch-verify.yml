@@ -134,7 +134,10 @@ jobs:
           [ -n "$CID" ] || { echo "MSSQL container not found"; exit 1; }
           SQLCMD="/opt/mssql-tools18/bin/sqlcmd"; docker exec "$CID" test -x "$SQLCMD" || SQLCMD="/opt/mssql-tools/bin/sqlcmd"
           docker cp scripts/ci/legacy-fee-fixture.sql "$CID":/tmp/fixture.sql
-          docker exec "$CID" "$SQLCMD" -S localhost -U sa -P 'Your_strong!Passw0rd' -C -d SmartSchoolPro -i /tmp/fixture.sql
+          docker exec "$CID" "$SQLCMD" -b -S localhost -U sa -P 'Your_strong!Passw0rd' -C -d SmartSchoolPro -i /tmp/fixture.sql
+          echo "---- rows before the upgrade ----"
+          docker exec "$CID" "$SQLCMD" -b -S localhost -U sa -P 'Your_strong!Passw0rd' -C -d SmartSchoolPro -h -1 -W -Q \
+            "SET NOCOUNT ON; SELECT CONCAT('students=', (SELECT COUNT(*) FROM dbo.Students), ' fees=', (SELECT COUNT(*) FROM dbo.Fees), ' paid=', (SELECT COUNT(*) FROM dbo.Fees WHERE [Status]=N'Paid'), ' partial=', (SELECT COUNT(*) FROM dbo.Fees WHERE [Status]=N'Partial'))"
 
       - name: Upgrade to the new schema (must not block on legacy Partial rows)
         run: |
