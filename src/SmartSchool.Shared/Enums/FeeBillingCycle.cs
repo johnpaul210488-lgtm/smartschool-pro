@@ -4,7 +4,8 @@ namespace SmartSchool.Shared.Enums;
 public enum FeeBillingCycle
 {
     Monthly = 0,
-    PerTerm = 1,
+    PerTerm = 1, // Legacy stored value; use Quarterly in the current UI.
     Annually = 2,
-    OneTime = 3
+    OneTime = 3,
+    Quarterly = 4
 }

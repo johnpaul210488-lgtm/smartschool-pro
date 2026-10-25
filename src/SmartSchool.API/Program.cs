@@ -178,6 +178,10 @@ try
     builder.Services.AddSingleton<GitHubReleaseProvider>();
     builder.Services.AddSingleton<GitHubIssueService>();
     builder.Services.AddHostedService<ErrorReportSyncWorker>();
+    // CHANGED: generate active class/student fee-plan bills idempotently
+    // (manual "generate now" endpoint + 30-minute background sweep share this service).
+    builder.Services.AddScoped<FeePlanBillingService>();
+    builder.Services.AddHostedService<FeePlanBillingWorker>();
 
     // ThingWorx (IoT portal) integration — bus locations relay into SignalR.
     builder.Services.Configure<SmartSchool.API.Services.IoT.ThingWorxOptions>(

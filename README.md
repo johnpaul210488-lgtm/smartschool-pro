@@ -44,7 +44,8 @@ SmartSchool.sln
 ├── scripts/                         # load-test-bus-events.ps1 (50 concurrent events)
 ├── installer/                       # SchoolServer-Setup.iss (one-click: LocalDB+service+admin)
 ├── docs/                            # architecture.md, realtime-flow.md, deployment-guide.md,
-│                                    #   integration-test-checklist.md, auto-update-and-installer.md
+│                                    #   integration-test-checklist.md, auto-update-and-installer.md,
+│                                    #   fee-automation.md (fee plans, partial payments, upgrade path)
 └── docker-compose.yml               # optional local SQL Server 2022
 ```
 
@@ -122,7 +123,8 @@ current-month fee challans for every sample student.
 | Students | `GET/POST /students` · `GET/PUT/DELETE /students/{id}` (search, paging, class/bus filters) |
 | Classes | `GET/POST /classes` · `PUT/DELETE /classes/{id}` |
 | Teachers | `GET/POST /teachers` · `PUT/DELETE /teachers/{id}` |
-| Fees | `GET/POST /fees` · `PUT/DELETE /fees/{id}` · `GET /fees/student/{id}` · `GET /fees/dues` · `POST /fees/{id}/pay` |
+| Fees | `GET/POST /fees` · `PUT/DELETE /fees/{id}` · `GET /fees/student/{id}` · `GET /fees/dues` · **`POST /fees/{id}/pay`** (full or **partial**) · **`GET /fees/{id}/payments`** (ledger) · **`GET /fees/legacy-partials`** (reconcile old rows) |
+| **Fee plans** | **`GET /fee-plans/heads`** · **`GET/PUT /fee-plans/classes/{id}`** (draft template) · **`GET/PUT /fee-plans/students/{id}`** (overrides + opt-ins) · **`GET/PUT /fee-plans/assignments/class\|student/{id}`** (activation + due day + calendar) · **`POST /fee-plans/generate-now`** |
 | Buses | `GET/POST /buses` · `PUT/DELETE /buses/{id}` · `PUT /buses/{id}/assign-driver` · `GET /buses/{id}/manifest` |
 | Drivers | `GET/POST /drivers` · `PUT/DELETE /drivers/{id}` |
 | **Bus attendance** | **`POST /bus-attendance/pick-in`** · **`POST /bus-attendance/drop-out`** · `GET /bus-attendance/student/{id}` · `GET /bus-attendance/bus/{id}` · **`GET /bus-attendance/today** |
@@ -136,6 +138,32 @@ current-month fee challans for every sample student.
 
 Authorization is role-based: `[Authorize(Roles="SuperAdmin,Admin")]` for mutations,
 drivers can post bus events / manage their own trips, parents can only read their own children's data.
+
+## Fee plans, automated billing & partial payments
+
+Full detail: **docs/fee-automation.md**. Short version:
+
+- **Nothing is charged** until a class (or single student) plan is *activated* with an
+  effective date, due day and billing calendar. Saving a plan only stores a draft.
+- Activation cannot be backdated, and **only the current period is billed** — old
+  periods are never back-filled automatically. `POST /api/fee-plans/generate-now`
+  issues the current period immediately; a background worker repeats the same
+  idempotent sweep **every 30 minutes**.
+- Bills are per **fee head** (`Tuition`, `Transport`, …) with a period key such as
+  `Monthly:2026-10`; `UNIQUE (StudentId, FeeHeadId, BillingPeriodKey)` makes duplicates impossible.
+- **Partial payments** are first-class: every payment is an immutable `FeePayments` row,
+  `AmountPaid`/`Balance` are derived, status moves `Pending → Partial → Paid`,
+  overpayment is rejected and a settled bill is read-only (audit trail intact).
+- Optional heads (transport, computer, …) are billed only after a per-student opt-in.
+- Upgrading an existing database keeps old receipts: legacy `Paid` rows get
+  `AmountPaid = Amount` plus one ledger row; legacy `Partial` rows are **never guessed** —
+  they are listed by `GET /api/fees/legacy-partials` and reconciled with
+  `database/sqlserver/099_legacy_partial_reconciliation.sql`.
+
+CI proves all of it on a real SQL Server 2022 (`.github/workflows/branch-verify.yml`):
+plan activation → billing → idempotency → partial payment → settlement → dues, plus an
+**upgrade-path** test that starts from the previous schema with legacy `Paid`/`Partial` rows.
+Locally: `BASE_URL=http://localhost:5000 bash scripts/fees-api-smoke-test.sh`.
 
 ## SignalR — real-time contract
 

@@ -9,94 +9,144 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- CHANGED: first fee-plan setup page; every row is a draft head until explicitly included. -->
-        <Grid Grid.Row="0" Margin="0,0,0,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Button Grid.Column="0" Command="{Binding BackCommand}" Style="{StaticResource QisOutlineButton}"
-                    VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal">
-                    <materialDesign:PackIcon Kind="ArrowLeft" Width="16" Height="16" Margin="0,0,6,0"/>
-                    <TextBlock Text="Back to fees"/>
-                </StackPanel>
-            </Button>
-            <TextBlock Grid.Column="1" Text="Class fee plans" FontSize="22" FontWeight="Bold"
-                       VerticalAlignment="Center" Margin="12,0,16,0"/>
-            <ComboBox Grid.Column="3" Width="180" Height="36" Margin="0,0,8,0"
-                      ItemsSource="{Binding Classes}" DisplayMemberPath="DisplayName"
-                      SelectedItem="{Binding SelectedClass, Mode=TwoWay}"
-                      materialDesign:HintAssist.Hint="Select class"/>
-            <Button Grid.Column="4" Command="{Binding LoadCommand}" ToolTip="Reload this plan"
-                    Style="{StaticResource QisIconButton}" VerticalAlignment="Center">
-                <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18"/>
-            </Button>
-        </Grid>
+        <!-- CHANGED: class/student scope, searched student, schedule and activation controls. -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Command="{Binding BackCommand}" Style="{StaticResource QisOutlineButton}" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="ArrowLeft" Width="16" Height="16" Margin="0,0,6,0"/>
+                        <TextBlock Text="Back to fees"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock Grid.Column="1" Text="Fee plans &amp; billing" FontSize="22" FontWeight="Bold"
+                           VerticalAlignment="Center" Margin="12,0,16,0"/>
+                <Button Grid.Column="3" Command="{Binding LoadCommand}" ToolTip="Reload this plan"
+                        Style="{StaticResource QisIconButton}" VerticalAlignment="Center">
+                    <materialDesign:PackIcon Kind="Refresh" Width="18" Height="18"/>
+                </Button>
+            </Grid>
+
+            <WrapPanel VerticalAlignment="Center" Margin="0,0,0,8">
+                <RadioButton Content="Class-wide" IsChecked="{Binding IsStudentMode, Converter={StaticResource InverseBool}}"
+                             GroupName="PlanScope" Margin="3,0,12,0" VerticalAlignment="Center"/>
+                <RadioButton Content="One student" IsChecked="{Binding IsStudentMode}"
+                             GroupName="PlanScope" Margin="3,0,12,0" VerticalAlignment="Center"/>
+                <ComboBox Width="190" Height="34" Margin="0,0,8,0" ItemsSource="{Binding Classes}"
+                          DisplayMemberPath="DisplayName" SelectedItem="{Binding SelectedClass, Mode=TwoWay}"
+                          Visibility="{Binding IsStudentMode, Converter={StaticResource InverseBoolToVis}}"
+                          materialDesign:HintAssist.Hint="Select class"/>
+                <TextBox Width="170" Height="34" Margin="0,0,6,0" Padding="8,3"
+                         Text="{Binding StudentSearch, UpdateSourceTrigger=PropertyChanged}"
+                         Visibility="{Binding IsStudentMode, Converter={StaticResource BoolToVis}}"
+                         materialDesign:HintAssist.Hint="Search name / roll no"/>
+                <Button Command="{Binding SearchStudentsCommand}" Style="{StaticResource QisOutlineButton}"
+                        Content="Search" Margin="0,0,6,0"
+                        Visibility="{Binding IsStudentMode, Converter={StaticResource BoolToVis}}"/>
+                <ComboBox Width="230" Height="34" ItemsSource="{Binding StudentSearchResults}"
+                          DisplayMemberPath="FullName" SelectedItem="{Binding SelectedStudent, Mode=TwoWay}"
+                          Visibility="{Binding IsStudentMode, Converter={StaticResource BoolToVis}}"
+                          materialDesign:HintAssist.Hint="Select student"/>
+            </WrapPanel>
+
+            <WrapPanel VerticalAlignment="Center">
+                <CheckBox Content="Activate recurring billing" IsChecked="{Binding IsPlanActive}"
+                          Margin="4,0,14,0" VerticalAlignment="Center"/>
+                <DatePicker SelectedDate="{Binding EffectiveFromDate, Mode=TwoWay}" Width="145" Height="34"
+                            Margin="0,0,8,0" materialDesign:HintAssist.Hint="Start date"/>
+                <TextBox Width="75" Height="34" Margin="0,0,8,0" Padding="7,3"
+                         Text="{Binding DueDay, UpdateSourceTrigger=LostFocus}"
+                         materialDesign:HintAssist.Hint="Due day 1–28"/>
+                <ComboBox Width="130" Height="34" Margin="0,0,8,0" ItemsSource="{Binding Months}"
+                          SelectedItem="{Binding QuarterStartMonth}"
+                          materialDesign:HintAssist.Hint="Quarter starts"/>
+                <ComboBox Width="135" Height="34" ItemsSource="{Binding Months}"
+                          SelectedItem="{Binding SchoolYearStartMonth}"
+                          materialDesign:HintAssist.Hint="School year starts"/>
+                <TextBlock Text="Quarterly = every 3 months from quarter start; Annual = school-year start."
+                           Margin="10,0,0,0" VerticalAlignment="Center" FontSize="11" Foreground="#6B5A5E"/>
+            </WrapPanel>
+        </StackPanel>
 
         <Border Grid.Row="1" Background="#FFF7E8" BorderBrush="#E8D4A7" BorderThickness="1"
                 CornerRadius="8" Padding="10,7" Margin="0,0,0,10">
-            <TextBlock Text="Review the suggested heads and enter class amounts. Unchecked heads are not in the plan; saving does not issue bills or charge families."
+            <TextBlock Text="Class mode: set the base plan. Student mode: only checked overrides replace that student's class heads; optional fees start off and must be opted in. Save inactive drafts first, then activate from the chosen date. No old-period bills are backfilled."
                        TextWrapping="Wrap" FontSize="12" Foreground="#684D18"/>
         </Border>
 
         <materialDesign:Card Grid.Row="2" Padding="10">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <DataGrid Grid.Row="0" ItemsSource="{Binding Items}" AutoGenerateColumns="False"
                           IsReadOnly="False" CanUserAddRows="False" CanUserDeleteRows="False"
                           SelectionMode="Extended" SelectionUnit="CellOrRowHeader"
                           HeadersVisibility="Column" RowHeaderWidth="0" MinHeight="250">
                     <DataGrid.Columns>
-                        <DataGridCheckBoxColumn Header="Include" Binding="{Binding IsIncluded, UpdateSourceTrigger=PropertyChanged}" Width="78"/>
+                        <DataGridCheckBoxColumn Header="Include" Binding="{Binding IsIncluded, UpdateSourceTrigger=PropertyChanged}" Width="72"/>
                         <DataGridTextColumn Header="Fee head" Binding="{Binding Name}" IsReadOnly="True" Width="2*"/>
                         <DataGridTextColumn Header="Category" Binding="{Binding Category}" IsReadOnly="True" Width="*"/>
-                        <DataGridTemplateColumn Header="Billing cycle" Width="150">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate><TextBlock Text="{Binding BillingCycle}"/></DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{Binding DataContext.BillingCycles, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                              SelectedItem="{Binding BillingCycle, UpdateSourceTrigger=PropertyChanged}"
-                                              MinWidth="125"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
+                        <DataGridTemplateColumn Header="Billing cycle" Width="130">
+                            <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding BillingCycle}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.BillingCycles, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                          SelectedItem="{Binding BillingCycle, UpdateSourceTrigger=PropertyChanged}" MinWidth="115"/>
+                            </DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Amount (Rs)" Binding="{Binding Amount, UpdateSourceTrigger=LostFocus, StringFormat='{}{0:N2}'}"
-                                            Width="130"/>
-                        <DataGridCheckBoxColumn Header="Optional for student" Binding="{Binding IsOptionalForStudent, UpdateSourceTrigger=PropertyChanged}" Width="145"/>
+                        <DataGridTextColumn Header="Amount (Rs)" Binding="{Binding Amount, UpdateSourceTrigger=LostFocus, StringFormat='{}{0:N2}'}" Width="120"/>
+                        <DataGridTemplateColumn Header="Optional" Width="82"><DataGridTemplateColumn.CellTemplate><DataTemplate>
+                            <CheckBox IsChecked="{Binding IsOptionalForStudent, UpdateSourceTrigger=PropertyChanged}"
+                                IsEnabled="{Binding DataContext.IsStudentMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBool}}" HorizontalAlignment="Center"/>
+                        </DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Student override" Width="125"><DataGridTemplateColumn.CellTemplate><DataTemplate>
+                            <CheckBox IsChecked="{Binding IsOverridden, UpdateSourceTrigger=PropertyChanged}"
+                                IsEnabled="{Binding DataContext.IsStudentMode, RelativeSource={RelativeSource AncestorType=UserControl}}" HorizontalAlignment="Center"/>
+                        </DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Student opt-in" Width="105"><DataGridTemplateColumn.CellTemplate><DataTemplate>
+                            <CheckBox IsChecked="{Binding IsOptedIn, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center">
+                                <CheckBox.Style><Style TargetType="CheckBox">
+                                    <Setter Property="IsEnabled" Value="False"/>
+                                    <Style.Triggers><MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding DataContext.IsStudentMode, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True"/>
+                                            <Condition Binding="{Binding IsOptionalForStudent}" Value="True"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="IsEnabled" Value="True"/>
+                                    </MultiDataTrigger></Style.Triggers>
+                                </Style></CheckBox.Style>
+                            </CheckBox>
+                        </DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
 
                 <Grid Grid.Row="1" Margin="0,10,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBlock Text="{Binding Message}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="2,0,10,0">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Foreground" Value="#386641"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsError}" Value="True">
-                                        <Setter Property="Foreground" Value="#A12C3E"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
+                                <Style.Triggers><DataTrigger Binding="{Binding IsError}" Value="True">
+                                    <Setter Property="Foreground" Value="#A12C3E"/>
+                                </DataTrigger></Style.Triggers>
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-                    <Button Grid.Column="1" Command="{Binding SaveCommand}" Style="{StaticResource QisPrimaryButton}"
-                            MinWidth="150" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                    <Button Grid.Column="1" Command="{Binding GenerateNowCommand}"
+                            Style="{StaticResource QisOutlineButton}" MinWidth="170" Margin="0,0,8,0"
+                            ToolTip="Issue the current period's bills now (safe to click repeatedly; never duplicates)"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="CalendarClock" Width="16" Height="16" Margin="0,0,7,0"/>
+                            <TextBlock Text="Generate bills now"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="2" Command="{Binding SaveCommand}" Style="{StaticResource QisPrimaryButton}"
+                            MinWidth="170" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="ContentSaveOutline" Width="16" Height="16" Margin="0,0,7,0"/>
-                            <TextBlock Text="Save draft plan"/>
+                            <TextBlock Text="Save / activate"/>
                         </StackPanel>
                     </Button>
                 </Grid>

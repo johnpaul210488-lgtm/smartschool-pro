@@ -24,10 +24,30 @@
                     <TextBlock Text="{Binding Month}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,4">
-                    <TextBlock Text="Amount:" FontWeight="SemiBold" Width="110"/>
-                    <TextBlock Text="{Binding Amount, StringFormat='Rs {0:N0}'}" FontSize="18"
-                               FontWeight="Bold" Foreground="#00BFA5"/>
+                    <TextBlock Text="Invoice total:" FontWeight="SemiBold" Width="110"/>
+                    <TextBlock Text="{Binding Amount, StringFormat='Rs {0:N2}'}" FontSize="16" FontWeight="Bold"/>
                 </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,4">
+                    <TextBlock Text="Balance:" FontWeight="SemiBold" Width="110"/>
+                    <TextBlock Text="{Binding Balance, StringFormat='Rs {0:N2}'}" FontSize="18" FontWeight="Bold" Foreground="#9A3549"/>
+                </StackPanel>
+                <TextBox Text="{Binding PaymentAmount, UpdateSourceTrigger=LostFocus, StringFormat='{}{0:N2}'}"
+                         Margin="0,8,0,0" materialDesign:HintAssist.Hint="Payment now (full or partial)"/>
+                <ComboBox ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding PaymentMethod}"
+                          Margin="0,8,0,0" materialDesign:HintAssist.Hint="Payment method"/>
+                <TextBox Text="{Binding PaymentNotes, UpdateSourceTrigger=PropertyChanged}"
+                         Margin="0,8,0,0" materialDesign:HintAssist.Hint="Payment note (optional)"/>
+
+                <TextBlock Text="Payment history" FontWeight="SemiBold" Margin="0,14,0,4"/>
+                <DataGrid ItemsSource="{Binding Payments}" AutoGenerateColumns="False" IsReadOnly="True"
+                          CanUserAddRows="False" Height="135" HeadersVisibility="Column" RowHeaderWidth="0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Date" Binding="{Binding PaidDate, StringFormat='dd MMM yyyy'}" Width="*"/>
+                        <DataGridTextColumn Header="Received" Binding="{Binding Amount, StringFormat='Rs {0:N2}'}" Width="*"/>
+                        <DataGridTextColumn Header="Method" Binding="{Binding Method}" Width="*"/>
+                        <DataGridTextColumn Header="Receipt" Binding="{Binding ReceiptNo}" Width="2*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
 
                 <DatePicker materialDesign:HintAssist.Hint="Paid date"
                             SelectedDate="{Binding PaidDate, Mode=TwoWay}" Margin="0,14,0,0"/>

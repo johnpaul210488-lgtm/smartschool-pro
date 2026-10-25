@@ -17,7 +17,10 @@ class FeesProvider extends ChangeNotifier {
   List<FeeRow> get paid => rows.where((r) => r.isPaid).toList()
     ..sort((a, b) => b.month.compareTo(a.month));
 
-  num get totalDue => pending.fold<num>(0, (sum, r) => sum + r.amount);
+  // CHANGED: totals reflect outstanding balances, not original invoice values.
+  num get totalDue => pending.fold<num>(0, (sum, r) => sum + r.balance);
+
+  Future<List<FeePaymentRow>> paymentHistory(int feeId) => api.getFeePaymentHistory(feeId);
 
   Future<void> refresh() async {
     loading = true;

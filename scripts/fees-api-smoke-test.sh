@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# End-to-end fee plan / partial payment smoke test against a running SmartSchool API.
+#
+#   BASE_URL=http://localhost:5000 bash scripts/fees-api-smoke-test.sh
+#
+# Expectations: a freshly migrated database (seeded admin/admin + classes + students).
+# Exits non-zero on the first failed assertion, so CI fails loudly.
+set -euo pipefail
+
+BASE_URL="${BASE_URL:-http://localhost:5000}"
+USERNAME="${API_USER:-admin}"
+PASSWORD="${API_PASS:-Admin@12345}"
+
+command -v jq >/dev/null || { echo "jq is required"; exit 1; }
+
+pass=0
+LAST_BODY=""
+# Failures are also emitted as a GitHub annotation so CI output is readable via the API.
+fail() {
+  local msg="❌ $*"
+  echo "$msg" >&2
+  local detail
+  detail="$(printf '%s' "$msg")"
+  if [ -n "$LAST_BODY" ]; then
+    echo "--- response ---" >&2
+    echo "$LAST_BODY" >&2
+    detail="$detail%0A$(printf '%s' "$LAST_BODY" | tr '\n' ' ' | cut -c1-1200)"
+  fi
+  echo "::error title=Smoke test failed::$detail"
+  exit 1
+}
+ok() { pass=$((pass + 1)); echo "✅ $*"; }
+
+# Numeric compare (JSON decimals can arrive as 5000.00 or 5000).
+num_eq() { # num_eq ACTUAL EXPECTED LABEL
+  awk -v a="$1" -v b="$2" 'BEGIN { exit (a+0 == b+0 ? 0 : 1) }' || fail "$3: expected $2, got '$1'"
+}
+
+api() { # api METHOD PATH [BODY]
+  local method="$1" path="$2" body="${3:-}"
+  if [ -n "$body" ]; then
+    curl -sS -X "$method" "$BASE_URL$path" -H "Content-Type: application/json" \
+      -H "Accept: application/json" ${TOKEN:+-H "Authorization: Bearer $TOKEN"} -d "$body" -w '\n%{http_code}'
+  else
+    curl -sS -X "$method" "$BASE_URL$path" -H "Accept: application/json" \
+      ${TOKEN:+-H "Authorization: Bearer $TOKEN"} -w '\n%{http_code}'
+  fi
+}
+
+body_of() { printf '%s' "$1" | sed '$d'; }
+code_of() { printf '%s' "$1" | tail -n1; }
+
+expect_code() { # expect_code RESPONSE EXPECTED LABEL
+  local code; code="$(code_of "$1")"
+  LAST_BODY="$(body_of "$1" | jq -c . 2>/dev/null || body_of "$1")"
+  [ "$code" = "$2" ] || fail "$3: expected HTTP $2, got $code"
+  LAST_BODY=""
+}
+
+# ---------------------------------------------------------------- health / login
+for _ in $(seq 1 60); do
+  curl -sS -o /dev/null "$BASE_URL/health" && break
+  sleep 2
+done
+ok "API is answering on $BASE_URL"
+
+r="$(api POST /api/auth/login "{\"username\":\"$USERNAME\",\"password\":\"$PASSWORD\"}")"
+expect_code "$r" 200 "login"
+TOKEN="$(body_of "$r" | jq -r '.data.token')"
+[ -n "$TOKEN" ] && [ "$TOKEN" != "null" ] || fail "login returned no token"
+ok "staff login works"
+
+# ---------------------------------------------------------------- fee heads
+r="$(api GET /api/fee-plans/heads)"
+expect_code "$r" 200 "fee heads"
+TUITION_ID="$(body_of "$r" | jq -r '.data[] | select(.code=="TUITION") | .id')"
+[ -n "$TUITION_ID" ] || fail "TUITION fee head missing"
+ok "fee head catalog loaded (TUITION id=$TUITION_ID)"
+
+# ---------------------------------------------------------------- class + plan
+r="$(api GET /api/classes)"
+expect_code "$r" 200 "classes"
+CLASS_ID="$(body_of "$r" | jq -r '.data[0].id')"
+CLASS_NAME="$(body_of "$r" | jq -r '.data[0].displayName // .data[0].name')"
+[ "$CLASS_ID" != "null" ] || fail "no class found"
+ok "class selected: $CLASS_NAME (id=$CLASS_ID)"
+
+r="$(api PUT "/api/fee-plans/classes/$CLASS_ID" "{\"items\":[{\"feeHeadId\":$TUITION_ID,\"billingCycle\":\"Monthly\",\"amount\":5000,\"isIncluded\":true,\"isOptionalForStudent\":false}]}")"
+expect_code "$r" 200 "save class plan"
+ok "class plan saved (tuition 5000 / monthly)"
+
+TODAY="$(TZ=Asia/Karachi date +%F)"
+r="$(api PUT "/api/fee-plans/assignments/class/$CLASS_ID" "{\"isActive\":true,\"effectiveFrom\":\"$TODAY\",\"dueDay\":10,\"quarterStartMonth\":1,\"schoolYearStartMonth\":4}")"
+expect_code "$r" 200 "activate class plan"
+ok "class plan activated from $TODAY"
+
+# Backdated activation must be rejected (no old-period bills).
+r="$(api PUT "/api/fee-plans/assignments/class/$CLASS_ID" "{\"isActive\":true,\"effectiveFrom\":\"2020-01-01\",\"dueDay\":10,\"quarterStartMonth\":1,\"schoolYearStartMonth\":4}")"
+expect_code "$r" 400 "backdated activation blocked"
+ok "backdated activation is rejected"
+
+# ---------------------------------------------------------------- billing sweep
+r="$(api POST /api/fee-plans/generate-now '{}')"
+expect_code "$r" 200 "generate now"
+CREATED="$(body_of "$r" | jq -r '.data.created')"
+[ "$CREATED" -ge 1 ] || fail "generate-now created no bills"
+ok "billing sweep created $CREATED bill(s)"
+
+r="$(api POST /api/fee-plans/generate-now '{}')"
+expect_code "$r" 200 "generate now (second run)"
+CREATED2="$(body_of "$r" | jq -r '.data.created')"
+[ "$CREATED2" -eq 0 ] || fail "billing sweep is not idempotent (created $CREATED2 on second run)"
+ok "billing sweep is idempotent (0 duplicates)"
+
+# ---------------------------------------------------------------- pick a bill
+MONTH="$(TZ=Asia/Karachi date +%Y-%m)"
+r="$(api GET "/api/fees?month=$MONTH&pageSize=200")"
+expect_code "$r" 200 "fee list"
+FEE_ID="$(body_of "$r" | jq -r '[.data.items[] | select(.isAutoGenerated==true and .feeHeadName=="Tuition Fee")][0].id')"
+FEE_AMOUNT="$(body_of "$r" | jq -r --argjson id "${FEE_ID:-0}" '[.data.items[] | select(.id==$id)][0].amount')"
+FEE_BALANCE="$(body_of "$r" | jq -r --argjson id "${FEE_ID:-0}" '[.data.items[] | select(.id==$id)][0].balance')"
+[ "$FEE_ID" != "null" ] || fail "no auto-generated tuition bill for $MONTH"
+num_eq "$FEE_AMOUNT" 5000 "bill amount"
+num_eq "$FEE_BALANCE" 5000 "bill balance"
+ok "bill id=$FEE_ID amount=5000 balance=5000"
+
+# ---------------------------------------------------------------- partial payment
+r="$(api POST "/api/fees/$FEE_ID/pay" '{"amount":2000,"method":"Cash","notes":"first installment"}')"
+expect_code "$r" 200 "partial payment"
+STATUS="$(body_of "$r" | jq -r '.data.status')"
+PAID="$(body_of "$r" | jq -r '.data.amountPaid')"
+BALANCE="$(body_of "$r" | jq -r '.data.balance')"
+[ "$STATUS" = "Partial" ] || fail "expected status Partial, got $STATUS"
+num_eq "$PAID" 2000 "amount paid"
+num_eq "$BALANCE" 3000 "remaining balance"
+ok "partial payment recorded: paid 2000, balance 3000, status Partial"
+
+r="$(api POST "/api/fees/$FEE_ID/pay" '{"amount":4000}')"
+expect_code "$r" 400 "overpayment blocked"
+ok "overpayment above the balance is rejected"
+
+r="$(api GET "/api/fees/$FEE_ID/payments")"
+expect_code "$r" 200 "payment history"
+COUNT="$(body_of "$r" | jq -r '.data | length')"
+[ "$COUNT" = "1" ] || fail "payment history has $COUNT rows, expected 1"
+ok "payment history shows the partial transaction"
+
+# ---------------------------------------------------------------- settle + receipt
+r="$(api POST "/api/fees/$FEE_ID/pay" '{"amount":3000,"method":"Bank Transfer"}')"
+expect_code "$r" 200 "final payment"
+STATUS="$(body_of "$r" | jq -r '.data.status')"
+RECEIPT="$(body_of "$r" | jq -r '.data.receiptNo')"
+[ "$STATUS" = "Paid" ] || fail "expected status Paid, got $STATUS"
+[ -n "$RECEIPT" ] && [ "$RECEIPT" != "null" ] || fail "no receipt number on final payment"
+ok "fee settled, receipt $RECEIPT"
+
+r="$(api GET "/api/fees/$FEE_ID/payments")"
+COUNT="$(body_of "$r" | jq -r '.data | length')"
+[ "$COUNT" = "2" ] || fail "payment history has $COUNT rows, expected 2 (ledger must keep both)"
+ok "ledger keeps both transactions"
+
+r="$(api POST "/api/fees/$FEE_ID/pay" '{"amount":100}')"
+expect_code "$r" 409 "paying a settled fee is blocked"
+ok "a fully paid fee cannot be collected twice"
+
+r="$(api GET "/api/fees/dues")"
+DUE_HAS_FEE="$(body_of "$r" | jq -r --argjson id "$FEE_ID" '[.data.items[] | select(.id==$id)] | length')"
+[ "$DUE_HAS_FEE" = "0" ] || fail "settled fee still appears in dues"
+ok "settled fee is no longer in dues"
+
+# ---------------------------------------------------------------- validated product edit
+r="$(api PUT "/api/fees/$FEE_ID" "{\"studentId\":1,\"amount\":100,\"month\":\"$MONTH\",\"dueDate\":\"$TODAY\"}")"
+expect_code "$r" 409 "editing a paid fee is blocked"
+ok "paid/auto-generated fees are immutable"
+
+# ---------------------------------------------------------------- parent visibility
+r="$(api GET /api/fees/legacy-partials)"
+expect_code "$r" 200 "legacy partial listing"
+ok "legacy partial reconciliation endpoint reachable"
+
+echo
+echo "All $pass checks passed."

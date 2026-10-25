@@ -39,5 +39,9 @@ public sealed class PayFeeRequestValidator : AbstractValidator<PayFeeRequest>
         RuleFor(x => x.PaidDate)
             .Must(d => d is null || d <= PkTime.TodayPk)
             .WithMessage("Paid date cannot be in the future.");
+        RuleFor(x => x.Amount).Must(amount => amount is null || amount > 0m)
+            .WithMessage("A partial payment amount must be greater than zero.");
+        RuleFor(x => x.Method).MaximumLength(30);
+        RuleFor(x => x.Notes).MaximumLength(300);
     }
 }
