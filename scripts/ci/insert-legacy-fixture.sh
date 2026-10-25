@@ -27,7 +27,7 @@ if ! OUT="$(docker cp "$SQL_FILE" "$CID":/tmp/fixture.sql 2>&1)"; then
   exit 1
 fi
 
-if ! OUT="$(docker exec "$CID" "$SQLCMD" -b -S localhost -U sa -P "$SA_PASS" -C -d "$DB" -i /tmp/fixture.sql 2>&1)"; then
+if ! OUT="$(docker exec "$CID" "$SQLCMD" -b -S localhost -U sa -P "$SA_PASS" -C -d "$DB" -I -i /tmp/fixture.sql 2>&1)"; then
   echo "$OUT"
   ann "fixture SQL failed: $OUT" "Legacy fixture"
   exit 1
@@ -35,7 +35,7 @@ fi
 echo "$OUT"
 
 COUNTS_SQL="SET NOCOUNT ON; SELECT CONCAT('students=', (SELECT COUNT(*) FROM dbo.Students), ' classes=', (SELECT COUNT(*) FROM dbo.Classes), ' fees=', (SELECT COUNT(*) FROM dbo.Fees), ' paid=', (SELECT COUNT(*) FROM dbo.Fees WHERE [Status]=N'Paid'), ' partial=', (SELECT COUNT(*) FROM dbo.Fees WHERE [Status]=N'Partial')) AS Counts;"
-if ! OUT="$(docker exec "$CID" "$SQLCMD" -b -S localhost -U sa -P "$SA_PASS" -C -d "$DB" -h -1 -W -Q "$COUNTS_SQL" 2>&1)"; then
+if ! OUT="$(docker exec "$CID" "$SQLCMD" -b -S localhost -U sa -P "$SA_PASS" -C -d "$DB" -I -h -1 -W -Q "$COUNTS_SQL" 2>&1)"; then
   echo "$OUT"
   ann "row count query failed: $OUT" "Legacy fixture"
   exit 1
