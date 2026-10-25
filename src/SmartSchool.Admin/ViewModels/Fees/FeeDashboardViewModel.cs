@@ -25,6 +25,8 @@ public partial class FeeDashboardViewModel : ObservableObject
     [ObservableProperty] private string _search = string.Empty;
     [ObservableProperty] private ClassListItem? _selectedClass;
     [ObservableProperty] private string _statusFilter = "all";
+    /// <summary>Set when the server is older than this app (or has no version endpoint, so new screens get 404).</summary>
+    [ObservableProperty] private string _serverWarning = string.Empty;
     [ObservableProperty] private int _totalUnpaidCount;
     [ObservableProperty] private decimal _totalUnpaidAmount;
     [ObservableProperty] private string _message = string.Empty;
@@ -69,6 +71,7 @@ public partial class FeeDashboardViewModel : ObservableObject
 
     private async Task InitAsync()
     {
+        await CheckServerVersionAsync();
         var classes = await _api.ClassesAsync();
         if (classes.Ok && classes.Data is not null)
         {
@@ -102,12 +105,27 @@ public partial class FeeDashboardViewModel : ObservableObject
             foreach (var s in r.Data)
                 if (StatusFilter == "all" || string.Equals(s.StatusText, StatusLabelFor(StatusFilter), StringComparison.OrdinalIgnoreCase))
                     Students.Add(s);
-            SetMessage(Students.Count == 0
+            var summary = Students.Count == 0
                 ? (StatusFilter == "all" ? "Koi student nahi mila." : "Is status mein koi student nahi.")
-                : $"{Students.Count} student(s). Row par click karein to fee collect karein.", false);
+                : $"{Students.Count} student(s). Row par click karein to fee collect karein.";
+            SetMessage(ServerWarning.Length > 0 ? $"{ServerWarning}  ·  {summary}" : summary, ServerWarning.Length > 0);
         }
         finally { if (version == _listVersion) IsBusy = false; }
     }
+
+    private async Task CheckServerVersionAsync()
+    {
+        var app = NormalizeVersion(UpdateService.CurrentVersion);
+        var r = await _api.GetAsync<ServerVersionDto>("api/system/version");
+        if (!r.Ok || r.Data is null)
+            ServerWarning = $"Server purana hai (v{app} ki API nahi mili). Server installer v{app} chalayein, warna fee screens par 404 aayega.";
+        else if (NormalizeVersion(r.Data.Version) != app)
+            ServerWarning = $"Server v{NormalizeVersion(r.Data.Version)} hai, app v{app} hai. Server installer v{app} chalayein.";
+        else
+            ServerWarning = string.Empty;
+    }
+
+    private static string NormalizeVersion(string? v) => (v ?? string.Empty).Split('+')[0].Trim().TrimStart('v', 'V');
 
     private static string StatusLabelFor(string filter) => filter switch
     {

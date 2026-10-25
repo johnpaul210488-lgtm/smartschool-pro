@@ -89,7 +89,7 @@ Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden 
 
 ; 3. Abhi ke login mein bhi API seedha shuru kar do (restart ka intezar nahi)
 Filename: "{app}\api\SmartSchool.API.exe"; Parameters: "--urls http://0.0.0.0:5000"; \
-    WorkingDir: "{app}\api"; Flags: runhidden nowait postinstall skipifsilent; \
+    WorkingDir: "{app}\api"; Flags: runhidden nowait postinstall; \
     StatusMsg: "SmartSchool API shuru ho rahi hai…"
 
 [UninstallRun]
@@ -99,14 +99,33 @@ Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden 
 
 ; CHANGED: stop a previously running API before replacing its binaries during an upgrade.
 [Code]
-function PrepareToInstall(var NeedsRestart: Boolean): String;
+// Stops every running copy of the API (process, old service, anything still on port 5000) and
+// waits until the port is free. Returns True only when the old API is really gone.
+function StopOldApi(): Boolean;
 var
   ResultCode: Integer;
+  PsCmd: String;
 begin
-  if not Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM SmartSchool.API.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-    Result := 'Could not stop the existing SmartSchool API process. Close it and run setup again.'
+  ResultCode := 1;
+  Exec(ExpandConstant('{sys}\sc.exe'), 'stop SmartSchoolApi', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM SmartSchool.API.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  PsCmd := '-NoProfile -ExecutionPolicy Bypass -Command "' +
+    '$p = Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue; ' +
+    'if ($p) { $p | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } }; ' +
+    '$i = 0; while ((Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue) -and $i -lt 20) { Start-Sleep -Seconds 1; $i++ }; ' +
+    'if (Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue) { exit 1 } else { exit 0 }"';
+  ResultCode := 1;
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), PsCmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := (ResultCode = 0);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  if StopOldApi() then
+    Result := ''
   else
-    Result := '';
+    Result := 'Purani SmartSchool API abhi bhi chal rahi hai (port 5000). Task Manager mein SmartSchool.API.exe band karke setup dobara chalayein.';
 end;
 
 [Messages]

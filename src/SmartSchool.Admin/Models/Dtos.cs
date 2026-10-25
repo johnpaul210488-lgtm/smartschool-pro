@@ -472,6 +472,12 @@ public sealed class StudentFeeSummaryDto
     }
 }
 
+/// <summary>Server build version (from api/system/version).</summary>
+public sealed class ServerVersionDto
+{
+    [JsonPropertyName("version")] public string Version { get; set; } = string.Empty;
+}
+
 /// <summary>A bill removed from the statement that can be restored.</summary>
 public sealed class DeletedBillDto
 {
