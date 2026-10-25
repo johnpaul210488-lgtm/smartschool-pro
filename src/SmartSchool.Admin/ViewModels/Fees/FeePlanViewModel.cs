@@ -239,7 +239,7 @@ public partial class FeePlanViewModel : ObservableObject
                     IsIncluded = item.IsIncluded, IsOptionalForStudent = item.IsOptionalForStudent,
                     IsOverridden = item.IsOverridden, IsOptedIn = item.IsOptedIn
                 };
-                row.SavedName = row.DisplayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.Name : item.DisplayName!;
+                row.SavedName = row.DisplayName = item.Name; // student rows show the class wording; renaming happens in class mode
                 row.PropertyChanged += OnStudentRowChanged;
                 row.PropertyChanged += OnRowNameChanged;
                 Items.Add(row);
