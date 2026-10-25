@@ -98,8 +98,8 @@
                     <DataGridTextColumn Header="Class" Binding="{Binding ClassName}" Width="*"/>
                     <DataGridTextColumn Header="Father" Binding="{Binding FatherName}" Width="*"/>
                     <DataGridTextColumn Header="Total fee" Binding="{Binding TotalAmount, StringFormat='Rs {0:N0}'}" Width="*"/>
-                    <DataGridTextColumn Header="Paid" Binding="{Binding TotalPaid, StringFormat='Rs {0:N0}'}" Width="*"/>
-                    <DataGridTextColumn Header="Balance" Binding="{Binding TotalBalance, StringFormat='Rs {0:N0}'}" Width="*">
+                    <DataGridTextColumn Header="Paid" Binding="{Binding TotalPaid, StringFormat='Rs {0:N0}'}" Width="*" MinWidth="100"/>
+                    <DataGridTextColumn Header="Balance" Binding="{Binding TotalBalance, StringFormat='Rs {0:N0}'}" Width="*" MinWidth="100">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="FontWeight" Value="Bold"/>
@@ -107,21 +107,31 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTemplateColumn Header="Status" Width="100">
+                    <DataGridTemplateColumn Header="Status" Width="110" MinWidth="110">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Border Padding="7,2" CornerRadius="8" HorizontalAlignment="Center" Background="#33999999">
+                                <!-- Paid = green, Partial = yellow, Due = red, Unpaid = blue (background ke saath font ka rang bhi) -->
+                                <Border x:Name="StatusBadge" Padding="8,3" CornerRadius="10" HorizontalAlignment="Center" Background="#9E9E9E">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding StatusText}" Value="Paid"><Setter Property="Background" Value="#334CAF50"/></DataTrigger>
-                                                <DataTrigger Binding="{Binding StatusText}" Value="Due"><Setter Property="Background" Value="#33F44336"/></DataTrigger>
-                                                <DataTrigger Binding="{Binding StatusText}" Value="Partial"><Setter Property="Background" Value="#33FF9800"/></DataTrigger>
-                                                <DataTrigger Binding="{Binding StatusText}" Value="Unpaid"><Setter Property="Background" Value="#33607D8B"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusText}" Value="Paid"><Setter Property="Background" Value="#2E7D32"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusText}" Value="Partial"><Setter Property="Background" Value="#FBC02D"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusText}" Value="Due"><Setter Property="Background" Value="#C62828"/></DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusText}" Value="Unpaid"><Setter Property="Background" Value="#1565C0"/></DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="Bold">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="White"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding StatusText}" Value="Partial"><Setter Property="Foreground" Value="#3E2E00"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Border>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>

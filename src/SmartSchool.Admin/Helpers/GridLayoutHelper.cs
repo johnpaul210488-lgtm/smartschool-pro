@@ -21,7 +21,7 @@ public static class GridLayoutHelper
 
     private static string StorePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "SmartSchool", "Admin", "grid-layouts.json");
+            "SmartSchool", "Admin", "grid-layouts-v2.json"); // v2: purani saved widths/order (jin se Paid column chhup jata tha) ek dafa reset
 
     private sealed class ColState { public int Display { get; set; } public string Width { get; set; } = "1*"; }
 
@@ -107,7 +107,7 @@ public static class GridLayoutHelper
             // CHANGED: pairing as-is; apply sirf DisplayIndex sorted order mein (transient collisions se bachke)
             var pairs = g.Columns.Zip(cols).ToList();
             foreach (var (col, st) in pairs)
-                col.Width = (DataGridLength)new DataGridLengthConverter().ConvertFromString(st.Width)!;
+                { var w = (DataGridLength)new DataGridLengthConverter().ConvertFromString(st.Width)!; if (!(w.IsAbsolute && w.Value < 60)) col.Width = w; }
             foreach (var pair in pairs.OrderBy(p => p.Second.Display))
                 pair.First.DisplayIndex = Math.Clamp(pair.Second.Display, 0, g.Columns.Count - 1);
         }
