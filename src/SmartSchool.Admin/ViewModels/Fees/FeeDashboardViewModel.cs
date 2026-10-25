@@ -12,6 +12,9 @@ namespace SmartSchool.Admin.ViewModels.Fees;
 /// Row / Collect → student's collect page (tick fee heads, pay, or full pay).
 /// View → student's statement (bills, every payment with date &amp; time, edit / reverse).
 /// </summary>
+/// <summary>Status dropdown entry. Value is sent to the server; Label is shown.</summary>
+public sealed record StatusOption(string Value, string Label);
+
 public partial class FeeDashboardViewModel : ObservableObject
 {
     private readonly ApiClient _api = ApiClient.Instance;
@@ -21,13 +24,18 @@ public partial class FeeDashboardViewModel : ObservableObject
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string _search = string.Empty;
     [ObservableProperty] private ClassListItem? _selectedClass;
-    [ObservableProperty] private bool _onlyDue = true;
+    [ObservableProperty] private string _statusFilter = "all";
     [ObservableProperty] private int _totalUnpaidCount;
     [ObservableProperty] private decimal _totalUnpaidAmount;
     [ObservableProperty] private string _message = string.Empty;
     [ObservableProperty] private bool _isError;
 
     public ObservableCollection<StudentFeeSummaryDto> Students { get; } = new();
+    public IReadOnlyList<StatusOption> StatusOptions { get; } = new[]
+    {
+        new StatusOption("all", "Sab"), new StatusOption("paid", "Paid"), new StatusOption("unpaid", "Unpaid"),
+        new StatusOption("partial", "Partial"), new StatusOption("due", "Due")
+    };
     public ObservableCollection<ClassListItem> Classes { get; } = new();
 
     /// <summary>Open the collect page for this student.</summary>
@@ -57,7 +65,7 @@ public partial class FeeDashboardViewModel : ObservableObject
 
     partial void OnSelectedClassChanged(ClassListItem? value) => _ = LoadAsync();
 
-    partial void OnOnlyDueChanged(bool value) => _ = LoadAsync();
+    partial void OnStatusFilterChanged(string value) => _ = LoadAsync();
 
     private async Task InitAsync()
     {
@@ -80,7 +88,7 @@ public partial class FeeDashboardViewModel : ObservableObject
         {
             var term = Search.Trim();
             var r = await _api.StudentFeeSummariesAsync(
-                term.Length == 0 ? null : term, SelectedClass?.Id, OnlyDue);
+                term.Length == 0 ? null : term, SelectedClass?.Id, StatusFilter);
             if (version != _listVersion) return;
 
             if (!r.Ok || r.Data is null)
@@ -93,7 +101,7 @@ public partial class FeeDashboardViewModel : ObservableObject
             Students.Clear();
             foreach (var s in r.Data) Students.Add(s);
             SetMessage(Students.Count == 0
-                ? (OnlyDue ? "Is filter mein koi baqaya balance wala student nahi." : "Koi student nahi mila.")
+                ? (StatusFilter == "all" ? "Koi student nahi mila." : "Is status mein koi student nahi.")
                 : $"{Students.Count} student(s). Row par click karein to fee collect karein.", false);
         }
         finally { if (version == _listVersion) IsBusy = false; }

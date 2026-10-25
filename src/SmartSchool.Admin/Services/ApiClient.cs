@@ -294,13 +294,20 @@ public sealed class ApiClient
 
     // Fee dashboard: one row per student (sum of all fee heads).
     public Task<(bool Ok, List<StudentFeeSummaryDto>? Data, string Error, string Msg)> StudentFeeSummariesAsync(
-        string? search, int? classId, bool onlyDue)
+        string? search, int? classId, string status)
     {
-        var q = $"api/FeeCharges/students?onlyDue={(onlyDue ? "true" : "false")}";
+        var q = $"api/FeeCharges/students?status={Uri.EscapeDataString(status)}";
         if (!string.IsNullOrWhiteSpace(search)) q += $"&search={Uri.EscapeDataString(search.Trim())}";
         if (classId is not null) q += $"&classId={classId}";
         return GetAsync<List<StudentFeeSummaryDto>>(q);
     }
+
+    // Fee plan: manual row (new fee head) and class-specific wording of an existing row.
+    public Task<(bool Ok, FeeHeadItemDto? Data, string Error, string Msg)> CreateCustomFeeHeadAsync(string name, string category)
+        => PostAsync<FeeHeadItemDto>("api/fee-plans/custom-heads", new { Name = name, Category = category });
+
+    public Task<(bool Ok, object? Data, string Error, string Msg)> RenameClassFeeHeadAsync(int classId, int feeHeadId, string? displayName)
+        => PutAsync<object>($"api/fee-plans/classes/{classId}/heads/{feeHeadId}/label", new { DisplayName = displayName });
 
     // Collect page: pay the ticked fee heads of one student (partial amounts allowed).
     public Task<(bool Ok, FeeCollectResultDto? Data, string Error, string Msg)> PaySelectedFeesAsync(int studentId, object request)

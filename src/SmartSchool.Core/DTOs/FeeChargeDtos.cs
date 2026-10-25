@@ -94,7 +94,8 @@ public sealed record StudentFeeSummaryRow(
     decimal TotalAmount,
     decimal TotalPaid,
     decimal TotalBalance,
-    bool HasOverdue);
+    bool HasOverdue,
+    string Status);
 
 /// <summary>Pay the ticked fee heads of one student. Each line can be a partial amount.</summary>
 public sealed class PaySelectedRequest

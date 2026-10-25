@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Threading;
@@ -192,12 +193,18 @@ public partial class FeePlanViewModel : ObservableObject
 
             Items.Clear();
             foreach (var item in plan.Data)
-                Items.Add(new FeePlanEditorItem
+            {
+                var row = new FeePlanEditorItem
                 {
                     FeeHeadId = item.FeeHeadId, Name = item.Name, Category = item.Category,
+                    DisplayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.Name : item.DisplayName!,
                     Amount = item.Amount, BillingCycle = FeePlanCycles.NormalizeServer(item.BillingCycle),
                     IsIncluded = item.IsIncluded, IsOptionalForStudent = item.IsOptionalForStudent
-                });
+                };
+                row.SavedName = row.DisplayName;
+                row.PropertyChanged += OnRowNameChanged;
+                Items.Add(row);
+            }
 
             var schedule = await _api.ClassPlanAssignmentAsync(classId);
             if (version != _loadVersion) return;
@@ -232,7 +239,9 @@ public partial class FeePlanViewModel : ObservableObject
                     IsIncluded = item.IsIncluded, IsOptionalForStudent = item.IsOptionalForStudent,
                     IsOverridden = item.IsOverridden, IsOptedIn = item.IsOptedIn
                 };
+                row.SavedName = row.DisplayName = string.IsNullOrWhiteSpace(item.DisplayName) ? item.Name : item.DisplayName!;
                 row.PropertyChanged += OnStudentRowChanged;
+                row.PropertyChanged += OnRowNameChanged;
                 Items.Add(row);
             }
 
@@ -245,6 +254,80 @@ public partial class FeePlanViewModel : ObservableObject
                 SetMessage("Student plan loaded. Jo fee aap badlein gi woh sirf is student par lagegi.", false);
         }
         finally { if (version == _loadVersion) IsBusy = false; }
+    }
+
+    /// <summary>
+    /// Wording of a row. Class mode: saved immediately for this class (next period's bills use it).
+    /// Student mode: the name belongs to the class, so the edit is reverted with a hint.
+    /// </summary>
+    private async void OnRowNameChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(FeePlanEditorItem.DisplayName) || sender is not FeePlanEditorItem row) return;
+        if (row.DisplayName == row.SavedName) return;
+
+        if (IsStudentMode || SelectedClass is null)
+        {
+            row.DisplayName = row.SavedName; // reverts and re-enters here with equal values, which returns above
+            SetMessage("Naam badalne ke liye scope 'Puri class' chunein. Naam poori class ke liye save hota hai.", true);
+            return;
+        }
+
+        var label = row.DisplayName.Trim();
+        var storedLabel = label.Length == 0 ? null : label;
+        var result = await _api.RenameClassFeeHeadAsync(SelectedClass.Id, row.FeeHeadId, storedLabel);
+        if (!result.Ok)
+        {
+            row.DisplayName = row.SavedName;
+            SetMessage(result.Error, true);
+            return;
+        }
+
+        var shown = storedLabel ?? row.Name;
+        row.SavedName = shown;
+        if (row.DisplayName != shown) row.DisplayName = shown; // trims or resets empty to catalogue name
+        SetMessage($"'{shown}' save ho gaya. Agle bills isi naam se banenge.", false);
+    }
+
+    [ObservableProperty] private string _newRowName = string.Empty;
+    [ObservableProperty] private string _newRowCategory = "Other";
+    [ObservableProperty] private string _newRowAmount = string.Empty;
+
+    /// <summary>Manual row: adds a fee that is not in the catalogue. Tick it and Save to store the amount.</summary>
+    [RelayCommand]
+    private async Task AddRowAsync()
+    {
+        var name = (NewRowName ?? string.Empty).Trim();
+        if (name.Length < 2) { SetMessage("Row ka naam kam az kam 2 harf ka likhein.", true); return; }
+
+        var amountText = (NewRowAmount ?? string.Empty).Trim();
+        decimal amount = 0m;
+        if (amountText.Length > 0 && !decimal.TryParse(amountText, NumberStyles.Number, CultureInfo.InvariantCulture, out amount))
+        { SetMessage("Amount sirf number mein likhein.", true); return; }
+        if (amount < 0 || amount > 10_000_000m) { SetMessage("Amount 0 se 10,000,000 ke andar hona chahiye.", true); return; }
+
+        IsBusy = true; IsError = false;
+        try
+        {
+            var created = await _api.CreateCustomFeeHeadAsync(name, string.IsNullOrWhiteSpace(NewRowCategory) ? "Other" : NewRowCategory.Trim());
+            if (!created.Ok || created.Data is null) { SetMessage(created.Error, true); return; }
+
+            var row = new FeePlanEditorItem
+            {
+                FeeHeadId = created.Data.Id, Name = created.Data.Name, Category = created.Data.Category,
+                DisplayName = created.Data.Name, SavedName = created.Data.Name,
+                Amount = amount, BillingCycle = FeePlanCycles.NormalizeServer(SelectedCycle),
+                IsIncluded = true, IsOptionalForStudent = false,
+                IsOverridden = IsStudentMode, IsOptedIn = false
+            };
+            row.PropertyChanged += OnRowNameChanged;
+            if (IsStudentMode) row.PropertyChanged += OnStudentRowChanged;
+            Items.Add(row);
+
+            NewRowName = string.Empty;
+            NewRowAmount = string.Empty;
+            SetMessage($"'{row.Name}' row add ho gaya. Amount check karke Save (draft) ya Save & activate dabayein.", false);
+        }
+        finally { IsBusy = false; }
     }
 
     /// <summary>Editing a row for one student stores an override (class value is no longer used for that row).</summary>
@@ -438,6 +521,10 @@ public partial class FeePlanEditorItem : ObservableObject
 {
     [ObservableProperty] private int _feeHeadId;
     [ObservableProperty] private string _name = string.Empty;
+    /// <summary>Wording shown and edited in the plan (class-specific). Defaults to Name.</summary>
+    [ObservableProperty] private string _displayName = string.Empty;
+    /// <summary>Last wording stored on the server; used to revert an edit that could not be saved.</summary>
+    public string SavedName { get; set; } = string.Empty;
     [ObservableProperty] private string _category = string.Empty;
     [ObservableProperty] private decimal _amount;
     /// <summary>Server value: Monthly, Quarterly, Annually or OneTime.</summary>

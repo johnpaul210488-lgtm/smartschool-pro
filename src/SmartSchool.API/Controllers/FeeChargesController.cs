@@ -350,7 +350,7 @@ public sealed class FeeChargesController : BaseApiController
     [Authorize(Roles = AppRoles.Staff)]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<StudentFeeSummaryRow>>>> StudentSummaries(
         [FromQuery] string? search, [FromQuery] int? classId, [FromQuery] bool onlyDue = true,
-        CancellationToken ct = default)
+        [FromQuery] string? status = null, CancellationToken ct = default)
     {
         var today = PkTime.TodayPk;
         var query = _db.Students.AsNoTracking().Where(s => s.IsActive);
@@ -365,8 +365,23 @@ public sealed class FeeChargesController : BaseApiController
                 EF.Functions.Like(s.FatherName, pattern) ||
                 EF.Functions.Like(s.FatherPhone, pattern));
         }
-        if (onlyDue)
-            query = query.Where(s => _db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount));
+        // Status filter. Same rules as the Status column below, so the filter and the label always agree:
+        // Paid = no balance · Due = unpaid bill past its due date · Partial = some payment, balance left · Unpaid = no payment yet.
+        query = (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "paid" => query.Where(s => _db.Fees.Any(f => f.StudentId == s.Id)
+                                       && !_db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount)),
+            "due" => query.Where(s => _db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount && f.DueDate < today)),
+            "partial" => query.Where(s => _db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount)
+                                          && !_db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount && f.DueDate < today)
+                                          && _db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid > 0)),
+            "unpaid" => query.Where(s => _db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount)
+                                         && !_db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount && f.DueDate < today)
+                                         && !_db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid > 0)),
+            _ => onlyDue
+                ? query.Where(s => _db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount))
+                : query
+        };
 
         var rows = await query
             .OrderBy(s => s.Class.Name).ThenBy(s => s.Class.Section).ThenBy(s => s.FullName)
@@ -385,9 +400,16 @@ public sealed class FeeChargesController : BaseApiController
             })
             .ToListAsync(ct);
 
-        var result = rows.Select(x => new StudentFeeSummaryRow(
-            x.Id, x.FullName, x.RollNo, x.ClassName, x.FatherName, x.FatherPhone,
-            x.Total, x.Paid, Math.Max(0m, x.Total - x.Paid), x.Overdue)).ToList();
+        static string StatusOf(decimal total, decimal paid, decimal balance, bool overdue) =>
+            total <= 0m ? "No fee" : balance <= 0m ? "Paid" : overdue ? "Due" : paid > 0m ? "Partial" : "Unpaid";
+
+        var result = rows.Select(x =>
+        {
+            var balance = Math.Max(0m, x.Total - x.Paid);
+            return new StudentFeeSummaryRow(
+                x.Id, x.FullName, x.RollNo, x.ClassName, x.FatherName, x.FatherPhone,
+                x.Total, x.Paid, balance, x.Overdue, StatusOf(x.Total, x.Paid, balance, x.Overdue));
+        }).ToList();
         return OkEnvelope<IReadOnlyList<StudentFeeSummaryRow>>(result);
     }
 

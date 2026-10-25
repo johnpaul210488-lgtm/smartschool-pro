@@ -72,10 +72,74 @@ public sealed class FeePlansController : BaseApiController
             return new ClassFeePlanItemDto(
                 h.Id, h.Code, h.Name, h.Category, h.DefaultCycle,
                 line?.BillingCycle ?? h.DefaultCycle, line?.Amount ?? 0m,
-                line?.IsIncluded ?? false, line?.IsOptionalForStudent ?? h.IsOptionalForStudent);
+                line?.IsIncluded ?? false, line?.IsOptionalForStudent ?? h.IsOptionalForStudent,
+                line?.DisplayName);
         }).ToList();
 
         return OkEnvelope<IReadOnlyList<ClassFeePlanItemDto>>(items);
+    }
+
+    /// <summary>Manual row: creates a catalogue fee head that staff can tick in any class plan.</summary>
+    [HttpPost("custom-heads")]
+    public async Task<ActionResult<ApiResponse<FeeHeadDto>>> CreateCustomHead(
+        CustomFeeHeadRequest? request, CancellationToken ct)
+    {
+        var name = request?.Name?.Trim() ?? string.Empty;
+        var category = string.IsNullOrWhiteSpace(request?.Category) ? "Other" : request!.Category!.Trim();
+        if (name.Length < 2 || name.Length > 100)
+            return BadRequestEnvelope("Fee ka naam 2 se 100 harf ke andar likhein.");
+        if (category.Length > 40)
+            return BadRequestEnvelope("Category 40 harf se zyada nahi ho sakti.");
+
+        var head = new FeeHead
+        {
+            Code = "CUST-" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant(),
+            Name = name,
+            Category = category,
+            DefaultCycle = FeeBillingCycle.Monthly,
+            IsOptionalForStudent = false,
+            IsActive = true
+        };
+        _db.FeeHeads.Add(head);
+        await _db.SaveChangesAsync(ct);
+
+        return OkEnvelope(new FeeHeadDto(head.Id, head.Code, head.Name, head.Category, head.DefaultCycle, head.IsOptionalForStudent),
+            "Naya fee row bana diya. Ab plan mein tick karke Save karein.");
+    }
+
+    /// <summary>Saves the class-specific wording of one row immediately (no bills are touched).</summary>
+    [HttpPut("classes/{classId:int}/heads/{feeHeadId:int}/label")]
+    public async Task<ActionResult<ApiResponse<object>>> RenameClassHead(
+        int classId, int feeHeadId, RenameClassFeeHeadRequest? request, CancellationToken ct)
+    {
+        if (!await _db.Classes.AnyAsync(c => c.Id == classId, ct))
+            return NotFoundEnvelope($"Class {classId} was not found.");
+        var head = await _db.FeeHeads.FirstOrDefaultAsync(h => h.Id == feeHeadId, ct);
+        if (head is null)
+            return NotFoundEnvelope($"Fee head {feeHeadId} was not found.");
+
+        var label = request?.DisplayName?.Trim();
+        if (label is { Length: > 100 })
+            return BadRequestEnvelope("Naam 100 harf se zyada nahi ho sakta.");
+
+        var line = await _db.ClassFeePlanItems.FirstOrDefaultAsync(p => p.ClassId == classId && p.FeeHeadId == feeHeadId, ct);
+        if (line is null)
+        {
+            // Row not stored yet: create it as an excluded, zero-amount line so nothing is billed.
+            line = new ClassFeePlanItem
+            {
+                ClassId = classId,
+                FeeHeadId = feeHeadId,
+                BillingCycle = head.DefaultCycle,
+                Amount = 0m,
+                IsIncluded = false,
+                IsOptionalForStudent = head.IsOptionalForStudent
+            };
+            _db.ClassFeePlanItems.Add(line);
+        }
+        line.DisplayName = string.IsNullOrWhiteSpace(label) ? null : label;
+        await _db.SaveChangesAsync(ct);
+        return OkEnvelope<object>(new { classId, feeHeadId, line.DisplayName }, "Naam save ho gaya.");
     }
 
     [HttpPut("classes/{classId:int}")]

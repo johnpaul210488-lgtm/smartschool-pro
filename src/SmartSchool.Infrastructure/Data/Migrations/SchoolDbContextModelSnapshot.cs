@@ -177,6 +177,10 @@ namespace SmartSchool.Infrastructure.Data.Migrations
                     b.Property<int>("ClassId")
                         .HasColumnType("int");
 
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateOnly?>("EffectiveFrom")
                         .HasColumnType("date");
 

@@ -251,6 +251,7 @@ public sealed class ClassFeePlanItemDto
     [JsonPropertyName("amount")] public decimal Amount { get; set; }
     [JsonPropertyName("isIncluded")] public bool IsIncluded { get; set; }
     [JsonPropertyName("isOptionalForStudent")] public bool IsOptionalForStudent { get; set; }
+    [JsonPropertyName("displayName")] public string? DisplayName { get; set; }
 }
 
 public sealed class SaveClassFeePlanRequest
@@ -454,4 +455,13 @@ public sealed class StudentFeeSummaryDto
     [JsonPropertyName("totalPaid")] public decimal TotalPaid { get; set; }
     [JsonPropertyName("totalBalance")] public decimal TotalBalance { get; set; }
     [JsonPropertyName("hasOverdue")] public bool HasOverdue { get; set; }
+    [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
+}
+
+public sealed class FeeHeadItemDto
+{
+    [JsonPropertyName("id")] public int Id { get; set; }
+    [JsonPropertyName("code")] public string Code { get; set; } = string.Empty;
+    [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
+    [JsonPropertyName("category")] public string Category { get; set; } = string.Empty;
 }
