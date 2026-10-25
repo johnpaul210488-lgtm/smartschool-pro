@@ -413,6 +413,42 @@ public sealed class FeeChargesController : BaseApiController
         return OkEnvelope<IReadOnlyList<StudentFeeSummaryRow>>(result);
     }
 
+    /// <summary>Bills removed from this student's statement (newest deletion first), for the Undo list.</summary>
+    [HttpGet("student/{studentId:int}/deleted-bills")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<DeletedBillRow>>>> DeletedBills(int studentId, CancellationToken ct)
+    {
+        var rows = await _db.Fees.IgnoreQueryFilters().AsNoTracking()
+            .Where(f => f.StudentId == studentId && f.IsDeleted)
+            .OrderByDescending(f => f.DeletedAtUtc)
+            .Select(f => new { f.Id, f.FeeHeadNameSnapshot, f.Month, f.DueDate, f.Amount, f.DeletedAtUtc })
+            .ToListAsync(ct);
+
+        var list = rows.Select(x => new DeletedBillRow(
+            x.Id,
+            x.FeeHeadNameSnapshot ?? "Fee",
+            x.Month,
+            x.DueDate,
+            x.Amount,
+            (x.DeletedAtUtc ?? DateTime.UtcNow).AddHours(5))).ToList(); // PKT (UTC+5)
+        return OkEnvelope<IReadOnlyList<DeletedBillRow>>(list);
+    }
+
+    /// <summary>Undo a deletion: the bill comes back with its original amount, month and due date.</summary>
+    [HttpPost("bill/{feeId:int}/restore")]
+    [Authorize(Roles = AppRoles.Staff)]
+    public async Task<ActionResult<ApiResponse<object>>> RestoreBill(int feeId, CancellationToken ct)
+    {
+        var fee = await _db.Fees.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(f => f.Id == feeId && f.IsDeleted, ct);
+        if (fee is null)
+            return NotFoundEnvelope("Ye bill mojood nahi ya pehle se wapas aa chuka hai.");
+
+        fee.IsDeleted = false;
+        fee.DeletedAtUtc = null;
+        await _db.SaveChangesAsync(ct);
+        return OkEnvelope<object>(new { feeId = fee.Id }, "Bill wapas aa gaya.");
+    }
+
     /// <summary>
     /// Pay selected fee heads of one student in one transaction. Each line is one bill; the amount
     /// may be partial and never exceeds that bill's balance. Unpaid balance stays on the bills.

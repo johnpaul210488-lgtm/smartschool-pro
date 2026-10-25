@@ -114,6 +114,7 @@ public sealed class SchoolDbContext : DbContext
         mb.Entity<Fee>(e =>
         {
             e.ToTable("Fees");
+            e.HasQueryFilter(x => !x.IsDeleted); // soft-deleted bills are invisible unless IgnoreQueryFilters() is used
             e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
             e.Property(x => x.AmountPaid).HasColumnType("decimal(18,2)");
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);

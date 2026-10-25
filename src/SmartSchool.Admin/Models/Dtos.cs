@@ -472,6 +472,17 @@ public sealed class StudentFeeSummaryDto
     }
 }
 
+/// <summary>A bill removed from the statement that can be restored.</summary>
+public sealed class DeletedBillDto
+{
+    [JsonPropertyName("feeId")] public int FeeId { get; set; }
+    [JsonPropertyName("feeHead")] public string FeeHead { get; set; } = string.Empty;
+    [JsonPropertyName("month")] public string Month { get; set; } = string.Empty;
+    [JsonPropertyName("dueDate")] public DateOnly DueDate { get; set; }
+    [JsonPropertyName("amount")] public decimal Amount { get; set; }
+    [JsonPropertyName("deletedAtPkt")] public DateTime DeletedAtPkt { get; set; }
+}
+
 public sealed class FeeHeadItemDto
 {
     [JsonPropertyName("id")] public int Id { get; set; }

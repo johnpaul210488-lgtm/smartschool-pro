@@ -83,6 +83,15 @@ public sealed class ReversePaymentRequest
     public string Reason { get; set; } = string.Empty;
 }
 
+/// <summary>A bill removed from the student's statement, kept so it can be restored.</summary>
+public sealed record DeletedBillRow(
+    int FeeId,
+    string FeeHead,
+    string Month,
+    DateOnly DueDate,
+    decimal Amount,
+    DateTime DeletedAtPkt);
+
 /// <summary>Dashboard: one row per student with all fee heads summed.</summary>
 public sealed record StudentFeeSummaryRow(
     int StudentId,

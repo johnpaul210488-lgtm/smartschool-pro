@@ -415,6 +415,27 @@ public partial class FeeChargeViewModel : ObservableObject
             return;
         }
         ApplyHistory(result.Data);
+        await LoadDeletedBillsAsync(studentId);
+    }
+
+    /// <summary>Bills removed from this statement, shown with an Undo button.</summary>
+    public ObservableCollection<DeletedBillDto> DeletedBills { get; } = new();
+
+    private async Task LoadDeletedBillsAsync(int studentId)
+    {
+        DeletedBills.Clear();
+        var result = await _api.DeletedBillsAsync(studentId);
+        if (!result.Ok || result.Data is null) return;
+        foreach (var b in result.Data) DeletedBills.Add(b);
+    }
+
+    [RelayCommand]
+    private async Task RestoreBillAsync(DeletedBillDto? bill)
+    {
+        if (bill is null || History is null) return;
+        var result = await _api.RestoreBillAsync(bill.FeeId);
+        SetMessage(result.Ok ? $"{bill.FeeHead} ({bill.Month}) wapas aa gaya." : result.Error, !result.Ok);
+        if (result.Ok) await LoadHistoryAsync(History.StudentId);
     }
 
     private void ApplyHistory(StudentFeeHistoryDto h)
@@ -456,6 +477,7 @@ public partial class FeeChargeViewModel : ObservableObject
         SelectedPayment = null;
         _allFees.Clear();
         _allPayments.Clear();
+        DeletedBills.Clear();
         HistoryFees.Clear();
         HistoryPayments.Clear();
     }

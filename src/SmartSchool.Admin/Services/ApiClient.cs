@@ -302,6 +302,13 @@ public sealed class ApiClient
         return GetAsync<List<StudentFeeSummaryDto>>(q);
     }
 
+    // Statement: bills that were deleted, and the undo.
+    public Task<(bool Ok, List<DeletedBillDto>? Data, string Error, string Msg)> DeletedBillsAsync(int studentId)
+        => GetAsync<List<DeletedBillDto>>($"api/FeeCharges/student/{studentId}/deleted-bills");
+
+    public Task<(bool Ok, object? Data, string Error, string Msg)> RestoreBillAsync(int feeId)
+        => PostAsync<object>($"api/FeeCharges/bill/{feeId}/restore", new { });
+
     // Fee plan: manual row (new fee head) and class-specific wording of an existing row.
     public Task<(bool Ok, FeeHeadItemDto? Data, string Error, string Msg)> CreateCustomFeeHeadAsync(string name, string category)
         => PostAsync<FeeHeadItemDto>("api/fee-plans/custom-heads", new { Name = name, Category = category });
