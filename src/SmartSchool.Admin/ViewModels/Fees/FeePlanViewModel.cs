@@ -40,7 +40,6 @@ public partial class FeePlanViewModel : ObservableObject
     [ObservableProperty] private int _dueDay = 10;
     [ObservableProperty] private int _quarterStartMonth = 1;
     [ObservableProperty] private int _schoolYearStartMonth = 4;
-    [ObservableProperty] private string _balanceText = string.Empty;
 
     public ObservableCollection<ClassListItem> Classes { get; } = new();
     public ObservableCollection<StudentListItem> Students { get; } = new();
@@ -49,7 +48,6 @@ public partial class FeePlanViewModel : ObservableObject
     public int[] Months { get; } = Enumerable.Range(1, 12).ToArray();
 
     public event Action? BackRequested;
-    public event Action? StatementRequested;
 
     public FeePlanViewModel()
     {
@@ -73,7 +71,6 @@ public partial class FeePlanViewModel : ObservableObject
         if (_suppressSelectionLoad) return;
         Items.Clear();
         Students.Clear();
-        BalanceText = string.Empty;
         SetMessage(string.Empty, false);
 
         _suppressSelectionLoad = true;
@@ -121,11 +118,7 @@ public partial class FeePlanViewModel : ObservableObject
     partial void OnSelectedStudentChanged(StudentListItem? value)
     {
         if (_suppressSelectionLoad) return;
-        if (value is null || !IsStudentMode)
-        {
-            BalanceText = string.Empty;
-            return;
-        }
+        if (value is null || !IsStudentMode) return;
         _ = LoadStudentPlanAsync(value.Id);
     }
 
@@ -248,7 +241,6 @@ public partial class FeePlanViewModel : ObservableObject
             if (schedule.Ok && schedule.Data is not null) ApplySchedule(schedule.Data);
             else SetMessage(schedule.Error, true);
 
-            await LoadBalanceAsync(studentId);
             if (string.IsNullOrWhiteSpace(Message))
                 SetMessage("Student plan loaded. Jo fee aap badlein gi woh sirf is student par lagegi.", false);
         }
@@ -261,18 +253,6 @@ public partial class FeePlanViewModel : ObservableObject
         if (!IsStudentMode || sender is not FeePlanEditorItem row) return;
         if (e.PropertyName is nameof(FeePlanEditorItem.Amount) or nameof(FeePlanEditorItem.IsIncluded))
             row.IsOverridden = true;
-    }
-
-    private async Task LoadBalanceAsync(int studentId)
-    {
-        var result = await _api.StudentFeeHistoryAsync(studentId);
-        if (!result.Ok || result.Data is null)
-        {
-            BalanceText = "Balance nahi aaya: " + result.Error;
-            return;
-        }
-        var h = result.Data;
-        BalanceText = $"{h.StudentName}  ·  Total fee Rs {h.TotalAmount:N0}  ·  Paid Rs {h.TotalPaid:N0}  ·  Balance (baaqi) Rs {h.TotalBalance:N0}";
     }
 
     /// <summary>Defaults shown until a saved schedule is loaded (same defaults the server uses).</summary>
@@ -387,7 +367,6 @@ public partial class FeePlanViewModel : ObservableObject
                 ? $"Plan activate ho gaya. {gen.Msg}"
                 : $"Plan save ho gaya, lekin bills abhi nahi bane: {gen.Error}. 'Bills abhi banayein' dabayein.", !gen.Ok);
 
-            if (IsStudentMode && SelectedStudent is not null) await LoadBalanceAsync(SelectedStudent.Id);
             return gen.Ok;
         }
         finally { IsBusy = false; }
@@ -401,12 +380,10 @@ public partial class FeePlanViewModel : ObservableObject
         {
             var result = await _api.GeneratePlanFeesNowAsync();
             SetMessage(result.Ok ? result.Msg : result.Error, !result.Ok);
-            if (result.Ok && IsStudentMode && SelectedStudent is not null) await LoadBalanceAsync(SelectedStudent.Id);
         }
         finally { IsBusy = false; }
     }
 
-    [RelayCommand] private void ShowStatement() => StatementRequested?.Invoke();
 
     [RelayCommand] private void Back() => BackRequested?.Invoke();
 

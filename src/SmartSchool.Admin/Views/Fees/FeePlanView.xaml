@@ -52,12 +52,6 @@
                 </StackPanel>
             </Button>
             <TextBlock Grid.Column="1" Text="Fee plan" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" Margin="12,0,16,0"/>
-            <Button Grid.Column="3" Command="{Binding ShowStatementCommand}" Style="{StaticResource QisOutlineButton}" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal">
-                    <materialDesign:PackIcon Kind="ReceiptTextOutline" Width="16" Height="16" Margin="0,0,6,0"/>
-                    <TextBlock Text="Fee &amp; balance (payment / statement)"/>
-                </StackPanel>
-            </Button>
         </Grid>
 
         <!-- Message -->
@@ -176,12 +170,6 @@
                                    Text="Activate karne par plan aaj se shuru hota hai. Due day aur calendar sirf bills ki tareekh tay karte hain."/>
                     </WrapPanel>
                 </Expander>
-
-                <!-- 5: balance (student mode) -->
-                <Border Grid.Row="5" Background="#FBEAEC" CornerRadius="8" Padding="10,8" Margin="0,10,0,0"
-                        Visibility="{Binding BalanceText, Converter={StaticResource NotEmptyToVis}}">
-                    <TextBlock Text="{Binding BalanceText}" FontWeight="SemiBold" Foreground="#5C1220" TextWrapping="Wrap"/>
-                </Border>
 
                 <!-- 6: actions -->
                 <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">

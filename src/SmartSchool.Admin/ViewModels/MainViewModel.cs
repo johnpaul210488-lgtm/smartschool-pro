@@ -355,7 +355,6 @@ public partial class MainViewModel : ObservableObject
         {
             var pvm = new FeePlanViewModel();
             pvm.BackRequested += () => CurrentView = OpenFeeDashboard();
-            pvm.StatementRequested += ShowFeeCharge;
             CurrentView = new FeePlanView { DataContext = pvm };
         }
         // Statement (mukammal history). studentId null = open page without a student.
@@ -367,7 +366,6 @@ public partial class MainViewModel : ObservableObject
             CurrentView = new FeeChargeView { DataContext = cvm };
             if (studentId is int id) _ = cvm.ShowStudentAsync(id);
         }
-        void ShowFeeCharge() => ShowFeeChargeFor(null);
         // Collect page: one student, every fee head with checkbox and amount.
         void ShowStudentCollect(StudentFeeSummaryDto s)
         {
