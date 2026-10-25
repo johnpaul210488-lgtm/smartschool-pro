@@ -91,6 +91,84 @@ jobs:
           python3 -c "import io;log=open('/tmp/api.log',errors='replace').read()[-3000:];print('::error title=API log tail::'+log.replace(chr(13),'').replace(chr(10),'%0A'))" || true
           tail -n 200 /tmp/api.log || true
 
+  upgrade-path:
+    name: Upgrade path (legacy DB -> new schema)
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'Your_strong!Passw0rd'
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Your_strong!Passw0rd' -C -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Your_strong!Passw0rd' -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install dotnet-ef
+        run: |
+          dotnet tool install --global dotnet-ef --version 8.0.*
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Create the PREVIOUS (pre-automation) schema
+        run: |
+          dotnet ef database update 20261024165714_FeePlanFoundation \
+            --project src/SmartSchool.Infrastructure \
+            --startup-project src/SmartSchool.API \
+            --connection "Server=127.0.0.1,1433;Database=SmartSchoolPro;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True"
+
+      - name: Insert legacy finance data (one Paid + one Partial fee)
+        run: |
+          CID="$(docker ps --filter ancestor=mcr.microsoft.com/mssql/server:2022-latest --format '{{.Names}}' | head -n1)"
+          [ -n "$CID" ] || CID="$(docker ps --filter publish=1433 --format '{{.Names}}' | head -n1)"
+          [ -n "$CID" ] || { echo "MSSQL container not found"; exit 1; }
+          SQLCMD="/opt/mssql-tools18/bin/sqlcmd"; docker exec "$CID" test -x "$SQLCMD" || SQLCMD="/opt/mssql-tools/bin/sqlcmd"
+          docker cp scripts/ci/legacy-fee-fixture.sql "$CID":/tmp/fixture.sql
+          docker exec "$CID" "$SQLCMD" -S localhost -U sa -P 'Your_strong!Passw0rd' -C -d SmartSchoolPro -i /tmp/fixture.sql
+
+      - name: Upgrade to the new schema (must not block on legacy Partial rows)
+        run: |
+          dotnet ef database update \
+            --project src/SmartSchool.Infrastructure \
+            --startup-project src/SmartSchool.API \
+            --connection "Server=127.0.0.1,1433;Database=SmartSchoolPro;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True"
+
+      - name: Publish + start API
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://127.0.0.1:5000
+          ConnectionStrings__DefaultConnection: 'Server=127.0.0.1,1433;Database=SmartSchoolPro;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True;MultipleActiveResultSets=true'
+          Jwt__Key: 'ci-only-key-0123456789abcdef-0123456789abcdef'
+          SeedDemoData: 'false'
+        run: |
+          dotnet publish src/SmartSchool.API/SmartSchool.API.csproj -c Release -o /tmp/api-upgrade
+          cd /tmp/api-upgrade
+          nohup dotnet SmartSchool.API.dll --urls http://127.0.0.1:5000 > /tmp/api-upgrade.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sS -o /dev/null http://127.0.0.1:5000/health; then break; fi
+            sleep 2
+          done
+          curl -sS http://127.0.0.1:5000/health
+
+      - name: Legacy data integrity checks
+        run: bash scripts/ci/legacy-upgrade-check.sh
+
+      - name: API log on failure (as annotation)
+        if: failure()
+        run: |
+          python3 -c "log=open('/tmp/api-upgrade.log',errors='replace').read()[-3000:];print('::error title=Upgrade API log tail::'+log.replace(chr(13),'').replace(chr(10),'%0A'))" || true
+          tail -n 200 /tmp/api-upgrade.log || true
+
   flutter-parent:
     name: Parent app analyze
     runs-on: ubuntu-latest
