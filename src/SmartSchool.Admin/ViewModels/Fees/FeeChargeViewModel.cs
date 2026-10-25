@@ -352,6 +352,9 @@ public partial class FeeChargeViewModel : ObservableObject
         finally { IsBusy = false; }
     }
 
+    /// <summary>Opens the statement of one student (used when coming from the dashboard).</summary>
+    public Task ShowStudentAsync(int studentId) => LoadHistoryAsync(studentId);
+
     private async Task LoadHistoryAsync(int studentId)
     {
         var version = Interlocked.Increment(ref _historyVersion);

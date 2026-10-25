@@ -1,0 +1,140 @@
+<UserControl x:Class="SmartSchool.Admin.Views.Fees.StudentCollectView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- 0 header -->
+            <RowDefinition Height="Auto"/>  <!-- 1 info -->
+            <RowDefinition Height="Auto"/>  <!-- 2 tiles -->
+            <RowDefinition Height="Auto"/>  <!-- 3 message -->
+            <RowDefinition Height="*"/>     <!-- 4 bills -->
+            <RowDefinition Height="Auto"/>  <!-- 5 select buttons -->
+            <RowDefinition Height="Auto"/>  <!-- 6 payment form + total -->
+        </Grid.RowDefinitions>
+
+        <!-- 0: header -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Command="{Binding BackCommand}" Style="{StaticResource QisOutlineButton}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="ArrowLeft" Width="16" Height="16" Margin="0,0,6,0"/>
+                    <TextBlock Text="Back to fees"/>
+                </StackPanel>
+            </Button>
+            <TextBlock Grid.Column="1" Text="{Binding StudentName, StringFormat='Fee collect · {0}'}" FontSize="22" FontWeight="Bold"
+                       VerticalAlignment="Center" Margin="14,0,0,0"/>
+            <Button Grid.Column="3" Command="{Binding ViewStatementCommand}" Style="{StaticResource QisOutlineButton}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="FileDocumentOutline" Width="16" Height="16" Margin="0,0,6,0"/>
+                    <TextBlock Text="View · mukammal statement"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <TextBlock Grid.Row="1" Text="{Binding StudentInfo}" Foreground="#6B5A5E" Margin="0,0,0,10"/>
+
+        <!-- 2: totals -->
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="#F7ECEF" CornerRadius="8" Padding="10,8">
+                <StackPanel>
+                    <TextBlock Text="Total fee (sab fee heads)" FontSize="11" Foreground="#6B5A5E"/>
+                    <TextBlock Text="{Binding TotalAmount, StringFormat='Rs {0:N0}'}" FontSize="18" FontWeight="Bold"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Background="#EAF5EC" CornerRadius="8" Padding="10,8">
+                <StackPanel>
+                    <TextBlock Text="Paid" FontSize="11" Foreground="#6B5A5E"/>
+                    <TextBlock Text="{Binding TotalPaid, StringFormat='Rs {0:N0}'}" FontSize="18" FontWeight="Bold" Foreground="#386641"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="4" Background="#FBEAEC" CornerRadius="8" Padding="10,8">
+                <StackPanel>
+                    <TextBlock Text="Balance (baaqi)" FontSize="11" Foreground="#6B5A5E"/>
+                    <TextBlock Text="{Binding TotalBalance, StringFormat='Rs {0:N0}'}" FontSize="18" FontWeight="Bold" Foreground="#A12C3E"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="3" Text="{Binding Message}" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,8" Foreground="#386641">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsError}" Value="True">
+                            <Setter Property="Foreground" Value="#A12C3E"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+
+        <!-- 4: fee heads with checkbox and amount -->
+        <materialDesign:Card Grid.Row="4" Padding="8">
+            <DataGrid ItemsSource="{Binding Bills}" AutoGenerateColumns="False"
+                      IsReadOnly="False" CanUserAddRows="False" SelectionMode="Single"
+                      RowHeight="36" GridLinesVisibility="Horizontal" RowHeaderWidth="0"
+                      ToolTip="Tick = is fee ko pay karna hai. Amount khud badal kar partial payment kar sakte hain.">
+                <DataGrid.Columns>
+                    <DataGridCheckBoxColumn Header="Pay" Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" Width="60"/>
+                    <DataGridTextColumn Header="Month" Binding="{Binding Month}" IsReadOnly="True" Width="80"/>
+                    <DataGridTextColumn Header="Fee head" Binding="{Binding FeeHead}" IsReadOnly="True" Width="2*"/>
+                    <DataGridTextColumn Header="Due" Binding="{Binding DueDate, StringFormat='dd MMM yyyy'}" IsReadOnly="True" Width="110"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" IsReadOnly="True" Width="90"/>
+                    <DataGridTextColumn Header="Baaqi (Rs)" Binding="{Binding Balance, StringFormat='{}{0:N0}'}" IsReadOnly="True" Width="100"/>
+                    <DataGridTextColumn Header="Abhi pay karein (Rs)" Binding="{Binding Amount, UpdateSourceTrigger=LostFocus, StringFormat='{}{0:0.##}'}" Width="150"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </materialDesign:Card>
+
+        <!-- 5: select helpers -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,8">
+            <Button Command="{Binding SelectAllCommand}" Style="{StaticResource QisOutlineButton}" Margin="0,0,8,0"
+                    ToolTip="Sab fee heads ko full balance ke saath select karein">
+                <TextBlock Text="Sab select karein (full paid)"/>
+            </Button>
+            <Button Command="{Binding ClearSelectionCommand}" Style="{StaticResource QisOutlineButton}">
+                <TextBlock Text="Selection clear"/>
+            </Button>
+        </StackPanel>
+
+        <!-- 6: payment form and totals -->
+        <Border Grid.Row="6" Background="#F7F7F7" CornerRadius="8" Padding="12">
+            <WrapPanel VerticalAlignment="Center">
+                <StackPanel Margin="0,0,24,6">
+                    <TextBlock Text="Is waqt jo amount aaya" FontSize="11" Foreground="#6B5A5E"/>
+                    <TextBlock Text="{Binding SelectedTotal, StringFormat='Rs {0:N0}'}" FontSize="20" FontWeight="Bold" Foreground="#386641"/>
+                </StackPanel>
+                <StackPanel Margin="0,0,24,6">
+                    <TextBlock Text="Payment ke baad baaqi balance" FontSize="11" Foreground="#6B5A5E"/>
+                    <TextBlock Text="{Binding BalanceAfter, StringFormat='Rs {0:N0}'}" FontSize="20" FontWeight="Bold" Foreground="#A12C3E"/>
+                </StackPanel>
+                <ComboBox Width="130" Height="32" Margin="0,0,8,6" ItemsSource="{Binding PaymentMethods}"
+                          SelectedItem="{Binding Method, Mode=TwoWay}"/>
+                <DatePicker Width="140" Height="32" Margin="0,0,8,6" SelectedDate="{Binding PaidDate, Mode=TwoWay}"
+                            materialDesign:HintAssist.Hint="Tareekh"/>
+                <TextBox Width="200" Height="32" Margin="0,0,8,6" Padding="6,2"
+                         Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
+                         materialDesign:HintAssist.Hint="Note (optional)"/>
+                <Button Command="{Binding PayCommand}" Style="{StaticResource QisPrimaryButton}" Margin="0,0,0,6"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="CheckCircleOutline" Width="17" Height="17" Margin="0,0,7,0"/>
+                        <TextBlock Text="Payment record karein"/>
+                    </StackPanel>
+                </Button>
+            </WrapPanel>
+        </Border>
+    </Grid>
+</UserControl>

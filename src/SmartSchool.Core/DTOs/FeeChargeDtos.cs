@@ -82,3 +82,32 @@ public sealed class ReversePaymentRequest
 {
     public string Reason { get; set; } = string.Empty;
 }
+
+/// <summary>Dashboard: one row per student with all fee heads summed.</summary>
+public sealed record StudentFeeSummaryRow(
+    int StudentId,
+    string StudentName,
+    string RollNo,
+    string ClassName,
+    string FatherName,
+    string FatherPhone,
+    decimal TotalAmount,
+    decimal TotalPaid,
+    decimal TotalBalance,
+    bool HasOverdue);
+
+/// <summary>Pay the ticked fee heads of one student. Each line can be a partial amount.</summary>
+public sealed class PaySelectedRequest
+{
+    public List<PaySelectedLine> Lines { get; set; } = new();
+    /// <summary>Defaults to today (Pakistan time).</summary>
+    public DateOnly? PaidDate { get; set; }
+    public string? Method { get; set; }
+    public string? Notes { get; set; }
+}
+
+public sealed class PaySelectedLine
+{
+    public int FeeId { get; set; }
+    public decimal Amount { get; set; }
+}

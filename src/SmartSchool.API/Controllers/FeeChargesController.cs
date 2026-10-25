@@ -341,4 +341,138 @@ public sealed class FeeChargesController : BaseApiController
             fee.PaidDate = null;
         }
     }
+
+    /// <summary>
+    /// Fee dashboard: one row per student with the sum of all fee heads, what is paid, and the balance.
+    /// onlyDue = true returns only students who still owe money.
+    /// </summary>
+    [HttpGet("students")]
+    [Authorize(Roles = AppRoles.Staff)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<StudentFeeSummaryRow>>>> StudentSummaries(
+        [FromQuery] string? search, [FromQuery] int? classId, [FromQuery] bool onlyDue = true,
+        CancellationToken ct = default)
+    {
+        var today = PkTime.TodayPk;
+        var query = _db.Students.AsNoTracking().Where(s => s.IsActive);
+        if (classId is not null)
+            query = query.Where(s => s.ClassId == classId);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var pattern = $"%{search.Trim()}%";
+            query = query.Where(s =>
+                EF.Functions.Like(s.FullName, pattern) ||
+                EF.Functions.Like(s.RollNo, pattern) ||
+                EF.Functions.Like(s.FatherName, pattern) ||
+                EF.Functions.Like(s.FatherPhone, pattern));
+        }
+        if (onlyDue)
+            query = query.Where(s => _db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount));
+
+        var rows = await query
+            .OrderBy(s => s.Class.Name).ThenBy(s => s.Class.Section).ThenBy(s => s.FullName)
+            .Take(500)
+            .Select(s => new
+            {
+                s.Id,
+                s.FullName,
+                s.RollNo,
+                ClassName = s.Class.Name + "-" + s.Class.Section,
+                s.FatherName,
+                s.FatherPhone,
+                Total = _db.Fees.Where(f => f.StudentId == s.Id).Sum(f => (decimal?)f.Amount) ?? 0m,
+                Paid = _db.Fees.Where(f => f.StudentId == s.Id).Sum(f => (decimal?)f.AmountPaid) ?? 0m,
+                Overdue = _db.Fees.Any(f => f.StudentId == s.Id && f.AmountPaid < f.Amount && f.DueDate < today)
+            })
+            .ToListAsync(ct);
+
+        var result = rows.Select(x => new StudentFeeSummaryRow(
+            x.Id, x.FullName, x.RollNo, x.ClassName, x.FatherName, x.FatherPhone,
+            x.Total, x.Paid, Math.Max(0m, x.Total - x.Paid), x.Overdue)).ToList();
+        return OkEnvelope<IReadOnlyList<StudentFeeSummaryRow>>(result);
+    }
+
+    /// <summary>
+    /// Pay selected fee heads of one student in one transaction. Each line is one bill; the amount
+    /// may be partial and never exceeds that bill's balance. Unpaid balance stays on the bills.
+    /// </summary>
+    [HttpPost("student/{studentId:int}/pay-selected")]
+    [Authorize(Roles = AppRoles.Staff)]
+    public async Task<ActionResult<ApiResponse<FeeCollectResult>>> PaySelected(
+        int studentId, PaySelectedRequest? request, CancellationToken ct)
+    {
+        var lines = request?.Lines ?? new List<PaySelectedLine>();
+        if (lines.Count == 0)
+            return BadRequestEnvelope("Kam az kam ek fee select karein.");
+        if (lines.Any(l => l.Amount <= 0m))
+            return BadRequestEnvelope("Har selected fee ka amount zero se zyada hona chahiye.");
+        if (lines.Any(l => l.Amount > 10_000_000m))
+            return BadRequestEnvelope("Amount must not exceed 10,000,000.");
+        if (lines.GroupBy(l => l.FeeId).Any(g => g.Count() > 1))
+            return BadRequestEnvelope("Ek fee do dafa select nahi ho sakti.");
+
+        var paidDate = request?.PaidDate ?? PkTime.TodayPk;
+        if (paidDate > PkTime.TodayPk)
+            return BadRequestEnvelope("Paid date cannot be in the future.");
+        var method = string.IsNullOrWhiteSpace(request?.Method) ? "Cash" : request!.Method!.Trim();
+        if (method.Length > 30) return BadRequestEnvelope("Method must be 30 characters or fewer.");
+        var notes = string.IsNullOrWhiteSpace(request?.Notes) ? null : request!.Notes!.Trim();
+        if (notes is not null && notes.Length > 300) return BadRequestEnvelope("Notes must be 300 characters or fewer.");
+
+        var strategy = _db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync<ActionResult<ApiResponse<FeeCollectResult>>>(async () =>
+        {
+            await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
+
+            if (!await _db.Students.AnyAsync(s => s.Id == studentId, ct))
+                return NotFoundEnvelope($"Student {studentId} was not found.");
+
+            var balanceBefore = await _db.Fees.Where(f => f.StudentId == studentId)
+                .SumAsync(f => f.Amount - f.AmountPaid, ct);
+
+            var ids = lines.Select(l => l.FeeId).ToList();
+            var fees = await _db.Fees.Where(f => f.StudentId == studentId && ids.Contains(f.Id)).ToListAsync(ct);
+            if (fees.Count != ids.Count)
+                return BadRequestEnvelope("Kuch selected fees is student ki nahi hain ya mojood nahi.");
+            var byId = fees.ToDictionary(f => f.Id);
+
+            foreach (var line in lines)
+            {
+                var fee = byId[line.FeeId];
+                var due = fee.Amount - fee.AmountPaid;
+                var name = fee.FeeHeadNameSnapshot ?? "Fee";
+                if (due <= 0m)
+                    return ConflictEnvelope($"{name} ({fee.Month}) pehle se paid hai.");
+                if (line.Amount > due)
+                    return BadRequestEnvelope($"{name} ({fee.Month}): amount baaqi Rs {due:N2} se zyada nahi ho sakta.");
+            }
+
+            decimal total = 0m;
+            foreach (var line in lines)
+            {
+                var fee = byId[line.FeeId];
+                var receipt = NewReceiptNo("PAY", fee.Id);
+                _db.FeePayments.Add(new FeePayment
+                {
+                    FeeId = fee.Id,
+                    Amount = line.Amount,
+                    PaidDate = paidDate,
+                    ReceiptNo = receipt,
+                    Method = method,
+                    Notes = notes,
+                    CreatedAtUtc = DateTime.UtcNow
+                });
+                fee.AmountPaid += line.Amount;
+                fee.ReceiptNo = receipt;
+                ApplyStatus(fee, paidDate);
+                total += line.Amount;
+            }
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            var left = Math.Max(0m, balanceBefore - total);
+            return OkEnvelope(new FeeCollectResult(total, left, lines.Count),
+                $"Rs {total:N2} received for {lines.Count} fee(s). Remaining balance Rs {left:N2}.");
+        });
+    }
 }

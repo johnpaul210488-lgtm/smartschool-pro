@@ -440,3 +440,18 @@ public sealed class FeeCollectResultDto
     [JsonPropertyName("remainingBalance")] public decimal RemainingBalance { get; set; }
     [JsonPropertyName("billsTouched")] public int BillsTouched { get; set; }
 }
+
+/// <summary>Fee dashboard row: one student with all fee heads summed.</summary>
+public sealed class StudentFeeSummaryDto
+{
+    [JsonPropertyName("studentId")] public int StudentId { get; set; }
+    [JsonPropertyName("studentName")] public string StudentName { get; set; } = string.Empty;
+    [JsonPropertyName("rollNo")] public string RollNo { get; set; } = string.Empty;
+    [JsonPropertyName("className")] public string ClassName { get; set; } = string.Empty;
+    [JsonPropertyName("fatherName")] public string FatherName { get; set; } = string.Empty;
+    [JsonPropertyName("fatherPhone")] public string FatherPhone { get; set; } = string.Empty;
+    [JsonPropertyName("totalAmount")] public decimal TotalAmount { get; set; }
+    [JsonPropertyName("totalPaid")] public decimal TotalPaid { get; set; }
+    [JsonPropertyName("totalBalance")] public decimal TotalBalance { get; set; }
+    [JsonPropertyName("hasOverdue")] public bool HasOverdue { get; set; }
+}

@@ -292,6 +292,20 @@ public sealed class ApiClient
     public Task<(bool Ok, string Error)> DeleteFeeBillAsync(int feeId)
         => DeleteAsync($"api/fees/{feeId}");
 
+    // Fee dashboard: one row per student (sum of all fee heads).
+    public Task<(bool Ok, List<StudentFeeSummaryDto>? Data, string Error, string Msg)> StudentFeeSummariesAsync(
+        string? search, int? classId, bool onlyDue)
+    {
+        var q = $"api/FeeCharges/students?onlyDue={(onlyDue ? "true" : "false")}";
+        if (!string.IsNullOrWhiteSpace(search)) q += $"&search={Uri.EscapeDataString(search.Trim())}";
+        if (classId is not null) q += $"&classId={classId}";
+        return GetAsync<List<StudentFeeSummaryDto>>(q);
+    }
+
+    // Collect page: pay the ticked fee heads of one student (partial amounts allowed).
+    public Task<(bool Ok, FeeCollectResultDto? Data, string Error, string Msg)> PaySelectedFeesAsync(int studentId, object request)
+        => PostAsync<FeeCollectResultDto>($"api/FeeCharges/student/{studentId}/pay-selected", request);
+
     public Task<(bool Ok, DuesSummaryResponse? Data, string Error, string Msg)> DuesAsync()
         => GetAsync<DuesSummaryResponse>("api/fees/dues");
 
