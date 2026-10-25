@@ -348,12 +348,21 @@ public partial class MainViewModel : ObservableObject
     {
         var vm = new FeeDashboardViewModel();
         // CHANGED: class fee plans are managed separately from fee collection.
-        vm.ManagePlansRequested += () =>
+        // CHANGED: simple fee screen (pick class/student → fee type → tick fees → add to balance → history/PDF/WhatsApp).
+        // The old automatic-billing plan editor stays reachable from its "Auto billing (advanced)" button.
+        void ShowFeeCharge()
         {
-            var planVm = new FeePlanViewModel();
-            planVm.BackRequested += () => CurrentView = OpenFeeDashboard();
-            CurrentView = new FeePlanView { DataContext = planVm };
-        };
+            var cvm = new FeeChargeViewModel();
+            cvm.BackRequested += () => CurrentView = OpenFeeDashboard();
+            cvm.AutoBillingRequested += () =>
+            {
+                var planVm = new FeePlanViewModel();
+                planVm.BackRequested += ShowFeeCharge;
+                CurrentView = new FeePlanView { DataContext = planVm };
+            };
+            CurrentView = new FeeChargeView { DataContext = cvm };
+        }
+        vm.ManagePlansRequested += ShowFeeCharge;
         vm.CollectRequested += fee =>
         {
             var cvm = new FeeCollectionViewModel(fee);

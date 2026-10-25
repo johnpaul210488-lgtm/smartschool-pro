@@ -383,3 +383,53 @@ public sealed class ErrorReportCreatedResponse
     [JsonPropertyName("issueNumber")] public int? IssueNumber { get; set; }
     [JsonPropertyName("occurrences")] public int Occurrences { get; set; }
 }
+
+// ============ Fee screen: simple charge + full student history ============
+public sealed class FeeChargeResultDto
+{
+    [JsonPropertyName("studentCount")] public int StudentCount { get; set; }
+    [JsonPropertyName("created")] public int Created { get; set; }
+    [JsonPropertyName("skipped")] public int Skipped { get; set; }
+}
+
+public sealed class FeeHistoryRowDto
+{
+    [JsonPropertyName("feeId")] public int FeeId { get; set; }
+    [JsonPropertyName("month")] public string Month { get; set; } = string.Empty;
+    [JsonPropertyName("feeHead")] public string FeeHead { get; set; } = string.Empty;
+    [JsonPropertyName("cycle")] public string Cycle { get; set; } = string.Empty;
+    [JsonPropertyName("dueDate")] public DateOnly DueDate { get; set; }
+    [JsonPropertyName("amount")] public decimal Amount { get; set; }
+    [JsonPropertyName("amountPaid")] public decimal AmountPaid { get; set; }
+    [JsonPropertyName("balance")] public decimal Balance { get; set; }
+    [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
+    [JsonPropertyName("receiptNo")] public string? ReceiptNo { get; set; }
+}
+
+public sealed class FeeHistoryPaymentDto
+{
+    [JsonPropertyName("paymentId")] public int PaymentId { get; set; }
+    [JsonPropertyName("feeId")] public int FeeId { get; set; }
+    [JsonPropertyName("feeHead")] public string FeeHead { get; set; } = string.Empty;
+    [JsonPropertyName("month")] public string Month { get; set; } = string.Empty;
+    [JsonPropertyName("paidAtPkt")] public DateTime PaidAtPkt { get; set; }
+    [JsonPropertyName("amount")] public decimal Amount { get; set; }
+    [JsonPropertyName("receiptNo")] public string ReceiptNo { get; set; } = string.Empty;
+    [JsonPropertyName("method")] public string? Method { get; set; }
+    [JsonPropertyName("notes")] public string? Notes { get; set; }
+}
+
+public sealed class StudentFeeHistoryDto
+{
+    [JsonPropertyName("studentId")] public int StudentId { get; set; }
+    [JsonPropertyName("studentName")] public string StudentName { get; set; } = string.Empty;
+    [JsonPropertyName("className")] public string ClassName { get; set; } = string.Empty;
+    [JsonPropertyName("rollNo")] public string RollNo { get; set; } = string.Empty;
+    [JsonPropertyName("fatherName")] public string FatherName { get; set; } = string.Empty;
+    [JsonPropertyName("fatherPhone")] public string FatherPhone { get; set; } = string.Empty;
+    [JsonPropertyName("totalAmount")] public decimal TotalAmount { get; set; }
+    [JsonPropertyName("totalPaid")] public decimal TotalPaid { get; set; }
+    [JsonPropertyName("totalBalance")] public decimal TotalBalance { get; set; }
+    [JsonPropertyName("fees")] public List<FeeHistoryRowDto> Fees { get; set; } = new();
+    [JsonPropertyName("payments")] public List<FeeHistoryPaymentDto> Payments { get; set; } = new();
+}

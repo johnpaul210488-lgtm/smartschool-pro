@@ -268,6 +268,14 @@ public sealed class ApiClient
     public Task<(bool Ok, List<FeePaymentItem>? Data, string Error, string Msg)> FeePaymentHistoryAsync(int feeId)
         => GetAsync<List<FeePaymentItem>>($"api/fees/{feeId}/payments");
 
+    // Fee screen: add selected fees to a class's or one student's balance (manual, no plan needed).
+    public Task<(bool Ok, FeeChargeResultDto? Data, string Error, string Msg)> ChargeFeesAsync(object request)
+        => PostAsync<FeeChargeResultDto>("api/FeeCharges", request);
+
+    // Fee screen: full history (every fee, its status, and every payment with date & time).
+    public Task<(bool Ok, StudentFeeHistoryDto? Data, string Error, string Msg)> StudentFeeHistoryAsync(int studentId)
+        => GetAsync<StudentFeeHistoryDto>($"api/FeeCharges/student/{studentId}/history");
+
     public Task<(bool Ok, DuesSummaryResponse? Data, string Error, string Msg)> DuesAsync()
         => GetAsync<DuesSummaryResponse>("api/fees/dues");
 
