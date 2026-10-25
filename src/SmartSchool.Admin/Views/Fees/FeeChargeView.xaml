@@ -199,30 +199,6 @@
                                     <DataGridTextColumn Header="Kaise bani" Binding="{Binding TypeText}" Width="90"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-
-                            <!-- Selected bill: what can be done -->
-                            <Border Background="#EEF4FB" CornerRadius="8" Padding="10" Margin="0,0,0,8">
-                                <TextBlock Text="{Binding BillHint}" TextWrapping="Wrap" FontSize="12" Foreground="#1F3A5F"/>
-                            </Border>
-                            <WrapPanel VerticalAlignment="Center">
-                                <TextBox Width="130" Height="34" Margin="0,0,10,8" Padding="6,2"
-                                         Text="{Binding EditBillAmount, UpdateSourceTrigger=LostFocus}"
-                                         IsEnabled="{Binding CanChangeBill}"
-                                         materialDesign:HintAssist.Hint="Naya amount"/>
-                                <DatePicker Width="150" Height="34" Margin="0,0,10,8"
-                                            SelectedDate="{Binding EditBillDue, Mode=TwoWay}"
-                                            IsEnabled="{Binding CanChangeBill}"
-                                            materialDesign:HintAssist.Hint="Nayi due date"/>
-                                <Button Command="{Binding SaveBillCommand}" Style="{StaticResource QisOutlineButton}" Margin="0,0,10,8"
-                                        IsEnabled="{Binding CanChangeBill}">
-                                    <TextBlock Text="Badlav save karein"/>
-                                </Button>
-                                <Button Command="{Binding DeleteBillCommand}" Style="{StaticResource QisOutlineButton}" Margin="0,0,0,8"
-                                        IsEnabled="{Binding CanChangeBill}"
-                                        ToolTip="Bill hata dein. Neeche 'Hataye gaye bills' se wapas la sakte hain.">
-                                    <TextBlock Text="Bill delete karein"/>
-                                </Button>
-                            </WrapPanel>
                         </StackPanel>
                     </materialDesign:Card>
 
