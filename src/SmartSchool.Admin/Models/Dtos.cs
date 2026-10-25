@@ -456,6 +456,20 @@ public sealed class StudentFeeSummaryDto
     [JsonPropertyName("totalBalance")] public decimal TotalBalance { get; set; }
     [JsonPropertyName("hasOverdue")] public bool HasOverdue { get; set; }
     [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
+
+    /// <summary>Paid / Due / Partial / Unpaid / No fee. Uses the server value, or works it out here if the server is older.</summary>
+    [JsonIgnore]
+    public string StatusText
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Status)) return Status;
+            if (TotalAmount <= 0m) return "No fee";
+            if (TotalBalance <= 0m) return "Paid";
+            if (HasOverdue) return "Due";
+            return TotalPaid > 0m ? "Partial" : "Unpaid";
+        }
+    }
 }
 
 public sealed class FeeHeadItemDto

@@ -67,6 +67,52 @@ public partial class FeeChargeViewModel : ObservableObject
     public ICollectionView FeeLinesView { get; }
     public ObservableCollection<FeeHistoryRowDto> HistoryFees { get; } = new();
     public ObservableCollection<FeeHistoryPaymentDto> HistoryPayments { get; } = new();
+
+    // Period filter for the statement: Sab (all), Ek din (one day), Ek mahina (one month).
+    public string[] PeriodModes { get; } = { "Sab", "Ek din", "Ek mahina" };
+    [ObservableProperty] private string _periodMode = "Sab";
+    [ObservableProperty] private DateTime? _filterDate = DateTime.Today;
+    [ObservableProperty] private string _filterSummary = string.Empty;
+    private readonly List<FeeHistoryRowDto> _allFees = new();
+    private readonly List<FeeHistoryPaymentDto> _allPayments = new();
+
+    partial void OnPeriodModeChanged(string value) => ApplyPeriodFilter();
+    partial void OnFilterDateChanged(DateTime? value) => ApplyPeriodFilter();
+
+    /// <summary>Fills the statement lists from the full history using the chosen day or month.</summary>
+    private void ApplyPeriodFilter()
+    {
+        var date = FilterDate?.Date;
+        IEnumerable<FeeHistoryRowDto> fees = _allFees;
+        IEnumerable<FeeHistoryPaymentDto> payments = _allPayments;
+
+        if (PeriodMode == "Ek din" && date is not null)
+        {
+            var day = DateOnly.FromDateTime(date.Value);
+            fees = fees.Where(f => f.DueDate == day);
+            payments = payments.Where(p => p.PaidAtPkt.Date == date.Value);
+            FilterSummary = $"Din: {date.Value:dd MMM yyyy}";
+        }
+        else if (PeriodMode == "Ek mahina" && date is not null)
+        {
+            var key = date.Value.ToString("yyyy-MM");
+            fees = fees.Where(f => f.Month == key);
+            payments = payments.Where(p => p.PaidAtPkt.Year == date.Value.Year && p.PaidAtPkt.Month == date.Value.Month);
+            FilterSummary = $"Mahina: {date.Value:MMMM yyyy}";
+        }
+        else
+        {
+            FilterSummary = "Sab payments aur bills";
+        }
+
+        var paymentList = payments.ToList();
+        HistoryFees.Clear();
+        foreach (var f in fees) HistoryFees.Add(f);
+        HistoryPayments.Clear();
+        foreach (var p in paymentList) HistoryPayments.Add(p);
+
+        FilterSummary += $"  ·  {paymentList.Count} payment(s), Rs {paymentList.Sum(p => p.Amount):N0} ·  {HistoryFees.Count} bill(s)";
+    }
     public string[] PaymentMethods { get; } = { "Cash", "Bank Transfer", "Cheque", "Online" };
 
     public event Action? BackRequested;
@@ -388,10 +434,11 @@ public partial class FeeChargeViewModel : ObservableObject
         SelectedBill = null;
         SelectedPayment = null;
 
-        HistoryFees.Clear();
-        foreach (var r in h.Fees) HistoryFees.Add(r);
-        HistoryPayments.Clear();
-        foreach (var p in h.Payments.OrderByDescending(x => x.PaidAtPkt)) HistoryPayments.Add(p);
+        _allFees.Clear();
+        _allFees.AddRange(h.Fees);
+        _allPayments.Clear();
+        _allPayments.AddRange(h.Payments.OrderByDescending(x => x.PaidAtPkt));
+        ApplyPeriodFilter();
     }
 
     private void ClearHistory()
@@ -407,6 +454,8 @@ public partial class FeeChargeViewModel : ObservableObject
         CollectAmount = 0m;
         SelectedBill = null;
         SelectedPayment = null;
+        _allFees.Clear();
+        _allPayments.Clear();
         HistoryFees.Clear();
         HistoryPayments.Clear();
     }

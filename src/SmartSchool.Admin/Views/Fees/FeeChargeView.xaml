@@ -59,7 +59,9 @@
         </Border>
 
         <!-- Content: one scrollable column, one card per section -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0">
+        <ScrollViewer x:Name="StatementScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Focusable="True" PanningMode="VerticalOnly" Padding="0,0,12,0"
+                      PreviewMouseDown="StatementScroll_PreviewMouseDown" PreviewKeyDown="StatementScroll_PreviewKeyDown">
             <Grid>
                 <!-- Empty state: no student chosen yet -->
                 <materialDesign:Card Padding="30" Visibility="{Binding HasHistory, Converter={StaticResource InverseBoolToVis}}">
@@ -100,6 +102,21 @@
                                 </Button>
                             </StackPanel>
                         </Grid>
+                    </materialDesign:Card>
+
+                    <!-- 1b. Period filter: all, one day, or one month -->
+                    <materialDesign:Card Padding="12" Margin="0,0,0,10">
+                        <WrapPanel VerticalAlignment="Center">
+                            <TextBlock Text="Dikhayein:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,6"/>
+                            <ComboBox Width="150" Height="34" Margin="0,0,10,6"
+                                      ItemsSource="{Binding PeriodModes}" SelectedItem="{Binding PeriodMode, Mode=TwoWay}"/>
+                            <DatePicker Width="160" Height="34" Margin="0,0,10,6"
+                                        SelectedDate="{Binding FilterDate, Mode=TwoWay}"
+                                        ToolTip="Ek din ke liye din chunein. Ek mahina ke liye us mahine ki koi bhi tareekh chunein."
+                                        materialDesign:HintAssist.Hint="Tareekh"/>
+                            <TextBlock Text="{Binding FilterSummary}" VerticalAlignment="Center" FontSize="12" Foreground="#6B5A5E"
+                                       TextWrapping="Wrap" Margin="4,0,0,6"/>
+                        </WrapPanel>
                     </materialDesign:Card>
 
                     <!-- 2. Totals -->
@@ -162,7 +179,7 @@
                             <TextBlock Text="Bills (kon si fee, kitni paid, kitni baaqi)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
                             <DataGrid ItemsSource="{Binding HistoryFees}" AutoGenerateColumns="False"
                                       IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" RowHeight="30"
-                                      Height="240" Margin="0,0,0,10"
+                                      Margin="0,0,0,10"
                                       SelectedItem="{Binding SelectedBill, Mode=TwoWay}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Month" Binding="{Binding Month}" Width="80"/>
@@ -200,7 +217,7 @@
                             <TextBlock Text="Payments (har payment ki tareekh aur waqt, reversal bhi yahin)" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
                             <DataGrid ItemsSource="{Binding HistoryPayments}" AutoGenerateColumns="False"
                                       IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" RowHeight="30"
-                                      Height="240" Margin="0,0,0,10"
+                                      Margin="0,0,0,10"
                                       SelectedItem="{Binding SelectedPayment, Mode=TwoWay}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Date &amp; time" Binding="{Binding PaidAtPkt, StringFormat='dd MMM yyyy, hh:mm tt'}" Width="160"/>

@@ -99,13 +99,24 @@ public partial class FeeDashboardViewModel : ObservableObject
             }
 
             Students.Clear();
-            foreach (var s in r.Data) Students.Add(s);
+            foreach (var s in r.Data)
+                if (StatusFilter == "all" || string.Equals(s.StatusText, StatusLabelFor(StatusFilter), StringComparison.OrdinalIgnoreCase))
+                    Students.Add(s);
             SetMessage(Students.Count == 0
                 ? (StatusFilter == "all" ? "Koi student nahi mila." : "Is status mein koi student nahi.")
                 : $"{Students.Count} student(s). Row par click karein to fee collect karein.", false);
         }
         finally { if (version == _listVersion) IsBusy = false; }
     }
+
+    private static string StatusLabelFor(string filter) => filter switch
+    {
+        "paid" => "Paid",
+        "unpaid" => "Unpaid",
+        "partial" => "Partial",
+        "due" => "Due",
+        _ => string.Empty
+    };
 
     private async Task LoadDuesSummaryAsync()
     {
