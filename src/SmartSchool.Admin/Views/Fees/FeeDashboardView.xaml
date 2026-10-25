@@ -26,10 +26,10 @@
                        VerticalAlignment="Center" Margin="0,0,14,0"/>
             <!-- CHANGED: open the draft class fee-plan editor from the fee dashboard. -->
             <Button Grid.Column="1" Command="{Binding ManagePlansCommand}" Style="{StaticResource QisOutlineButton}"
-                    VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Fee add karein: class ya student ke balance mein, aur student ki fee history">
+                    VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Fee plan: class ya student ke liye fee plan banayein aur activate karein">
                 <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="CogOutline" Width="16" Height="16" Margin="0,0,6,0"/>
-                    <TextBlock Text="Fee plan &amp; balance"/>
+                    <TextBlock Text="Fee plan"/>
                 </StackPanel>
             </Button>
             <Border Grid.Column="2" Background="#F7ECEF" BorderBrush="#E5D5DA" BorderThickness="1"

@@ -28,10 +28,10 @@
                        VerticalAlignment="Center" Margin="12,0,16,0"/>
             <Button Grid.Column="3" Command="{Binding OpenAutoBillingCommand}" Style="{StaticResource QisOutlineButton}"
                     VerticalAlignment="Center" Margin="0,0,8,0"
-                    ToolTip="Monthly bills khud banane wali automatic settings (advanced)">
+                    ToolTip="Fee plan: class ya student ke liye fee plan banayein aur activate karein">
                 <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="CogOutline" Width="16" Height="16" Margin="0,0,6,0"/>
-                    <TextBlock Text="Auto billing (advanced)"/>
+                    <TextBlock Text="Fee plan"/>
                 </StackPanel>
             </Button>
             <Button Grid.Column="4" Command="{Binding ReloadCommand}" Style="{StaticResource QisIconButton}"
