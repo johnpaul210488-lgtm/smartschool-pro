@@ -60,6 +60,10 @@ public partial class FeeChargeViewModel : ObservableObject
     [ObservableProperty] private DateTime? _editBillDue;
     [ObservableProperty] private FeeHistoryPaymentDto? _selectedPayment;
     [ObservableProperty] private string _reverseReason = string.Empty;
+    [ObservableProperty] private string _billHint = "Neeche bills ki list mein se ek bill par click karein.";
+    [ObservableProperty] private bool _canChangeBill;
+    [ObservableProperty] private string _deletedBillsSummary = string.Empty;
+    [ObservableProperty] private string _billsHiddenNote = string.Empty;
 
     public ObservableCollection<ClassListItem> Classes { get; } = new();
     public ObservableCollection<StudentListItem> Students { get; } = new();
@@ -112,6 +116,8 @@ public partial class FeeChargeViewModel : ObservableObject
         foreach (var p in paymentList) HistoryPayments.Add(p);
 
         FilterSummary += $"  ·  {paymentList.Count} payment(s), Rs {paymentList.Sum(p => p.Amount):N0} ·  {HistoryFees.Count} bill(s)";
+        var hidden = _allFees.Count - HistoryFees.Count;
+        BillsHiddenNote = hidden > 0 ? $"{hidden} bill is filter se chhupi hain. Sab bills dekhne ke liye upar 'Sab' chunein." : string.Empty;
     }
     public string[] PaymentMethods { get; } = { "Cash", "Bank Transfer", "Cheque", "Online" };
 
@@ -199,6 +205,8 @@ public partial class FeeChargeViewModel : ObservableObject
     {
         EditBillAmount = value?.Amount ?? 0m;
         EditBillDue = value is null ? null : value.DueDate.ToDateTime(TimeOnly.MinValue);
+        CanChangeBill = value?.CanChange ?? false;
+        BillHint = value is null ? "Neeche bills ki list mein se ek bill par click karein." : value.WhyNotChange;
     }
 
     private async Task InitAsync()
@@ -425,8 +433,11 @@ public partial class FeeChargeViewModel : ObservableObject
     {
         DeletedBills.Clear();
         var result = await _api.DeletedBillsAsync(studentId);
-        if (!result.Ok || result.Data is null) return;
-        foreach (var b in result.Data) DeletedBills.Add(b);
+        if (result.Ok && result.Data is not null)
+            foreach (var b in result.Data) DeletedBills.Add(b);
+        DeletedBillsSummary = DeletedBills.Count == 0
+            ? "Abhi koi bill hataya nahi gaya."
+            : $"{DeletedBills.Count} bill hataye gaye hain. Jo wapas chahiye us ke saamne 'Wapis lao' dabayein.";
     }
 
     [RelayCommand]
@@ -560,6 +571,7 @@ public partial class FeeChargeViewModel : ObservableObject
     private async Task SaveBillAsync()
     {
         if (History is null || SelectedBill is null) { SetMessage("Pehle neeche se bill select karein.", true); return; }
+        if (!SelectedBill.CanChange) { SetMessage(SelectedBill.WhyNotChange, true); return; }
         if (EditBillAmount <= 0m) { SetMessage("Bill ka amount zero se zyada hona chahiye.", true); return; }
         if (EditBillDue is null) { SetMessage("Due date select karein.", true); return; }
 
@@ -586,10 +598,11 @@ public partial class FeeChargeViewModel : ObservableObject
     private async Task DeleteBillAsync()
     {
         if (History is null || SelectedBill is null) { SetMessage("Pehle neeche se bill select karein.", true); return; }
+        if (!SelectedBill.CanChange) { SetMessage(SelectedBill.WhyNotChange, true); return; }
 
         var confirm = MessageBox.Show(
             $"{SelectedBill.FeeHead} ({SelectedBill.Month}, Rs {SelectedBill.Amount:N0}) ka bill delete karna hai?\n\n" +
-            "Sirf bina payment ke bill delete hota hai.",
+            "Delete ke baad yeh 'Hataye gaye bills' mein chala jayega, wahan se wapas la sakte hain.",
             "Confirm: Delete bill", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (confirm != MessageBoxResult.Yes) return;
 
