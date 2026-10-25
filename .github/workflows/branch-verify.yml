@@ -1,0 +1,128 @@
+# Branch verification: builds every project, validates the EF migration graph and
+# runs the fee-plan / partial-payment smoke test against a real SQL Server 2022.
+# Runs on any non-main branch so work can be proven green before merging to main.
+name: Verify branch
+
+on:
+  push:
+    branches-ignore: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build + EF migration check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore SmartSchool.sln
+
+      - name: Build (Release, warnings as errors off)
+        run: dotnet build SmartSchool.sln --configuration Release --no-restore
+
+      - name: EF Core migrations script must generate
+        run: |
+          dotnet tool install --global dotnet-ef --version 8.0.*
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations script --idempotent \
+            --project src/SmartSchool.Infrastructure \
+            --startup-project src/SmartSchool.API \
+            --output /tmp/ef-check.sql
+          echo "---- generated migration statements ----"
+          grep -c "CREATE TABLE\|ALTER TABLE\|CREATE INDEX" /tmp/ef-check.sql || true
+          if grep -q "FeePayments" /tmp/ef-check.sql; then echo "FeePayments migration present"; else echo "FeePayments migration MISSING"; exit 1; fi
+
+  api-smoke:
+    name: API smoke test (SQL Server 2022)
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'Your_strong!Passw0rd'
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Your_strong!Passw0rd' -C -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Your_strong!Passw0rd' -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish API
+        run: dotnet publish src/SmartSchool.API/SmartSchool.API.csproj -c Release -o /tmp/api
+
+      - name: Start API (migrations apply on startup)
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_URLS: http://127.0.0.1:5000
+          ConnectionStrings__DefaultConnection: 'Server=127.0.0.1,1433;Database=SmartSchoolPro;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True;MultipleActiveResultSets=true'
+          Jwt__Key: 'ci-only-key-0123456789abcdef-0123456789abcdef'
+          SeedDemoData: 'false'
+        run: |
+          cd /tmp/api
+          nohup dotnet SmartSchool.API.dll --urls http://127.0.0.1:5000 > /tmp/api.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -sS -o /dev/null http://127.0.0.1:5000/health; then echo "API up after ${i}0s-ish"; break; fi
+            sleep 2
+          done
+          curl -sS http://127.0.0.1:5000/health || (tail -n 100 /tmp/api.log && exit 1)
+
+      - name: Fee plan + partial payment smoke test
+        run: bash scripts/fees-api-smoke-test.sh
+
+      - name: API log (always)
+        if: always()
+        run: tail -n 200 /tmp/api.log || true
+
+  flutter-parent:
+    name: Parent app analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: pub get + analyze
+        working-directory: apps/parent_app
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos
+
+  admin-exe:
+    name: Admin exe (Windows, downloadable)
+    runs-on: windows-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish single-file exe
+        run: |
+          dotnet publish src/SmartSchool.Admin/SmartSchool.Admin.csproj `
+            -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmartSchool-Admin-exe
+          path: |
+            publish/SmartSchool.Admin.exe
+            publish/appsettings.json
+          retention-days: 14

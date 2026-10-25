@@ -116,6 +116,22 @@ public sealed class FeesController : BaseApiController
         return OkEnvelope(new DuesSummaryResponse(items.Count, items.Sum(i => i.Balance), items)); // <-- CHANGED: dues are remaining balance, not original invoice total.
     }
 
+    /// <summary>
+    /// Legacy rows marked 'Partial' by the old system (no stored paid amount) - the office must
+    /// verify each amount before any further collection. Read-only; nothing is guessed.
+    /// </summary>
+    [HttpGet("legacy-partials")]
+    [Authorize(Roles = AppRoles.Staff)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<FeeListItem>>>> GetLegacyPartials(CancellationToken ct)
+    {
+        var rows = await _uow.Fees.Query()
+            .Include(f => f.Student).ThenInclude(s => s.Class)
+            .Where(f => f.Status == FeeStatus.Partial && f.AmountPaid == 0m)
+            .OrderBy(f => f.Student.FullName).ThenBy(f => f.Month)
+            .ToListAsync(ct);
+        return OkEnvelope<IReadOnlyList<FeeListItem>>(rows.Select(f => ToDto(f)).ToList());
+    }
+
     [HttpPost]
     [Authorize(Roles = AppRoles.Staff)]
     public async Task<ActionResult<ApiResponse<FeeListItem>>> Create(FeeCreateRequest request, CancellationToken ct)
@@ -236,6 +252,7 @@ public sealed class FeesController : BaseApiController
     }
 
     [HttpGet("{id:int}/payments")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<FeePaymentItem>>>> GetPaymentHistory(int id, CancellationToken ct)
     {
         var fee = await _db.Fees.AsNoTracking().Include(f => f.Student).FirstOrDefaultAsync(f => f.Id == id, ct);

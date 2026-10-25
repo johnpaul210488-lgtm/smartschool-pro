@@ -260,6 +260,10 @@ public sealed class ApiClient
     public Task<(bool Ok, FeePlanAssignmentDto? Data, string Error, string Msg)> SaveStudentPlanAssignmentAsync(int studentId, SaveFeePlanAssignmentRequest request)
         => PutAsync<FeePlanAssignmentDto>($"api/fee-plans/assignments/student/{studentId}", request);
 
+    /// <summary>Runs the idempotent fee-plan billing sweep immediately.</summary>
+    public Task<(bool Ok, object? Data, string Error, string Msg)> GeneratePlanFeesNowAsync()
+        => PostAsync<object>("api/fee-plans/generate-now", new { });
+
     // CHANGED: expose immutable payment ledger rows in the collect-fee screen.
     public Task<(bool Ok, List<FeePaymentItem>? Data, string Error, string Msg)> FeePaymentHistoryAsync(int feeId)
         => GetAsync<List<FeePaymentItem>>($"api/fees/{feeId}/payments");

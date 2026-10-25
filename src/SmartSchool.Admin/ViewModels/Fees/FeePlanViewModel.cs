@@ -83,6 +83,20 @@ public partial class FeePlanViewModel : ObservableObject
         if (StudentSearchResults.Count == 0) SetMessage("No active students matched that search.", false);
     }
 
+    /// <summary>Runs the idempotent billing sweep now instead of waiting for the 30-minute worker tick.</summary>
+    [RelayCommand]
+    private async Task GenerateNowAsync()
+    {
+        IsBusy = true; IsError = false;
+        try
+        {
+            var result = await _api.GeneratePlanFeesNowAsync();
+            SetMessage(result.Ok ? result.Msg : result.Error, !result.Ok);
+            if (result.Ok && !IsStudentMode && SelectedClass is not null) await LoadClassPlanAsync(SelectedClass.Id);
+        }
+        finally { IsBusy = false; }
+    }
+
     private async Task LoadClassPlanAsync(int classId)
     {
         var version = Interlocked.Increment(ref _loadVersion);
@@ -206,15 +220,16 @@ public partial class FeePlanViewModel : ObservableObject
     private void SetMessage(string message, bool isError) { Message = message; IsError = isError; }
 }
 
-public sealed class FeePlanEditorItem
+/// <summary>One editable row of the plan grid (notifies the UI so edits stay visible).</summary>
+public partial class FeePlanEditorItem : ObservableObject
 {
-    public int FeeHeadId { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
-    public decimal Amount { get; set; }
-    public string BillingCycle { get; set; } = "Monthly";
-    public bool IsIncluded { get; set; }
-    public bool IsOptionalForStudent { get; set; }
-    public bool IsOverridden { get; set; }
-    public bool IsOptedIn { get; set; }
+    [ObservableProperty] private int _feeHeadId;
+    [ObservableProperty] private string _name = string.Empty;
+    [ObservableProperty] private string _category = string.Empty;
+    [ObservableProperty] private decimal _amount;
+    [ObservableProperty] private string _billingCycle = "Monthly";
+    [ObservableProperty] private bool _isIncluded;
+    [ObservableProperty] private bool _isOptionalForStudent;
+    [ObservableProperty] private bool _isOverridden;
+    [ObservableProperty] private bool _isOptedIn;
 }

@@ -122,7 +122,7 @@
                 </DataGrid>
 
                 <Grid Grid.Row="1" Margin="0,10,0,0">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBlock Text="{Binding Message}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="2,0,10,0">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -133,7 +133,16 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
-                    <Button Grid.Column="1" Command="{Binding SaveCommand}" Style="{StaticResource QisPrimaryButton}"
+                    <Button Grid.Column="1" Command="{Binding GenerateNowCommand}"
+                            Style="{StaticResource QisOutlineButton}" MinWidth="170" Margin="0,0,8,0"
+                            ToolTip="Issue the current period's bills now (safe to click repeatedly; never duplicates)"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="CalendarClock" Width="16" Height="16" Margin="0,0,7,0"/>
+                            <TextBlock Text="Generate bills now"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="2" Command="{Binding SaveCommand}" Style="{StaticResource QisPrimaryButton}"
                             MinWidth="170" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="ContentSaveOutline" Width="16" Height="16" Margin="0,0,7,0"/>

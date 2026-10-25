@@ -11,13 +11,9 @@ namespace SmartSchool.Infrastructure.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // CHANGED: honor the user's hold-and-reconcile decision; never invent legacy partial-payment amounts.
-            migrationBuilder.Sql(@"
-IF EXISTS (SELECT 1 FROM [dbo].[Fees] WHERE [Status] = N'Partial')
-BEGIN
-    THROW 51000, 'Fee migration paused: reconcile legacy Partial fees and provide verified paid amounts before applying.', 1;
-END");
-
+            // Legacy 'Partial' rows have no stored paid amount. The migration must never invent one,
+            // so those rows keep AmountPaid = 0 and stay 'Partial'. They are exposed by
+            // GET /api/fees/legacy-partials for staff reconciliation instead of blocking the upgrade.
             migrationBuilder.AlterColumn<string>(
                 name: "Month",
                 table: "Fees",

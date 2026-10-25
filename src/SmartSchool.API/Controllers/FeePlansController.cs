@@ -19,8 +19,29 @@ public sealed class FeePlansController : BaseApiController
 {
     private const decimal MaximumHeadAmount = 10_000_000m;
     private readonly SchoolDbContext _db;
+    private readonly Services.FeePlanBillingService _billing;
 
-    public FeePlansController(SchoolDbContext db) => _db = db;
+    public FeePlansController(SchoolDbContext db, Services.FeePlanBillingService billing)
+    {
+        _db = db;
+        _billing = billing;
+    }
+
+    /// <summary>
+    /// Runs the idempotent billing sweep immediately (the background worker also runs every 30 minutes),
+    /// so a newly activated plan issues its current-period bills without waiting.
+    /// </summary>
+    [HttpPost("generate-now")]
+    [Authorize(Roles = AppRoles.Staff)]
+    public async Task<ActionResult<ApiResponse<object>>> GenerateNow(CancellationToken ct)
+    {
+        var result = await _billing.RunAsync(ct);
+        return OkEnvelope<object>(
+            new { result.StudentsConsidered, result.Created, result.Skipped },
+            result.Created > 0
+                ? $"{result.Created} fee(s) generated for {result.StudentsConsidered} student(s)."
+                : "No new fees were needed; every eligible period is already billed.");
+    }
 
     [HttpGet("heads")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<FeeHeadDto>>>> GetHeads(CancellationToken ct)
