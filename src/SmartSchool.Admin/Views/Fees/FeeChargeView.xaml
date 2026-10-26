@@ -202,34 +202,6 @@
                         </StackPanel>
                     </materialDesign:Card>
 
-                    <!-- 3. Hataye gaye bills: undo -->
-                    <materialDesign:Card Padding="14" Margin="0,0,0,10">
-                        <StackPanel>
-                            <TextBlock Text="3. Hataye gaye bills (ghalti se delete ho gaya ho to yahan se wapas lein)" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBlock Text="{Binding DeletedBillsSummary}" FontSize="12" Foreground="#6B5A5E" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                            <DataGrid ItemsSource="{Binding DeletedBills}" AutoGenerateColumns="False"
-                                      IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" RowHeight="32"
-                                      GridLinesVisibility="Horizontal">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Mahina" Binding="{Binding Month}" Width="80"/>
-                                    <DataGridTextColumn Header="Fee" Binding="{Binding FeeHead}" Width="*"/>
-                                    <DataGridTextColumn Header="Due date" Binding="{Binding DueDate, StringFormat='dd MMM yyyy'}" Width="110"/>
-                                    <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat='{}{0:N0}'}" Width="90"/>
-                                    <DataGridTextColumn Header="Kab hataya" Binding="{Binding DeletedAtPkt, StringFormat='dd MMM yyyy, hh:mm tt'}" Width="160"/>
-                                    <DataGridTemplateColumn Header="" Width="130">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <Button Style="{StaticResource QisOutlineButton}" Content="Wapis lao"
-                                                        Command="{Binding DataContext.RestoreBillCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </StackPanel>
-                    </materialDesign:Card>
-
                     <!-- 4. Payments: history + reverse -->
                     <materialDesign:Card Padding="14" Margin="0,0,0,10">
                         <StackPanel>
