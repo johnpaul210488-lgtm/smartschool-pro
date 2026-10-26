@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppConfig {
   static const String _defaultBase = String.fromEnvironment(
     'API_BASE',
-    defaultValue: 'http://192.168.1.10:5000',
+    defaultValue: 'https://zia.tail758a5c.ts.net',
   );
 
   static const _kBaseOverride = 'api_base_override';
@@ -22,7 +22,14 @@ class AppConfig {
   static Future<void> loadServerOverride() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_kBaseOverride);
-    if (saved != null && saved.trim().isNotEmpty) apiBase = saved.trim();
+    if (saved != null && saved.trim().isNotEmpty) {
+      // Purana LAN default save ho to hata dein, taake naya public address use ho.
+      if (saved.trim() == 'http://192.168.1.10:5000' || saved.trim() == 'http://10.0.2.2:5000') {
+        await prefs.remove(_kBaseOverride);
+      } else {
+        apiBase = saved.trim();
+      }
+    }
   }
 
   /// Change the server from the Settings screen; persists across update installs.
