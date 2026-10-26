@@ -194,6 +194,10 @@ public sealed class ApiClient
     }
 
     // ---- typed endpoint helpers ----
+    /// <summary>Active trip wali buses ki aakhri location (map kholte hi load hoti hai).</summary>
+    public Task<(bool Ok, List<BusLocationUpdate>? Data, string Error, string Msg)> LiveBusesAsync()
+        => GetAsync<List<BusLocationUpdate>>("api/trips/live");
+
     public Task<(bool Ok, T? Data, string Error, string Msg)> GetAsync<T>(string url)
         => SendAsync<T>(HttpMethod.Get, url);
     public Task<(bool Ok, T? Data, string Error, string Msg)> PostAsync<T>(string url, object body)

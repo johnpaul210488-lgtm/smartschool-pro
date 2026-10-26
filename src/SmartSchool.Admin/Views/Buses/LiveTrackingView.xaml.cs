@@ -40,13 +40,21 @@ public partial class LiveTrackingView : UserControl
             _ = Services.BugReportService.SendAsync("Error", "LiveTracking map init fail", ex.Message, ex.ToString(), "LiveTrackingView");
         }
 
-        Loaded += (_, _) => _ = ProbeTilesAsync();
+        Loaded += (_, _) =>
+        {
+            _ = ProbeTilesAsync();
+            _ = _vm?.LoadSnapshotAsync(); // map khulte hi active buses dikhayein
+        };
 
         DataContextChanged += (_, _) =>
         {
             if (_vm is not null) _vm.LocationArrived -= OnLocation;
             _vm = DataContext as LiveTrackingViewModel;
-            if (_vm is not null) _vm.LocationArrived += OnLocation;
+            if (_vm is not null)
+            {
+                _vm.LocationArrived += OnLocation;
+                if (IsLoaded) _ = _vm.LoadSnapshotAsync();
+            }
         };
     }
 

@@ -20,12 +20,15 @@ public sealed class TripsController : BaseApiController
     private readonly IUnitOfWork _uow;
     private readonly ISchoolNotificationService _notify;
     private readonly ILogger<TripsController> _logger;
+    private readonly SmartSchool.API.Services.LiveBusTracker _live;
 
-    public TripsController(IUnitOfWork uow, ISchoolNotificationService notify, ILogger<TripsController> logger)
+    public TripsController(IUnitOfWork uow, ISchoolNotificationService notify, ILogger<TripsController> logger,
+        SmartSchool.API.Services.LiveBusTracker live)
     {
         _uow = uow;
         _notify = notify;
         _logger = logger;
+        _live = live;
     }
 
     private static string Fmt(DateTime utc)
@@ -126,6 +129,7 @@ public sealed class TripsController : BaseApiController
         }
 
         trip.Status = TripStatus.Completed;
+        _live.Remove(trip.BusId);
         trip.EndedAtUtc = DateTime.UtcNow;
         await _uow.SaveChangesAsync(ct);
 
@@ -220,7 +224,7 @@ public sealed class TripsController : BaseApiController
         if (callerDriverId is null || trip.DriverId != callerDriverId)
             return BadRequestEnvelope("Yeh trip aapki nahi hai.");
 
-        await _notify.SendBusLocationAsync(new SmartSchool.Core.DTOs.BusLocationUpdate
+        var update = new SmartSchool.Core.DTOs.BusLocationUpdate
         {
             BusId = trip.BusId,
             BusNumber = trip.Bus.BusNumber,
@@ -229,9 +233,23 @@ public sealed class TripsController : BaseApiController
             Longitude = request.Longitude,
             SpeedKmh = request.SpeedKmh,
             TimePakistan = PkTime.NowPk.ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture)
-        }, ct);
+        };
+        _live.Update(update);
+        await _notify.SendBusLocationAsync(update, ct);
 
         return OkEnvelope<object>(new { }, "OK");
+    }
+
+    /// <summary>Active trip wali buses ki aakhri location: admin/parent map khulte hi yahi load hoti hai.</summary>
+    [HttpGet("live")]
+    [Authorize(Roles = AppRoles.StaffAndTeachers)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<SmartSchool.Core.DTOs.BusLocationUpdate>>>> Live(CancellationToken ct)
+    {
+        var activeBusIds = await _uow.Trips.Query()
+            .Where(t => t.Status == TripStatus.Active)
+            .Select(t => t.BusId)
+            .ToListAsync(ct);
+        return OkEnvelope<IReadOnlyList<SmartSchool.Core.DTOs.BusLocationUpdate>>(_live.Snapshot(activeBusIds));
     }
 
     private async Task NotifySafe(TripNotification notification, CancellationToken ct)

@@ -162,6 +162,7 @@ try
     // ----------------------------- App services -----------------------------
     builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
     builder.Services.AddSingleton<ISchoolNotificationService, SchoolNotificationService>();
+    builder.Services.AddSingleton<SmartSchool.API.Services.LiveBusTracker>();
 
     builder.Services.AddSingleton<InMemoryWhatsAppQueue>();
     builder.Services.AddSingleton<IWhatsAppQueue>(sp => sp.GetRequiredService<InMemoryWhatsAppQueue>());
