@@ -195,7 +195,35 @@
                                     <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat='{}{0:N0}'}" Width="90"/>
                                     <DataGridTextColumn Header="Paid" Binding="{Binding AmountPaid, StringFormat='{}{0:N0}'}" Width="80"/>
                                     <DataGridTextColumn Header="Baaqi" Binding="{Binding Balance, StringFormat='{}{0:N0}'}" Width="85"/>
-                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
+                                    <!-- Status cell poori background se rangi: Paid green, Partial yellow, Due red, Unpaid blue; font rang us ke hisab se -->
+                                    <DataGridTemplateColumn Header="Status" Width="90">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border x:Name="StatusCell" Background="#9E9E9E" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding StatusLabel}" Value="Paid"><Setter Property="Background" Value="#2E7D32"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusLabel}" Value="Partial"><Setter Property="Background" Value="#FBC02D"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusLabel}" Value="Due"><Setter Property="Background" Value="#C62828"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusLabel}" Value="Unpaid"><Setter Property="Background" Value="#1565C0"/></DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding StatusLabel}" FontSize="12" FontWeight="Bold"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding StatusLabel}" Value="Partial"><Setter Property="Foreground" Value="#3E2E00"/></DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="Kaise bani" Binding="{Binding TypeText}" Width="90"/>
                                 </DataGrid.Columns>
                             </DataGrid>
