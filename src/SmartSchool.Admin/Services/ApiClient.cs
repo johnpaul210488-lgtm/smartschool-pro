@@ -225,8 +225,22 @@ public sealed class ApiClient
     public Task<(bool Ok, List<BusListItem>? Data, string Error, string Msg)> BusesAsync()
         => GetAsync<List<BusListItem>>("api/buses");
 
-    public Task<(bool Ok, List<DriverListItem>? Data, string Error, string Msg)> DriversAsync()
-        => GetAsync<List<DriverListItem>>("api/drivers");
+    /// <summary>
+    /// Saare drivers (server paged jawab deta hai: { items, totalPages }). Pehle yeh List expect karta tha,
+    /// is liye parse fail hota tha aur driver list hamesha khali rehti thi.
+    /// </summary>
+    public async Task<(bool Ok, List<DriverListItem>? Data, string Error, string Msg)> DriversAsync()
+    {
+        var all = new List<DriverListItem>();
+        for (var page = 1; page <= 100; page++)
+        {
+            var r = await GetAsync<PagedResult<DriverListItem>>($"api/drivers?page={page}&pageSize=200");
+            if (!r.Ok || r.Data is null) return (false, null, r.Error, r.Msg);
+            all.AddRange(r.Data.Items);
+            if (r.Data.Items.Count == 0 || page >= r.Data.TotalPages) break;
+        }
+        return (true, all, string.Empty, string.Empty);
+    }
 
     public Task<(bool Ok, PagedResult<FeeListItem>? Data, string Error, string Msg)> FeesAsync(
         int? studentId = null, string? month = null, string? status = null, int page = 1, int pageSize = 50)

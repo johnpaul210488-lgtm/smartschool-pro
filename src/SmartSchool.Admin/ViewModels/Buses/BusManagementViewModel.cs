@@ -36,26 +36,33 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
         });
     }
 
+    /// <summary>Buses aur drivers dono load karta hai. Chuni hui bus reload ke baad bhi chuni rehti hai.</summary>
     [RelayCommand]
     public async Task LoadAsync()
     {
         IsBusy = true;
         try
         {
-            var r = await _api.BusesAsync();
-            if (r.Ok && r.Data is not null)
+            var busesTask = _api.BusesAsync();
+            var driversTask = _api.DriversAsync();
+            var buses = await busesTask;
+            var drivers = await driversTask;
+
+            var keepId = SelectedBus?.Id;
+            if (buses.Ok && buses.Data is not null)
             {
                 Buses.Clear();
-                foreach (var b in r.Data) Buses.Add(b);
+                foreach (var b in buses.Data) Buses.Add(b);
+                if (keepId is int id) SelectedBus = Buses.FirstOrDefault(x => x.Id == id);
             }
-            else ToastService.Current.Error("Buses", r.Error);
+            else ToastService.Current.Error("Buses", buses.Error);
 
-            var d = await _api.DriversAsync();
-            if (d.Ok && d.Data is not null)
+            if (drivers.Ok && drivers.Data is not null)
             {
                 Drivers.Clear();
-                foreach (var x in d.Data) Drivers.Add(x);
+                foreach (var x in drivers.Data) Drivers.Add(x);
             }
+            else ToastService.Current.Error("Drivers", drivers.Error);
         }
         finally
         {
@@ -70,6 +77,7 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
         FormRoute = value.Route;
         FormVehicleNo = value.VehicleNo;
         FormCapacity = value.Capacity;
+        FormError = string.Empty;
     }
 
     [RelayCommand] private void NewBus()
@@ -87,6 +95,11 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
             string.IsNullOrWhiteSpace(FormVehicleNo))
         {
             FormError = "Bus number, route aur vehicle no — teeno lazmi hain.";
+            return;
+        }
+        if (FormCapacity < 1 || FormCapacity > 200)
+        {
+            FormError = "Capacity 1 se 200 ke beech honi chahiye.";
             return;
         }
 
@@ -112,18 +125,51 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
     {
         if (b is null) return;
         var r = await _api.DeleteAsync($"api/buses/{b.Id}");
-        if (r.Ok) { ToastService.Current.Info("Bus", $"Bus #{b.BusNumber} deactivate hui."); await LoadAsync(); }
+        if (r.Ok)
+        {
+            if (SelectedBus?.Id == b.Id) NewBus();
+            ToastService.Current.Info("Bus", $"Bus #{b.BusNumber} hata di gayi.");
+            await LoadAsync();
+        }
         else ToastService.Current.Error("Bus", r.Error);
     }
 
+    /// <summary>Chuni hui bus par driver assign karta hai (combo se).</summary>
     [RelayCommand]
     private async Task AssignDriverAsync(object? driverObj)
     {
-        if (SelectedBus is null || driverObj is not DriverListItem driver) return;
-        var r = await _api.PutAsync<BusListItem>($"api/buses/{SelectedBus.Id}/assign-driver",
+        if (driverObj is not DriverListItem driver) return;
+        if (SelectedBus is null)
+        {
+            ToastService.Current.Error("Assign", "Pehle upar se bus select karein, phir driver chunein.");
+            return;
+        }
+        var bus = SelectedBus;
+        var r = await _api.PutAsync<BusListItem>($"api/buses/{bus.Id}/assign-driver",
             new { driverId = driver.Id });
-        if (r.Ok) { ToastService.Current.Info("Bus", $"{driver.FullName} → Bus #{SelectedBus.BusNumber}"); await LoadAsync(); }
+        if (r.Ok)
+        {
+            ToastService.Current.Info("Bus", $"{driver.FullName} → Bus #{bus.BusNumber}");
+            await LoadAsync();
+        }
         else ToastService.Current.Error("Assign", r.Error);
+    }
+
+    /// <summary>Chuni hui bus se driver hata deta hai.</summary>
+    [RelayCommand]
+    private async Task UnassignDriverAsync()
+    {
+        if (SelectedBus is null) { ToastService.Current.Error("Driver", "Pehle upar se bus select karein."); return; }
+        if (SelectedBus.DriverId is null) { ToastService.Current.Info("Driver", "Is bus par koi driver assign nahi hai."); return; }
+        var bus = SelectedBus;
+        var r = await _api.PutAsync<BusListItem>($"api/buses/{bus.Id}/assign-driver",
+            new { driverId = (int?)null });
+        if (r.Ok)
+        {
+            ToastService.Current.Info("Bus", $"Bus #{bus.BusNumber} se driver hata diya gaya.");
+            await LoadAsync();
+        }
+        else ToastService.Current.Error("Driver", r.Error);
     }
 
     public void Dispose() => WeakReferenceMessenger.Default.UnregisterAll(this);

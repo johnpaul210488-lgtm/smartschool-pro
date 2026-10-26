@@ -171,6 +171,12 @@ public sealed class DriverListItem
     [JsonPropertyName("isActive")] public bool IsActive { get; set; }
     [JsonPropertyName("assignedBusId")] public int? AssignedBusId { get; set; }
     [JsonPropertyName("assignedBusNumber")] public string? AssignedBusNumber { get; set; }
+
+    /// <summary>Dropdown mein naam ke saath bus number (agar kisi bus par assign ho).</summary>
+    [JsonIgnore]
+    public string DisplayName => string.IsNullOrWhiteSpace(AssignedBusNumber)
+        ? FullName
+        : $"{FullName}  ·  Bus #{AssignedBusNumber}";
 }
 
 public sealed class DriverCreateRequest

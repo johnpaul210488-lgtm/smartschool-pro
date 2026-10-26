@@ -37,10 +37,20 @@
                 </StackPanel>
 
                 <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
-                    <TextBlock Text="ASSIGN DRIVER (bus select ke baad)" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
+                    <TextBlock Text="ASSIGN DRIVER (pehle upar se bus select karein)" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
                     <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                                    ItemsSource="{Binding Drivers}" DisplayMemberPath="FullName"
+                                    ItemsSource="{Binding Drivers}" DisplayMemberPath="DisplayName"
+                                    ToolTip="Driver chunein: bus par assign ho jayega"
                                     SelectionChanged="DriverCombo_SelectionChanged"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Is bus ka driver: " FontSize="12" Opacity="0.85" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding SelectedBus.DriverName, TargetNullValue='— (koi nahi)', FallbackValue='— (bus chunein)'}"
+                                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Command="{Binding UnassignDriverCommand}" Style="{StaticResource QisOutlineButton}"
+                            Margin="0,8,0,0" HorizontalAlignment="Left" ToolTip="Is bus se driver hata dein">
+                        <TextBlock Text="Driver hatayein"/>
+                    </Button>
                 </StackPanel>
 
                 <TextBlock Text="{Binding FormError}" Foreground="#F44336" FontSize="12"
@@ -94,7 +104,7 @@
                     <DataGridTemplateColumn Header="" Width="60">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Button ToolTip="Deactivate bus"
+                                <Button ToolTip="Delete bus"
                                         Command="{Binding DataContext.DeleteCommand,
                                             RelativeSource={RelativeSource AncestorType=UserControl}}"
                                         CommandParameter="{Binding}"
