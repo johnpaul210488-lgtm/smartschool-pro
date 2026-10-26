@@ -222,8 +222,8 @@ public sealed class ApiClient
     public Task<(bool Ok, List<ClassListItem>? Data, string Error, string Msg)> ClassesAsync()
         => GetAsync<List<ClassListItem>>("api/classes");
 
-    public Task<(bool Ok, List<BusListItem>? Data, string Error, string Msg)> BusesAsync()
-        => GetAsync<List<BusListItem>>("api/buses");
+    public Task<(bool Ok, List<BusListItem>? Data, string Error, string Msg)> BusesAsync(bool includeInactive = false)
+        => GetAsync<List<BusListItem>>(includeInactive ? "api/buses?includeInactive=true" : "api/buses");
 
     /// <summary>
     /// Saare drivers (server paged jawab deta hai: { items, totalPages }). Pehle yeh List expect karta tha,

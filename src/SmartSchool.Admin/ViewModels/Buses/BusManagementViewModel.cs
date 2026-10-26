@@ -20,6 +20,9 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _formVehicleNo = string.Empty;
     [ObservableProperty] private int _formCapacity = 40;
     [ObservableProperty] private string _formError = string.Empty;
+    [ObservableProperty] private string _formTitle = "Naya bus";
+    [ObservableProperty] private string _toggleActiveText = "Deactivate bus";
+    [ObservableProperty] private bool _showInactive;
 
     public ObservableCollection<BusListItem> Buses { get; } = new();
     public ObservableCollection<DriverListItem> Drivers { get; } = new();
@@ -43,7 +46,7 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
         IsBusy = true;
         try
         {
-            var busesTask = _api.BusesAsync();
+            var busesTask = _api.BusesAsync(ShowInactive);
             var driversTask = _api.DriversAsync();
             var buses = await busesTask;
             var drivers = await driversTask;
@@ -70,14 +73,23 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
         }
     }
 
+    partial void OnShowInactiveChanged(bool value) => _ = LoadAsync();
+
     partial void OnSelectedBusChanged(BusListItem? value)
     {
-        if (value is null) return;
+        FormError = string.Empty;
+        if (value is null)
+        {
+            FormTitle = "Naya bus";
+            ToggleActiveText = "Deactivate bus";
+            return;
+        }
         FormNumber = value.BusNumber;
         FormRoute = value.Route;
         FormVehicleNo = value.VehicleNo;
         FormCapacity = value.Capacity;
-        FormError = string.Empty;
+        FormTitle = $"Bus #{value.BusNumber} edit ho raha hai" + (value.IsActive ? string.Empty : "  (INACTIVE)");
+        ToggleActiveText = value.IsActive ? "Deactivate bus" : "Activate bus";
     }
 
     [RelayCommand] private void NewBus()
@@ -109,7 +121,8 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
             Route = FormRoute.Trim(),
             VehicleNo = FormVehicleNo.Trim(),
             Capacity = FormCapacity,
-            IsActive = true
+            // Edit mein active/inactive status bus ka apna rahe (Save se active nahi hota).
+            IsActive = SelectedBus?.IsActive ?? true
         };
 
         var r = SelectedBus is null
@@ -129,6 +142,37 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
         {
             if (SelectedBus?.Id == b.Id) NewBus();
             ToastService.Current.Info("Bus", $"Bus #{b.BusNumber} hata di gayi.");
+            await LoadAsync();
+        }
+        else ToastService.Current.Error("Bus", r.Error);
+    }
+
+    /// <summary>Bus ko deactivate / activate karta hai. Deactivate bus list se hat jati hai (Inactive dikhane par nazar aati hai).</summary>
+    [RelayCommand]
+    private async Task ToggleActiveAsync()
+    {
+        if (SelectedBus is null) { ToastService.Current.Error("Bus", "Pehle upar se bus select karein."); return; }
+        var bus = SelectedBus;
+        var activate = !bus.IsActive;
+        if (!activate)
+        {
+            var ok = System.Windows.MessageBox.Show(
+                $"Bus #{bus.BusNumber} deactivate karni hai?\n\nIs bus ke students aur driver assign rahenge; bus sirf list se hat jayegi.\nBaad mein 'Inactive dikhayein' se wapas active kar sakte hain.",
+                "Confirm: Deactivate bus", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
+            if (ok != System.Windows.MessageBoxResult.Yes) return;
+        }
+        var r = await _api.PutAsync<BusListItem>($"api/buses/{bus.Id}", new BusUpsertRequest
+        {
+            BusNumber = bus.BusNumber,
+            Route = bus.Route,
+            VehicleNo = bus.VehicleNo,
+            Capacity = bus.Capacity,
+            IsActive = activate
+        });
+        if (r.Ok)
+        {
+            ToastService.Current.Info("Bus", activate ? $"Bus #{bus.BusNumber} active ho gayi." : $"Bus #{bus.BusNumber} deactivate ho gayi.");
+            if (!activate && !ShowInactive) NewBus();
             await LoadAsync();
         }
         else ToastService.Current.Error("Bus", r.Error);

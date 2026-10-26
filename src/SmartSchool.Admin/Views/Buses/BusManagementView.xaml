@@ -14,7 +14,8 @@
         <!-- Form -->
         <materialDesign:Card Grid.Column="0" Padding="22" Margin="0,0,12,0" VerticalAlignment="Top">
             <StackPanel>
-                <TextBlock Text="🚌 Bus Form" FontSize="20" FontWeight="Bold" Margin="0,0,0,14"/>
+                <TextBlock Text="🚌 Bus Form" FontSize="20" FontWeight="Bold" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding FormTitle}" FontSize="13" FontWeight="SemiBold" Foreground="#2F6FB0" TextWrapping="Wrap" Margin="0,0,0,12"/>
                 <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
                     <TextBlock Text="BUS NUMBER *" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
                     <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
@@ -73,11 +74,19 @@
                         </StackPanel>
                     </Button>
                 </StackPanel>
+                <Button Command="{Binding ToggleActiveCommand}" Style="{StaticResource QisOutlineButton}"
+                        Margin="0,10,0,0" HorizontalAlignment="Left"
+                        ToolTip="Bus ko list se hata dein ya wapas active karein (data delete nahi hota)">
+                    <TextBlock Text="{Binding ToggleActiveText}"/>
+                </Button>
             </StackPanel>
         </materialDesign:Card>
 
         <!-- Grid -->
         <materialDesign:Card Grid.Column="1" Padding="10">
+          <DockPanel>
+            <CheckBox DockPanel.Dock="Top" IsChecked="{Binding ShowInactive}" Margin="6,0,0,8"
+                      Content="Inactive (band) buses bhi dikhayein"/>
             <DataGrid 
                       helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding Buses}" AutoGenerateColumns="False" IsReadOnly="True"
                       CanUserAddRows="False" SelectedItem="{Binding SelectedBus, Mode=TwoWay}"
@@ -117,6 +126,7 @@
                     </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
+          </DockPanel>
         </materialDesign:Card>
     </Grid>
 </UserControl>
