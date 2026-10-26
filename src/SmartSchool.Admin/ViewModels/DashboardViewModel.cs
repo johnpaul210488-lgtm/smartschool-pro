@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using SmartSchool.Admin.Models;
 using SmartSchool.Admin.Services;
+using SmartSchool.Admin.Helpers;
 
 namespace SmartSchool.Admin.ViewModels;
 
@@ -23,7 +24,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isBusy;
 
     public ObservableCollection<DashboardCard> Cards { get; } = new();
-    public ObservableCollection<BusEventListItem> LiveAttendance { get; } = new();
+    public BulkObservableCollection<BusEventListItem> LiveAttendance { get; } = new();
 
     public DashboardViewModel()
     {
@@ -77,8 +78,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             var today = await todayTask;
             if (today.Ok && today.Data is not null)
             {
-                LiveAttendance.Clear();
-                foreach (var e in today.Data.OrderByDescending(e => e.Id)) LiveAttendance.Add(e);
+                LiveAttendance.ReplaceAll(today.Data.OrderByDescending(e => e.Id));
             }
         }
         finally

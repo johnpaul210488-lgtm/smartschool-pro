@@ -32,7 +32,7 @@ public partial class FeeDashboardViewModel : ObservableObject
     [ObservableProperty] private string _message = string.Empty;
     [ObservableProperty] private bool _isError;
 
-    public ObservableCollection<StudentFeeSummaryDto> Students { get; } = new();
+    public BulkObservableCollection<StudentFeeSummaryDto> Students { get; } = new();
     public IReadOnlyList<StatusOption> StatusOptions { get; } = new[]
     {
         new StatusOption("all", "Sab"), new StatusOption("paid", "Paid"), new StatusOption("unpaid", "Unpaid"),
@@ -109,10 +109,8 @@ public partial class FeeDashboardViewModel : ObservableObject
                 return;
             }
 
-            Students.Clear();
-            foreach (var s in r.Data)
-                if (StatusFilter == "all" || string.Equals(s.StatusText, StatusLabelFor(StatusFilter), StringComparison.OrdinalIgnoreCase))
-                    Students.Add(s);
+            Students.ReplaceAll(r.Data.Where(s => StatusFilter == "all"
+                || string.Equals(s.StatusText, StatusLabelFor(StatusFilter), StringComparison.OrdinalIgnoreCase)).ToList());
             var summary = Students.Count == 0
                 ? (StatusFilter == "all" ? "Koi student nahi mila." : "Is status mein koi student nahi.")
                 : $"{Students.Count} student(s). Row par click karein to fee collect karein.";

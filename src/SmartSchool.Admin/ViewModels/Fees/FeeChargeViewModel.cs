@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SmartSchool.Admin.Models;
 using SmartSchool.Admin.Services;
+using SmartSchool.Admin.Helpers;
 
 namespace SmartSchool.Admin.ViewModels.Fees;
 
@@ -66,11 +67,11 @@ public partial class FeeChargeViewModel : ObservableObject
     [ObservableProperty] private string _billsHiddenNote = string.Empty;
 
     public ObservableCollection<ClassListItem> Classes { get; } = new();
-    public ObservableCollection<StudentListItem> Students { get; } = new();
+    public BulkObservableCollection<StudentListItem> Students { get; } = new();
     public ObservableCollection<ChargeLine> FeeLines { get; } = new();
     public ICollectionView FeeLinesView { get; }
-    public ObservableCollection<FeeHistoryRowDto> HistoryFees { get; } = new();
-    public ObservableCollection<FeeHistoryPaymentDto> HistoryPayments { get; } = new();
+    public BulkObservableCollection<FeeHistoryRowDto> HistoryFees { get; } = new();
+    public BulkObservableCollection<FeeHistoryPaymentDto> HistoryPayments { get; } = new();
 
     // Period filter for the statement: Sab (all), Ek din (one day), Ek mahina (one month).
     public string[] PeriodModes { get; } = { "Sab", "Ek din", "Ek mahina" };
@@ -110,10 +111,8 @@ public partial class FeeChargeViewModel : ObservableObject
         }
 
         var paymentList = payments.ToList();
-        HistoryFees.Clear();
-        foreach (var f in fees) HistoryFees.Add(f);
-        HistoryPayments.Clear();
-        foreach (var p in paymentList) HistoryPayments.Add(p);
+        HistoryFees.ReplaceAll(fees);
+        HistoryPayments.ReplaceAll(paymentList);
 
         FilterSummary += $"  ·  {paymentList.Count} payment(s), Rs {paymentList.Sum(p => p.Amount):N0} ·  {HistoryFees.Count} bill(s)";
         var hidden = _allFees.Count - HistoryFees.Count;
@@ -262,8 +261,7 @@ public partial class FeeChargeViewModel : ObservableObject
             if (version != _listVersion) return;
             if (!result.Ok || result.Data is null) { SetMessage(result.Error, true); return; }
 
-            Students.Clear();
-            foreach (var s in result.Data.Items) Students.Add(s);
+            Students.ReplaceAll(result.Data.Items);
             SetMessage(Students.Count == 0
                 ? "Koi active student nahi mila."
                 : $"{Students.Count} student(s) mile. Kisi par click karein.", false);
@@ -289,9 +287,7 @@ public partial class FeeChargeViewModel : ObservableObject
 
             var students = await _api.StudentsAsync(classId: classId, pageSize: 300);
             if (version != _itemsVersion) return;
-            Students.Clear();
-            if (students.Ok && students.Data is not null)
-                foreach (var s in students.Data.Items) Students.Add(s);
+            Students.ReplaceAll(students.Ok && students.Data is not null ? students.Data.Items : Enumerable.Empty<StudentListItem>());
 
             SelectedStudent = null;
             ClearHistory();
