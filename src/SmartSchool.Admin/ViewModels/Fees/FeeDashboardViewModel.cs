@@ -71,15 +71,23 @@ public partial class FeeDashboardViewModel : ObservableObject
 
     private async Task InitAsync()
     {
-        await CheckServerVersionAsync();
-        var classes = await _api.ClassesAsync();
+        // Version, classes aur dues ek sath mangwayein. List tab load hogi jab version warning tayyar ho
+        // (warning list ke message mein shamil hoti hai), is liye list version ke baad chalti hai.
+        var versionTask = CheckServerVersionAsync();
+        var classesTask = _api.ClassesAsync();
+        var duesTask = LoadDuesSummaryAsync();
+
+        await versionTask;
+        var listTask = LoadAsync();
+
+        var classes = await classesTask;
         if (classes.Ok && classes.Data is not null)
         {
             Classes.Clear();
             foreach (var c in classes.Data) Classes.Add(c);
         }
-        await LoadDuesSummaryAsync();
-        await LoadAsync();
+        await duesTask;
+        await listTask;
     }
 
     [RelayCommand]

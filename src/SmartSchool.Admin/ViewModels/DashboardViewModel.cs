@@ -69,9 +69,12 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         IsBusy = true;
         try
         {
-            await LoadCountsOnlyAsync();
+            // Counts aur aaj ki attendance ek sath mangwayein (pehle ek ke baad ek).
+            var countsTask = LoadCountsOnlyAsync();
+            var todayTask = _api.TodayAttendanceAsync();
+            await countsTask;
 
-            var today = await _api.TodayAttendanceAsync();
+            var today = await todayTask;
             if (today.Ok && today.Data is not null)
             {
                 LiveAttendance.Clear();
