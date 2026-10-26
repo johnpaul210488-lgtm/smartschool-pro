@@ -113,6 +113,10 @@ class _StudentCard extends StatelessWidget {
                           style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
                       Text(student.className,
                           style: const TextStyle(fontSize: 15, color: Colors.black54)),
+                      if (student.address.isNotEmpty)
+                        Text('📍 ${student.address}',
+                            maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14, color: Colors.black87)),
                       if (student.status == PickStatus.picked)
                         const Text('✅ PICKED', style: TextStyle(
                             fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green)),
