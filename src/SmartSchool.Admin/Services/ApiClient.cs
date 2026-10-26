@@ -229,12 +229,13 @@ public sealed class ApiClient
     /// Saare drivers (server paged jawab deta hai: { items, totalPages }). Pehle yeh List expect karta tha,
     /// is liye parse fail hota tha aur driver list hamesha khali rehti thi.
     /// </summary>
-    public async Task<(bool Ok, List<DriverListItem>? Data, string Error, string Msg)> DriversAsync()
+    public async Task<(bool Ok, List<DriverListItem>? Data, string Error, string Msg)> DriversAsync(bool includeInactive = false)
     {
         var all = new List<DriverListItem>();
         for (var page = 1; page <= 100; page++)
         {
-            var r = await GetAsync<PagedResult<DriverListItem>>($"api/drivers?page={page}&pageSize=200");
+            var r = await GetAsync<PagedResult<DriverListItem>>(
+                $"api/drivers?page={page}&pageSize=200&includeInactive={(includeInactive ? "true" : "false")}");
             if (!r.Ok || r.Data is null) return (false, null, r.Error, r.Msg);
             all.AddRange(r.Data.Items);
             if (r.Data.Items.Count == 0 || page >= r.Data.TotalPages) break;

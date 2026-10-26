@@ -98,19 +98,58 @@ public sealed class DriversController : BaseApiController
     [Authorize(Roles = AppRoles.Staff)]
     public async Task<ActionResult> Update(int id, DriverUpdateRequest request, CancellationToken ct)
     {
-        var driver = await _uow.Drivers.FindAsync(new object[] { id }, ct);
+        var driver = await _uow.Drivers.Query(false).Include(d => d.User).Include(d => d.AssignedBus)
+            .FirstOrDefaultAsync(d => d.Id == id, ct);
         if (driver is null)
             return NotFoundEnvelope($"Driver {id} was not found.");
 
-        if (await _uow.Drivers.AnyAsync(d => d.Id != id && d.LicenseNo == request.LicenseNo.Trim(), ct))
-            return ConflictEnvelope($"License number '{request.LicenseNo}' is already registered.");
+        var license = request.LicenseNo.Trim();
+        if (await _uow.Drivers.AnyAsync(d => d.Id != id && d.LicenseNo == license, ct))
+            return ConflictEnvelope($"License number '{license}' is already registered.");
 
         driver.FullName = request.FullName.Trim();
         driver.Phone = request.Phone.Trim();
-        driver.LicenseNo = request.LicenseNo.Trim();
+        driver.LicenseNo = license;
         driver.IsActive = request.IsActive;
+        // Login account bhi driver ke saath chalega: band driver app mein login nahi kar sakta.
+        if (driver.User is not null)
+        {
+            driver.User.FullName = driver.FullName;
+            driver.User.IsActive = driver.IsActive;
+        }
+        // Band driver kisi bus par nahi rehta.
+        if (!driver.IsActive && driver.AssignedBus is not null)
+            driver.AssignedBus.DriverId = null;
+
         await _uow.SaveChangesAsync(ct);
         return OkMessage("Driver updated successfully.");
+    }
+
+    /// <summary>Driver ka app login badalna (username) ya naya password dena. Password khali ho to purana rehta hai.</summary>
+    [HttpPut("{id:int}/login")]
+    [Authorize(Roles = AppRoles.Staff)]
+    public async Task<ActionResult> UpdateLogin(int id, DriverLoginRequest request, CancellationToken ct)
+    {
+        var driver = await _uow.Drivers.Query(false).Include(d => d.User)
+            .FirstOrDefaultAsync(d => d.Id == id, ct);
+        if (driver is null || driver.User is null)
+            return NotFoundEnvelope($"Driver {id} was not found.");
+
+        var username = (request.Username ?? string.Empty).Trim();
+        if (username.Length < 3 || username.Length > 50)
+            return BadRequestEnvelope("Username 3 se 50 characters ka hona chahiye.");
+        if (await _uow.Users.AnyAsync(u => u.Username == username && u.Id != driver.UserId, ct))
+            return ConflictEnvelope($"Username '{username}' is already taken.");
+
+        var newPassword = request.NewPassword ?? string.Empty;
+        if (newPassword.Length > 0 && newPassword.Length < 6)
+            return BadRequestEnvelope("Naya password kam az kam 6 characters ka hona chahiye.");
+
+        driver.User.Username = username;
+        if (newPassword.Length > 0)
+            driver.User.PasswordHash = PasswordHasher.Hash(newPassword);
+        await _uow.SaveChangesAsync(ct);
+        return OkMessage("Driver app login updated.");
     }
 
     /// <summary>Soft delete: unassigns the bus, keeps attendance history intact.</summary>
@@ -118,12 +157,13 @@ public sealed class DriversController : BaseApiController
     [Authorize(Roles = AppRoles.Staff)]
     public async Task<ActionResult> Deactivate(int id, CancellationToken ct)
     {
-        var driver = await _uow.Drivers.Query(false).Include(d => d.AssignedBus)
+        var driver = await _uow.Drivers.Query(false).Include(d => d.AssignedBus).Include(d => d.User)
             .FirstOrDefaultAsync(d => d.Id == id, ct);
         if (driver is null)
             return NotFoundEnvelope($"Driver {id} was not found.");
 
         driver.IsActive = false;
+        if (driver.User is not null) driver.User.IsActive = false; // app login bhi band
         if (driver.AssignedBus is not null)
             driver.AssignedBus.DriverId = null;
         await _uow.SaveChangesAsync(ct);

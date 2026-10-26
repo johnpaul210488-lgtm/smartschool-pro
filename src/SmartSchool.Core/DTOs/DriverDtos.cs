@@ -22,6 +22,13 @@ public sealed class DriverCreateRequest
     public string Password { get; set; } = string.Empty;
 }
 
+/// <summary>Driver ka mobile-app login badalna: username (optional change) aur naya password (khali ho to nahi badalta).</summary>
+public sealed class DriverLoginRequest
+{
+    public string Username { get; set; } = string.Empty;
+    public string? NewPassword { get; set; }
+}
+
 public sealed class DriverUpdateRequest
 {
     public string FullName { get; set; } = string.Empty;

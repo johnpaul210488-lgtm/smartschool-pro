@@ -4,101 +4,125 @@
              xmlns:helpers="clr-namespace:SmartSchool.Admin.Helpers"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
 
-    <!-- CHANGED: form Enter/arrow navigation; Tab and Shift+Tab use WPF traversal. -->
     <Grid helpers:FormKeyboardNavigation.IsEnabled="True">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="340"/>
+            <ColumnDefinition Width="360"/>
             <ColumnDefinition/>
         </Grid.ColumnDefinitions>
 
-        <!-- Form -->
-        <materialDesign:Card Grid.Column="0" Padding="22" Margin="0,0,12,0" VerticalAlignment="Top">
-            <StackPanel>
-                <TextBlock Text="🪪 Driver Form" FontSize="20" FontWeight="Bold" Margin="0,0,0,14"/>
-                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined box (student-form style) -->
-                    <TextBlock Text="FULL NAME *" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Text="{Binding FormName, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined box (student-form style) -->
-                    <TextBlock Text="PHONE * (03xxxxxxxxx)" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Text="{Binding FormPhone, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined box (student-form style) -->
-                    <TextBlock Text="LICENSE NO *" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Text="{Binding FormLicense, UpdateSourceTrigger=PropertyChanged}"/>
+        <!-- ===== Form: header upar, buttons neeche (hamesha nazar aate hain), fields beech mein scroll ===== -->
+        <materialDesign:Card Grid.Column="0" Padding="16" Margin="0,0,12,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <TextBlock Text="Driver Form" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding FormTitle}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    <TextBlock Text="Edit karne ke liye list mein driver ke saamne 'Edit' dabayein. Naya driver ke liye 'New driver'."
+                               FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="0,4,0,0"/>
                 </StackPanel>
 
-                <Separator Margin="0,8" Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}"/>
-                <TextBlock Text="Mobile app login (sirf naye driver ke liye):"
-                           FontSize="11" Opacity="0.7" TextWrapping="Wrap"
-                           Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}"/>
-                <StackPanel Margin="0,0,0,14" Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}"> <!-- CHANGED: label above + outlined box (student-form style) -->
-                    <TextBlock Text="USERNAME * (app login)" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Text="{Binding FormUsername, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <StackPanel Margin="0,0,0,14" Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}"> <!-- CHANGED: label above + outlined box (student-form style) -->
-                    <TextBlock Text="PASSWORD * (app login)" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Text="{Binding FormPassword, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-
-                <TextBlock Text="{Binding FormError}" Foreground="#F44336" FontSize="12"
-                           TextWrapping="Wrap" Margin="0,6,0,0"
-                           Visibility="{Binding FormError, Converter={StaticResource NotEmptyToVis}}"/>
-
-                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                    <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
-                    <Button Command="{Binding NewDriverCommand}"
-                            Style="{StaticResource QisOutlineButton}" Margin="0,0,8,0">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" Margin="0,0,6,0"/>
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                    <TextBlock Text="{Binding FormError}" Foreground="#C62828" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Visibility="{Binding FormError, Converter={StaticResource NotEmptyToVis}}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Command="{Binding SaveCommand}" Style="{StaticResource QisPrimaryButton}"
+                                HorizontalAlignment="Stretch" ToolTip="Driver ki tabdeeli save karein">
+                            <TextBlock Text="Save karein"/>
+                        </Button>
+                        <Button Grid.Column="2" Command="{Binding NewDriverCommand}" Style="{StaticResource QisOutlineButton}"
+                                HorizontalAlignment="Stretch" ToolTip="Naya driver banane ke liye form khali karein">
                             <TextBlock Text="New driver"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding SaveCommand}" Style="{StaticResource QisPrimaryButton}">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="ContentSaveOutline" Width="16" Height="16" Margin="0,0,6,0"/>
-                            <TextBlock Text="Save driver"/>
-                        </StackPanel>
-                    </Button>
+                        </Button>
+                    </Grid>
                 </StackPanel>
-            </StackPanel>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+                    <StackPanel>
+                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,12"
+                                 materialDesign:HintAssist.Hint="Full name *"
+                                 Text="{Binding FormName, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,12"
+                                 materialDesign:HintAssist.Hint="Phone * (03xxxxxxxxx)"
+                                 Text="{Binding FormPhone, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,16"
+                                 materialDesign:HintAssist.Hint="License no *"
+                                 Text="{Binding FormLicense, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <Separator Margin="0,0,0,12"/>
+
+                        <TextBlock Text="Mobile app login" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                        <TextBlock Text="Driver isi username/password se app mein login karega."
+                                   FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,12"
+                                 materialDesign:HintAssist.Hint="Username *"
+                                 Text="{Binding FormUsername, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,8"
+                                 materialDesign:HintAssist.Hint="{Binding FormPasswordHint}"
+                                 Text="{Binding FormPassword, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="Password kam az kam 6 characters ka ho."
+                                   FontSize="11" Opacity="0.6" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </materialDesign:Card>
 
-        <!-- Grid -->
+        <!-- ===== List ===== -->
         <materialDesign:Card Grid.Column="1" Padding="10">
-            <DataGrid 
-                      helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding Drivers}" AutoGenerateColumns="False"
-                      IsReadOnly="True" CanUserAddRows="False"
-                      SelectedItem="{Binding SelectedDriver, Mode=TwoWay}"
-                      GridLinesVisibility="Horizontal" RowHeaderWidth="0">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="2*"/>
-                    <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="*"/>
-                    <DataGridTextColumn Header="License" Binding="{Binding LicenseNo}" Width="*"/>
-                    <DataGridTextColumn Header="Login" Binding="{Binding Username}" Width="*"/>
-                    <DataGridTextColumn Header="Bus" Binding="{Binding AssignedBusNumber, TargetNullValue='—',
-                        StringFormat='# {0}'}" Width="60"/>
-                    <DataGridTemplateColumn Header="" Width="60">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button ToolTip="Deactivate driver"
-                                        Command="{Binding DataContext.DeleteCommand,
-                                            RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}"
-                                        Style="{StaticResource QisIconButton}"
-                                        Foreground="#9A3549">
-                                    <materialDesign:PackIcon Kind="DeleteOutline" Width="18" Height="18"/>
-                                </Button>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
+            <DockPanel>
+                <CheckBox DockPanel.Dock="Top" IsChecked="{Binding ShowInactive}" Margin="6,0,0,8"
+                          Content="Inactive (band) drivers bhi dikhayein"/>
+                <DataGrid helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding Drivers}" AutoGenerateColumns="False"
+                          IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single"
+                          SelectedItem="{Binding SelectedDriver, Mode=TwoWay}"
+                          GridLinesVisibility="Horizontal" RowHeaderWidth="0"
+                          ToolTip="Row ke saamne 'Edit' dabayein: driver form mein khul jayega">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="2*"/>
+                        <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="*"/>
+                        <DataGridTextColumn Header="License" Binding="{Binding LicenseNo}" Width="*"/>
+                        <DataGridTextColumn Header="Login" Binding="{Binding Username}" Width="*"/>
+                        <DataGridTextColumn Header="Bus" Binding="{Binding AssignedBusNumber, TargetNullValue='—', StringFormat='# {0}'}" Width="70"/>
+                        <DataGridTemplateColumn Header="Status" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                        <Setter Property="Foreground" Value="#9E9E9E"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Kaam" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="4,0">
+                                        <Button Content="Edit" Style="{StaticResource QisOutlineButton}" Margin="0,0,6,0"
+                                                ToolTip="Is driver ko form mein kholein"
+                                                Command="{Binding DataContext.EditDriverCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Content="{Binding ActionText}" Style="{StaticResource QisOutlineButton}"
+                                                ToolTip="Driver ko band (deactivate) ya wapas active karein"
+                                                Command="{Binding DataContext.ToggleActiveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
         </materialDesign:Card>
     </Grid>
 </UserControl>

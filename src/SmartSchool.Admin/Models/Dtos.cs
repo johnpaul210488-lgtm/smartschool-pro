@@ -175,11 +175,22 @@ public sealed class DriverListItem
     [JsonPropertyName("assignedBusId")] public int? AssignedBusId { get; set; }
     [JsonPropertyName("assignedBusNumber")] public string? AssignedBusNumber { get; set; }
 
+    /// <summary>Row ka status text.</summary>
+    [JsonIgnore] public string StatusText => IsActive ? "Active" : "Inactive";
+    /// <summary>Row ka button: active driver par "Deactivate", band par "Activate".</summary>
+    [JsonIgnore] public string ActionText => IsActive ? "Deactivate" : "Activate";
+
     /// <summary>Dropdown mein naam ke saath bus number (agar kisi bus par assign ho).</summary>
     [JsonIgnore]
     public string DisplayName => string.IsNullOrWhiteSpace(AssignedBusNumber)
         ? FullName
         : $"{FullName}  ·  Bus #{AssignedBusNumber}";
+}
+
+public sealed class DriverLoginRequest
+{
+    [JsonPropertyName("username")] public string Username { get; set; } = string.Empty;
+    [JsonPropertyName("newPassword")] public string? NewPassword { get; set; }
 }
 
 public sealed class DriverCreateRequest
