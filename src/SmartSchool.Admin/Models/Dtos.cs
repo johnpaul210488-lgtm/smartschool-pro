@@ -148,6 +148,9 @@ public sealed class BusListItem
     [JsonPropertyName("driverName")] public string? DriverName { get; set; }
     [JsonPropertyName("isActive")] public bool IsActive { get; set; }
     [JsonPropertyName("studentCount")] public int StudentCount { get; set; }
+
+    /// <summary>Row ka button: active bus par "Deactivate", band bus par "Activate".</summary>
+    [JsonIgnore] public string ActionText => IsActive ? "Deactivate" : "Activate";
 }
 
 public sealed class BusUpsertRequest

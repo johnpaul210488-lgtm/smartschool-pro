@@ -16,7 +16,7 @@
                 <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
                     <TextBlock Text="Bus Form" FontSize="18" FontWeight="SemiBold"/>
                     <TextBlock Text="{Binding FormTitle}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,0"/>
-                    <TextBlock Text="Edit karne ke liye neeche list mein bus ki row par click karein. Naya bus ke liye 'New bus' dabayein."
+                    <TextBlock Text="Edit karne ke liye list mein bus ke saamne 'Edit' dabayein. Naya bus ke liye 'New bus'."
                                FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="0,4,0,0"/>
                 </StackPanel>
 
@@ -118,16 +118,26 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="" Width="60">
+                        <DataGridTemplateColumn Header="Kaam" Width="Auto">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button ToolTip="Bus hatayein (sirf wo bus jis ka koi record nahi)"
-                                            Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"
-                                            Style="{StaticResource QisIconButton}"
-                                            Foreground="#9A3549">
-                                        <materialDesign:PackIcon Kind="DeleteOutline" Width="18" Height="18"/>
-                                    </Button>
+                                    <StackPanel Orientation="Horizontal" Margin="4,0">
+                                        <Button Content="Edit" Style="{StaticResource QisOutlineButton}" Margin="0,0,6,0"
+                                                ToolTip="Is bus ko form mein kholein"
+                                                Command="{Binding DataContext.EditBusCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Content="{Binding ActionText}" Style="{StaticResource QisOutlineButton}" Margin="0,0,6,0"
+                                                ToolTip="Bus ko band (deactivate) ya wapas active karein"
+                                                Command="{Binding DataContext.ToggleActiveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button ToolTip="Bus hatayein (sirf wo bus jis ka koi record nahi)"
+                                                Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Style="{StaticResource QisIconButton}"
+                                                Foreground="#9A3549">
+                                            <materialDesign:PackIcon Kind="DeleteOutline" Width="18" Height="18"/>
+                                        </Button>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

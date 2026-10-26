@@ -92,6 +92,15 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
         ToggleActiveText = value.IsActive ? "Deactivate bus" : "Activate bus";
     }
 
+    /// <summary>Row ke "Edit" button se: us bus ko form mein khol deta hai (selection par depend nahi).</summary>
+    [RelayCommand]
+    private void EditBus(BusListItem? b)
+    {
+        if (b is null) return;
+        if (ReferenceEquals(SelectedBus, b)) OnSelectedBusChanged(b);
+        else SelectedBus = b;
+    }
+
     [RelayCommand] private void NewBus()
     {
         SelectedBus = null;
@@ -149,10 +158,10 @@ public partial class BusManagementViewModel : ObservableObject, IDisposable
 
     /// <summary>Bus ko deactivate / activate karta hai. Deactivate bus list se hat jati hai (Inactive dikhane par nazar aati hai).</summary>
     [RelayCommand]
-    private async Task ToggleActiveAsync()
+    private async Task ToggleActiveAsync(BusListItem? row)
     {
-        if (SelectedBus is null) { ToastService.Current.Error("Bus", "Pehle upar se bus select karein."); return; }
-        var bus = SelectedBus;
+        var bus = row ?? SelectedBus;
+        if (bus is null) { ToastService.Current.Error("Bus", "Pehle list mein bus ke saamne 'Edit' dabayein."); return; }
         var activate = !bus.IsActive;
         if (!activate)
         {
