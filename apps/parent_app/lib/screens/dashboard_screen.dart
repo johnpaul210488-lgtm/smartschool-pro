@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 
 import '../core/app_updater.dart';
@@ -181,23 +182,51 @@ class _ChildCardView extends StatelessWidget {
             SizedBox(
               height: 220,
               child: live == null
-                  ? Center(child: Text(loc.t('waiting_gps')))
-                  : GoogleMap(
-                      initialCameraPosition: CameraPosition(
-                        target: LatLng(live!.latitude, live!.longitude),
-                        zoom: 15,
-                      ),
-                      markers: {
-                        Marker(
-                          markerId: MarkerId('bus-${child.busId}'),
-                          position: LatLng(live!.latitude, live!.longitude),
-                          infoWindow: InfoWindow(
-                              title: '${loc.t('bus_lbl')} #${child.busNumber}',
-                              snippet: live!.timePakistan),
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          'Bus ki location abhi nahi aayi. Driver app par trip start hote hi yahan dikhegi.',
+                          textAlign: TextAlign.center,
                         ),
-                      },
-                      myLocationButtonEnabled: false,
-                      zoomControlsEnabled: false,
+                      ),
+                    )
+                  : FlutterMap(
+                      options: MapOptions(
+                        initialCenter: ll.LatLng(live!.latitude, live!.longitude),
+                        initialZoom: 15,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'smartschool_parent',
+                        ),
+                        MarkerLayer(markers: [
+                          Marker(
+                            point: ll.LatLng(live!.latitude, live!.longitude),
+                            width: 130,
+                            height: 56,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.black26),
+                                  ),
+                                  child: Text(
+                                    '🚌 #${child.busNumber ?? child.busId}',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const Icon(Icons.location_on, color: Colors.red, size: 30),
+                              ],
+                            ),
+                          ),
+                        ]),
+                      ],
                     ),
             ),
         ],
