@@ -222,6 +222,14 @@ class HomeScreen extends StatelessWidget {
     if (!context.mounted) return;
     if (ok) {
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TripScreen()));
+    } else {
+      // Pehle error screen par nahi dikhta tha: ab wajah saaf dikhayi jati hai.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        backgroundColor: Colors.red.shade800,
+        content: Text(state.error ?? 'Trip shuru nahi ho saka. Dobara koshish karein.',
+            style: const TextStyle(fontSize: 15)),
+      ));
     }
   }
 

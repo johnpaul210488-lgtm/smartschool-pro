@@ -151,12 +151,22 @@ class AppState extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      // GPS permission zaroor — trip hi track hona hai
-      await _gps.currentFix();
+      // GPS permission zaroor (permission na ho to trip nahi). Fix ka timeout trip ko na roke.
+      try {
+        await _gps.currentFix();
+      } on StateError {
+        rethrow;
+      } catch (_) {
+        // GPS fix late/timeout: trip shuru karein, tracking khud location bhejti rahegi.
+      }
 
       activeTrip = await _api.startTrip(b.id);
       await BackgroundGpsService.instance.startTrip(activeTrip!.id);
-      await loadManifest();
+      try {
+        await loadManifest();
+      } catch (_) {
+        // Manifest ka masla trip ko fail nahi karta; refresh par dobara load hoga.
+      }
       lastFlash = '🚌 Trip #${activeTrip!.id} started — tracking ON';
       return true;
     } on StateError catch (e) {
@@ -164,6 +174,9 @@ class AppState extends ChangeNotifier {
       return false;
     } on ApiException catch (e) {
       error = e.toString();
+      return false;
+    } catch (e) {
+      error = 'Trip shuru nahi ho saka: $e';
       return false;
     } finally {
       busy = false;
