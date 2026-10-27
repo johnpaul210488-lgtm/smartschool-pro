@@ -55,7 +55,12 @@ public partial class LiveTrackingViewModel : ObservableObject, IDisposable
     public async Task LoadSnapshotAsync()
     {
         var r = await ApiClient.Instance.LiveBusesAsync();
-        if (!r.Ok || r.Data is null) return;
+        if (!r.Ok || r.Data is null)
+        {
+            // Server purana ho to live endpoint nahi milta: masla yahan saaf dikhayein.
+            StatusLine = "⚠️ Server se live data nahi mila. Server ko v1.1.79 par update karein.";
+            return;
+        }
         foreach (var u in r.Data) Apply(u);
         if (r.Data.Count == 0) StatusLine = "Abhi koi bus live nahi (koi trip shuru nahi hui).";
     }
