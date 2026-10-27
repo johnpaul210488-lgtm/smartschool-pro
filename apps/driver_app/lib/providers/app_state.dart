@@ -112,11 +112,27 @@ class AppState extends ChangeNotifier {
 
   // =============== bus + manifest ===============
 
+  /// Server par jo trip chal rahi hai use app mein wapas laata hai (app restart / pehle ki trip).
+  Future<void> restoreActiveTrip() async {
+    try {
+      final trips = await _api.myActiveTrips();
+      final previousId = activeTrip?.id;
+      activeTrip = trips.isEmpty ? null : trips.first;
+      if (activeTrip != null && activeTrip!.id != previousId) {
+        await BackgroundGpsService.instance.startTrip(activeTrip!.id);
+      }
+    } catch (_) {
+      // Offline: jo state hai wahi rehne do.
+    }
+    notifyListeners();
+  }
+
   Future<void> refreshBusAndManifest() async {
     try {
       bus = await _api.myBus();
       error = null;
       await loadManifest();
+      await restoreActiveTrip();
     } on ApiException catch (e) {
       // Offline par manifest pehle se hai to chalne do; warna error dikhao.
       if (students.isEmpty) error = e.toString();
@@ -174,6 +190,11 @@ class AppState extends ChangeNotifier {
       return false;
     } on ApiException catch (e) {
       error = e.toString();
+      if (e.toString().contains('active trip')) {
+        // Server par pehle se trip chal rahi hai: use app mein le aayein taake END TRIP dikhe.
+        await restoreActiveTrip();
+        error = 'Is bus ki trip pehle se chal rahi hai. Neeche END TRIP dabayein, phir naya trip shuru karein.';
+      }
       return false;
     } catch (e) {
       error = 'Trip shuru nahi ho saka: $e';
@@ -186,18 +207,21 @@ class AppState extends ChangeNotifier {
 
   Future<void> endTrip({bool silent = false}) async {
     final t = activeTrip;
-    activeTrip = null;
-    notifyListeners();
-    await BackgroundGpsService.instance.stopTrip();
-    if (t != null) {
-      try {
-        await _api.endTrip(t.id);
-        if (!silent) lastFlash = '🏁 Trip khatam.';
-      } on ApiException {
-        // Trip end ka failure serious nahi — server par active reh bhi gayi to next
-        // start par conflict message bata dega.
+    if (t == null) return;
+    try {
+      await _api.endTrip(t.id);
+    } on ApiException catch (e) {
+      // Pehle se band ho chuki trip: ise khatam hi samjhein.
+      if (!e.toString().contains('already')) {
+        // Band nahi hui to trip app mein rehne do, taake dobara END TRIP dabaya ja sake.
+        error = 'Trip band nahi ho saki. Internet dekh kar dobara END TRIP dabayein.';
+        notifyListeners();
+        return;
       }
     }
+    activeTrip = null;
+    await BackgroundGpsService.instance.stopTrip();
+    if (!silent) lastFlash = '🏁 Trip khatam.';
     notifyListeners();
   }
 
