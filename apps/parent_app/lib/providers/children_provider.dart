@@ -24,6 +24,14 @@ class ChildrenProvider extends ChangeNotifier {
     notifyListeners();
     try {
       children = await api.getChildren();
+      // Pehle se chal rahi bus ki position bhi turant dikhayein (SignalR ka intezar na ho).
+      try {
+        for (final loc in await api.getLiveBuses()) {
+          liveBus[loc.busId] = loc;
+        }
+      } catch (_) {
+        // Live snapshot na mile to bhi cards dikhayein.
+      }
     } on ApiException catch (e) {
       error = e.message;
     } catch (e) {
