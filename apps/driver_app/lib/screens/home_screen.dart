@@ -5,6 +5,7 @@ import '../providers/app_state.dart';
 import '../services/app_updater.dart';
 import '../services/tts_service.dart';
 import 'trip_screen.dart';
+import 'widgets/gps_status_line.dart';
 import 'widgets/status_banner.dart';
 
 /// Home: assigned bus card + big START/END TRIP button + manifest preview.
@@ -104,6 +105,9 @@ class HomeScreen extends StatelessWidget {
                       ),
 
                     const SizedBox(height: 18),
+
+                    // ---- GPS status (sirf trip ke dauran) ----
+                    if (trip != null) const GpsStatusLine(),
 
                     // ---- Trip button ----
                     if (trip == null)

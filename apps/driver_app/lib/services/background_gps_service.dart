@@ -6,6 +6,8 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../config/app_config.dart';
@@ -79,16 +81,34 @@ class BackgroundGpsService {
     Timer? timer;
     int? activeTripId;
 
+    Future<void> writeStatus(String text) async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+            'gps_status', '$text ${DateFormat('HH:mm:ss').format(DateTime.now())}');
+      } catch (_) {}
+    }
+
+    bool loadedOverride = false;
+
     Future<void> pushGps() async {
       if (activeTripId == null) return;
       try {
+        // Background isolate ko bhi saved server address chahiye.
+        if (!loadedOverride) {
+          await AppConfig.loadServerOverride();
+          loadedOverride = true;
+        }
         final pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
         );
         final login = await SessionService().load();
-        if (login == null) return;
+        if (login == null) {
+          await writeStatus('ERR: login session nahi mila');
+          return;
+        }
 
-        await http
+        final res = await http
             .post(
               Uri.parse('${AppConfig.apiBaseUrl}/api/trips/$activeTripId/location'),
               headers: {
@@ -102,9 +122,14 @@ class BackgroundGpsService {
               }),
             )
             .timeout(const Duration(seconds: 8));
-      } catch (_) {
-        // Background GPS push must be silent — offline = skip this tick;
-        // admin map just shows the last known fix.
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          await writeStatus('OK: server ko bheja');
+        } else {
+          await writeStatus('ERR: server ${res.statusCode}');
+        }
+      } catch (e) {
+        // Background GPS push must be silent; error sirf status line mein dikhta hai.
+        await writeStatus('ERR: ${e.toString().split('\n').first}');
       }
     }
 

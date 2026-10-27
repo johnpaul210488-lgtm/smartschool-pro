@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/models.dart';
 import '../providers/app_state.dart';
+import 'widgets/gps_status_line.dart';
 import 'widgets/status_banner.dart';
 
 /// Trip screen: one big card per student with PICK-IN / DROP-OUT buttons.
@@ -54,6 +55,10 @@ class TripScreen extends StatelessWidget {
         child: Column(
           children: [
             StatusBanners(state: state),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: GpsStatusLine(),
+            ),
             Expanded(
               child: state.students.isEmpty
                   ? const Center(child: Text('Is bus mein koi student nahi.',
