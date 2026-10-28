@@ -62,10 +62,27 @@ class BackgroundGpsService {
     await initialize();
     final service = FlutterBackgroundService();
     if (!(await service.isRunning())) await service.startService();
+    // Service ka isolate turant tayyar nahi hota: 'start' event kho sakta hai.
+    // Handler idempotent hai (pehle timer cancel karta hai), is liye kuch baar bhejna safe hai.
     service.invoke('start', {'tripId': tripId});
+    // Dobara bhejna: pehle wali 'start' kho gayi ho to bhi GPS loop chal jaye.
+    unawaited(_resendStart(service, tripId));
+  }
+
+  static int _startToken = 0;
+
+  static Future<void> _resendStart(FlutterBackgroundService service, int tripId) async {
+    final myToken = ++_startToken;
+    for (final wait in const [2, 3, 5]) {
+      await Future.delayed(Duration(seconds: wait));
+      // Trip band ho gayi ya naya start hua to purani resend rok do.
+      if (myToken != _startToken) return;
+      service.invoke('start', {'tripId': tripId});
+    }
   }
 
   Future<void> stopTrip() async {
+    _startToken++;
     FlutterBackgroundService().invoke('stop');
   }
 
