@@ -150,8 +150,12 @@ class BackgroundGpsService {
       }
     }
 
+    // Tracing: service isolate tayyar hone par pehla status (agar ye na dikhe to isolate hi nahi chala).
+    await writeStatus('Service chal gayi, trip signal ka intezar');
+
     service.on('start').listen((data) {
       activeTripId = (data?['tripId'] as num?)?.toInt();
+      writeStatus('Trip #$activeTripId signal mila, GPS loop shuru');
       timer?.cancel();
       pushGps(); // immediate first ping
       timer = Timer.periodic(AppConfig.gpsPushInterval, (_) => pushGps());

@@ -13,7 +13,7 @@ class GpsStatusLine extends StatefulWidget {
 }
 
 class _GpsStatusLineState extends State<GpsStatusLine> {
-  String _status = 'GPS: abhi tak koi push nahi hua (15 second intezar karein)';
+  String _status = 'GPS: background service ka status abhi nahi aaya. Trip band karke dobara START karein.';
   Timer? _timer;
 
   @override
