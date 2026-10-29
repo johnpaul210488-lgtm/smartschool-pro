@@ -27,7 +27,7 @@ public sealed class OsmGeocodingService : IGeocodingService
     {
         _http = http;
         _logger = logger;
-        _http.Timeout = TimeSpan.FromSeconds(3);
+        _http.Timeout = TimeSpan.FromSeconds(4);
         _http.DefaultRequestHeaders.UserAgent.Clear();
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("SmartSchoolPro", "1.0"));
         _http.DefaultRequestHeaders.Accept.Clear();
@@ -42,10 +42,10 @@ public sealed class OsmGeocodingService : IGeocodingService
         var key = string.Create(CultureInfo.InvariantCulture, $"{lat:F4},{lng:F4}");
         if (Cache.TryGetValue(key, out var cached)) return cached;
 
-        // Attendance request ko na roke: poora lookup (queue + network) 2.5 second mein khatam.
+        // Attendance request ko na roke: poora lookup (queue + network) 4 second mein khatam.
         // Late hone par GPS fallback label; attendance phir bhi save hoti hai.
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        budget.CancelAfter(TimeSpan.FromSeconds(2.5));
+        budget.CancelAfter(TimeSpan.FromSeconds(4));
         var token = budget.Token;
 
         try

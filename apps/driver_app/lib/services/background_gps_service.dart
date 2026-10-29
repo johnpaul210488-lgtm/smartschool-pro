@@ -129,8 +129,13 @@ class BackgroundGpsService {
 
     bool loadedOverride = false;
 
+    bool pushing = false;
+
     Future<void> pushGps([Position? fixed]) async {
       if (activeTripId == null) return;
+      // Pichla push abhi chal raha ho to skip: taaza position agle tick par bhi aayegi.
+      if (pushing) return;
+      pushing = true;
       try {
         // Background isolate ko bhi saved server address chahiye.
         if (!loadedOverride) {
@@ -169,6 +174,8 @@ class BackgroundGpsService {
       } catch (e) {
         // Background GPS push must be silent; error sirf status line mein dikhta hai.
         await writeStatus('ERR: ${e.toString().split('\n').first}');
+      } finally {
+        pushing = false;
       }
     }
 

@@ -47,7 +47,7 @@ class AppConfig {
   }
 
   /// GPS uplink interval while a trip is active.
-  static const Duration gpsPushInterval = Duration(seconds: 15);
+  static const Duration gpsPushInterval = Duration(seconds: 1);
 
   /// How often the offline outbox retries when the network is back.
   static const Duration syncInterval = Duration(seconds: 45);

@@ -159,10 +159,13 @@ class AppState extends ChangeNotifier {
 
   // Fallback: jab app khuli ho to GPS khud bhi bhejta hai (background service na chale to bhi bus map par aaye).
   Timer? _fgTimer;
+  bool _fgBusy = false;
 
   void _startFgPush(int tripId) {
     _fgTimer?.cancel();
     Future<void> tick() async {
+      if (_fgBusy) return; // pichla tick abhi chal raha ho to skip
+      _fgBusy = true;
       try {
         final pos = await _gps.currentFix();
         await _api.pushLocation(tripId, pos.latitude, pos.longitude,
@@ -171,6 +174,8 @@ class AppState extends ChangeNotifier {
       } catch (e) {
         await BackgroundGpsService.writeGpsStatus(
             'ERR (app): ${e.toString().split('\n').first}');
+      } finally {
+        _fgBusy = false;
       }
     }
 
