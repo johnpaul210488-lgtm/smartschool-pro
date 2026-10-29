@@ -120,6 +120,7 @@ class AppState extends ChangeNotifier {
       activeTrip = trips.isEmpty ? null : trips.first;
       if (activeTrip != null && activeTrip!.id != previousId) {
         await BackgroundGpsService.instance.startTrip(activeTrip!.id);
+        _startFgPush(activeTrip!.id);
       }
     } catch (_) {
       // Offline: jo state hai wahi rehne do.
@@ -156,6 +157,32 @@ class AppState extends ChangeNotifier {
 
   // =============== trip ===============
 
+  // Fallback: jab app khuli ho to GPS khud bhi bhejta hai (background service na chale to bhi bus map par aaye).
+  Timer? _fgTimer;
+
+  void _startFgPush(int tripId) {
+    _fgTimer?.cancel();
+    Future<void> tick() async {
+      try {
+        final pos = await _gps.currentFix();
+        await _api.pushLocation(tripId, pos.latitude, pos.longitude,
+            pos.speed < 0 ? 0 : pos.speed * 3.6);
+        await BackgroundGpsService.writeGpsStatus('OK: app khuli hai, server ko bheja');
+      } catch (e) {
+        await BackgroundGpsService.writeGpsStatus(
+            'ERR (app): ${e.toString().split('\n').first}');
+      }
+    }
+
+    unawaited(tick());
+    _fgTimer = Timer.periodic(AppConfig.gpsPushInterval, (_) => tick());
+  }
+
+  void _stopFgPush() {
+    _fgTimer?.cancel();
+    _fgTimer = null;
+  }
+
   Future<bool> startTrip() async {
     final b = bus;
     if (b == null) {
@@ -178,6 +205,7 @@ class AppState extends ChangeNotifier {
 
       activeTrip = await _api.startTrip(b.id);
       await BackgroundGpsService.instance.startTrip(activeTrip!.id);
+      _startFgPush(activeTrip!.id);
       try {
         await loadManifest();
       } catch (_) {
@@ -220,6 +248,7 @@ class AppState extends ChangeNotifier {
       }
     }
     activeTrip = null;
+    _stopFgPush();
     await BackgroundGpsService.instance.stopTrip();
     if (!silent) lastFlash = '🏁 Trip khatam.';
     notifyListeners();

@@ -67,6 +67,26 @@ class BackgroundGpsService {
     service.invoke('start', {'tripId': tripId});
     // Dobara bhejna: pehle wali 'start' kho gayi ho to bhi GPS loop chal jaye.
     unawaited(_resendStart(service, tripId));
+    unawaited(_verifyRunning(service));
+  }
+
+  /// Trip start ke 8 second baad check: service sach mein chal rahi hai ya nahi.
+  static Future<void> _verifyRunning(FlutterBackgroundService service) async {
+    await Future.delayed(const Duration(seconds: 8));
+    final running = await service.isRunning();
+    if (!running) {
+      await writeGpsStatus(
+          'ERR: background service start nahi hui. Phone ki battery settings mein app ko Unrestricted karein.');
+    }
+  }
+
+  /// Status line ke liye (main isolate aur service dono use kar sakte hain).
+  static Future<void> writeGpsStatus(String text) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          'gps_status', '$text ${DateFormat('HH:mm:ss').format(DateTime.now())}');
+    } catch (_) {}
   }
 
   static int _startToken = 0;
