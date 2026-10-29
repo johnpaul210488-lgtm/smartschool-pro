@@ -34,7 +34,13 @@ jobs:
 
       - name: Verify Firebase server setup
         shell: powershell
-        run: .\tests\windows\test-firebase-setup.ps1
+        run: |
+          try { .\tests\windows\test-firebase-setup.ps1 }
+          catch {
+            $message = "$($_.Exception.Message)`n$($_.ScriptStackTrace)".Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+            Write-Output "::error title=Firebase setup test failed::$message"
+            exit 1
+          }
 
       - name: Publish admin exe (version = tag)
         shell: pwsh

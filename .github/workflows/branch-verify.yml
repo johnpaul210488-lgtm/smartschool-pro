@@ -192,7 +192,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate credential and configuration handling
         shell: powershell
-        run: .\tests\windows\test-firebase-setup.ps1
+        run: |
+          try { .\tests\windows\test-firebase-setup.ps1 }
+          catch {
+            $message = "$($_.Exception.Message)`n$($_.ScriptStackTrace)".Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+            Write-Output "::error title=Firebase setup test failed::$message"
+            exit 1
+          }
 
   admin-exe:
     name: Admin exe (Windows, downloadable)
