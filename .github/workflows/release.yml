@@ -58,6 +58,7 @@ jobs:
           VER="${RELEASE_TAG#v}"
           cd apps/driver_app
           flutter create --platforms android --org com.smartschool --project-name smartschool_driver .
+          python3 ../../tools/ci/firebase_setup.py android firebase/google-services.json
           # flutter_local_notifications release builds need core library desugaring
           G=android/app/build.gradle.kts; [ -f "$G" ] || G=android/app/build.gradle
           printf '\nandroid { compileOptions { isCoreLibraryDesugaringEnabled = true } }\ndependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") }\n' >> "$G"
@@ -75,6 +76,8 @@ jobs:
           VER="${RELEASE_TAG#v}"
           cd apps/parent_app
           flutter create --platforms android --org com.smartschool --project-name smartschool_parent .
+          python3 ../../tools/ci/firebase_setup.py android firebase/google-services.json
+          sed -i 's|android:label="[^"]*"|android:label="Queen International School"|' android/app/src/main/AndroidManifest.xml
           sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>|' android/app/src/main/AndroidManifest.xml
           G=android/app/build.gradle.kts; [ -f "$G" ] || G=android/app/build.gradle
           printf '\nandroid { compileOptions { isCoreLibraryDesugaringEnabled = true } }\ndependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") }\n' >> "$G"

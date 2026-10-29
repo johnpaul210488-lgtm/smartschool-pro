@@ -38,7 +38,7 @@ class ReceiptPdf {
               ),
               child: pw.Column(
                 children: [
-                  pw.Text('SmartSchool Pro',
+                  pw.Text('Queen International School',
                       style: pw.TextStyle(color: PdfColors.white, fontSize: 18, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 4),
                   pw.Text('OFFICIAL FEE RECEIPT',

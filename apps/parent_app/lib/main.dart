@@ -72,7 +72,7 @@ class _RootState extends State<_Root> {
     final key = '${msg?.sentTime}-${msg?.messageId}';
     if (msg == null || key == _lastPushKey) return;
     _lastPushKey = key;
-    final title = msg.notification?.title ?? msg.data['title'] ?? 'SmartSchool';
+    final title = msg.notification?.title ?? msg.data['title'] ?? 'Queen International School';
     final body = msg.notification?.body ?? msg.data['body'] ?? '';
     _messengerKey.currentState?.showSnackBar(SnackBar(
       content: Text('$title\n$body'),

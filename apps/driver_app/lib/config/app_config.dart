@@ -55,6 +55,6 @@ class AppConfig {
   /// Persistent notification (background trip tracking).
   static const int foregroundNotificationId = 888;
   static const String notificationChannelId = 'smartschool_trip_channel';
-  static const String notificationTitle = 'SmartSchool: Trip in progress';
+  static const String notificationTitle = 'Queen International School: Trip in progress';
   static const String notificationBody = 'Tracking active — parents & admin live dekh rahe hain';
 }

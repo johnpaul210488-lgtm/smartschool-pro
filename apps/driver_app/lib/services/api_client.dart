@@ -99,6 +99,17 @@ class ApiClient {
 
   // ---------- core plumbing ----------
 
+  /// FCM token server par register/unregister (Firebase push ke liye).
+  Future<void> registerDevice(String token, String platform) async {
+    await _post<Map<String, dynamic>>(
+        'api/devices/register', {'token': token, 'platform': platform}, (d) => const {});
+  }
+
+  Future<void> unregisterDevice(String token) async {
+    await _post<Map<String, dynamic>>(
+        'api/devices/unregister', {'token': token, 'platform': 'android'}, (d) => const {});
+  }
+
   Future<Envelope<T>> _get<T>(String path, T Function(Object?) parse) =>
       _send('GET', path, null, parse);
 

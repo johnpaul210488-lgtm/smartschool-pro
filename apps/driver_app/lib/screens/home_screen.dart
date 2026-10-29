@@ -24,7 +24,7 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SmartSchool Driver', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Queen International School', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           // Online/offline chip
           Padding(

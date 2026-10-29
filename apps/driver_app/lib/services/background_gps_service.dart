@@ -196,7 +196,7 @@ class BackgroundGpsService {
           distanceFilter: 0,
           intervalDuration: AppConfig.gpsPushInterval,
           foregroundNotificationConfig: const ForegroundNotificationConfig(
-            notificationTitle: 'SmartSchool: Trip in progress',
+            notificationTitle: 'Queen International School: Trip in progress',
             notificationText: 'Bus ki location server ko ja rahi hai',
             enableWakeLock: true,
           ),

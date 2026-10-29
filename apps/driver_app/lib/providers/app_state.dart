@@ -7,6 +7,7 @@ import '../config/app_config.dart';
 import '../models/models.dart';
 import '../services/api_client.dart';
 import '../services/background_gps_service.dart';
+import '../services/fcm_service.dart';
 import '../services/gps_service.dart';
 import '../services/offline_outbox.dart';
 import '../services/session_service.dart';
@@ -55,6 +56,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     await refreshBusAndManifest();
     _startConnectivityWatch();
+    unawaited(FcmService.instance.init(_api));
   }
 
   void _startConnectivityWatch() {
@@ -88,6 +90,7 @@ class AppState extends ChangeNotifier {
       authStatus = AuthStatus.loggedIn;
       await refreshBusAndManifest();
       _startConnectivityWatch();
+      unawaited(FcmService.instance.init(_api));
       return true;
     } on ApiException catch (e) {
       error = e.toString();
@@ -101,6 +104,7 @@ class AppState extends ChangeNotifier {
   Future<void> doLogout() async {
     await endTrip(silent: true);
     await BackgroundGpsService.instance.stopTrip();
+    await FcmService.instance.unregister(_api);
     await _api.logout();
     login = null;
     bus = null;
