@@ -49,8 +49,7 @@ try
         .Enrich.FromLogContext());
 
     // ----------------------------- Database --------------------------------
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+    var connectionString = PreviewSafetyPolicy.ConnectionString(builder.Configuration);
 
     builder.Services.AddDbContext<SchoolDbContext>(options =>
         options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
@@ -166,7 +165,10 @@ try
 
     builder.Services.AddSingleton<InMemoryWhatsAppQueue>();
     builder.Services.AddSingleton<IWhatsAppQueue>(sp => sp.GetRequiredService<InMemoryWhatsAppQueue>());
-    builder.Services.AddHostedService<WhatsAppQueueHostedService>();
+    if (PreviewSafetyPolicy.WhatsAppWorkerEnabled)
+        builder.Services.AddHostedService<WhatsAppQueueHostedService>();
+    else
+        Log.Warning("Test preview: the existing WhatsApp outbox worker is disabled.");
 
     // Separate, explicitly enabled QR test gateway. It is NOT a sender for the
     // production outbox and does not change Twilio or Firebase behavior.

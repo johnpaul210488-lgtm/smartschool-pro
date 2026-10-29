@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using SmartSchool.API.Controllers;
 using SmartSchool.API.Services;
 using SmartSchool.Core.Interfaces;
@@ -23,6 +24,23 @@ public sealed class WhatsAppQrTestSecurityTests
         var cache = Assert.Single(typeof(WhatsAppQrTestController)
             .GetCustomAttributes<ResponseCacheAttribute>(inherit: false));
         Assert.True(cache.NoStore);
+    }
+
+    [Fact]
+    public void PreviewBuildDisablesTheExistingOutboxWorkerWithoutChangingNormalBuilds()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Server=production-example;Database=School;"
+        }).Build();
+#if QR_PREVIEW_ONLY
+        Assert.False(PreviewSafetyPolicy.WhatsAppWorkerEnabled);
+        Assert.Contains("Database=SmartSchoolQrPreview;", PreviewSafetyPolicy.ConnectionString(config));
+        Assert.DoesNotContain("production-example", PreviewSafetyPolicy.ConnectionString(config));
+#else
+        Assert.True(PreviewSafetyPolicy.WhatsAppWorkerEnabled);
+        Assert.Equal("Server=production-example;Database=School;", PreviewSafetyPolicy.ConnectionString(config));
+#endif
     }
 
     [Fact]

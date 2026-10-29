@@ -94,6 +94,8 @@ jobs:
           }
       - name: Notification regression tests
         run: dotnet test tests/SmartSchool.Tests/SmartSchool.Tests.csproj --configuration Release
+      - name: Verify preview build holds the existing WhatsApp outbox
+        run: dotnet test tests/SmartSchool.Tests/SmartSchool.Tests.csproj --configuration Release -p:DefineConstants=QR_PREVIEW_ONLY --filter FullyQualifiedName~PreviewBuildDisablesTheExistingOutboxWorkerWithoutChangingNormalBuilds
       - name: Choose preview version after latest release
         shell: pwsh
         env:
@@ -115,13 +117,14 @@ jobs:
         shell: pwsh
         run: |
           dotnet publish src/SmartSchool.API/SmartSchool.API.csproj -c Release `
-            -p:Version=$env:BUILD_VERSION -o build-artifacts/api
+            -p:Version=$env:BUILD_VERSION -p:DefineConstants=QR_PREVIEW_ONLY -o build-artifacts/api
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $bytes = [byte[]]::new(48)
           [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
           $key = [Convert]::ToBase64String($bytes)
-          (Get-Content installer/appsettings.installer.json -Raw).Replace('__JWT_KEY__', $key) |
-            Set-Content build-artifacts/api/appsettings.json -Encoding utf8
+          $config = (Get-Content installer/appsettings.installer.json -Raw).Replace('__JWT_KEY__', $key).Replace('Database=SmartSchoolPro;', 'Database=SmartSchoolQrPreview;')
+          if ($config -notmatch 'Database=SmartSchoolQrPreview;') { throw 'Preview database isolation missing.' }
+          $config | Set-Content build-artifacts/api/appsettings.json -Encoding utf8
       - name: Package disabled-by-default WhatsApp QR test gateway
         shell: pwsh
         run: |
@@ -144,24 +147,39 @@ jobs:
         run: |
           choco install innosetup -y --no-progress
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' "/DAppVersion=$env:BUILD_VERSION" installer/SchoolServer-Setup.iss
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' "/DAppVersion=$env:BUILD_VERSION" '/DPreviewOnly=1' installer/SchoolServer-Setup.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Get-ChildItem dist/installer/*.exe)) { throw 'Installer output missing' }
           @'
-          TEST ENVIRONMENTS ONLY - not published as a release. Do not install
-          over the live school server or use a copy of its database. This
-          installer starts the API automatically. Existing Twilio settings and
-          old queued messages can cause sends; disabled Twilio can also mark
-          unsent jobs as successful dry-runs. Existing settings are preserved.
-          The unofficial WhatsApp QR gateway is disabled by default and sends
-          only manually approved, synthetic samples to a test recipient. It is
-          not wired to real school events or the historical queue.
-          No Firebase private key is bundled. On the school PC, use the Start
-          menu Firebase setup helper with your own queen-school service key.
-          For a new production installation, generate a unique JWT key on that
-          server instead of using the preview installer's bundled test key.
+          TEST ENVIRONMENTS ONLY - not published as a release. Install only on
+          a separate clean Windows test PC, never over the live school server
+          or a production database copy. This installer starts its API locally.
+          This preview uses SmartSchoolQrPreview LocalDB, listens on loopback
+          only, and is compiled without the existing WhatsApp outbox worker.
+          It refuses common existing-installation signs and never kills a
+          process on port 5000, but these checks are not a substitute for a
+          clean PC. A separate LIVE API remains unchanged: its historical jobs
+          may still send on restart, or be marked sent by Twilio's dry-run.
+          The unofficial QR gateway is disabled by default and sends only
+          manually approved, synthetic samples to a test recipient. It is not
+          wired to real school events or the historical queue.
+          No Firebase private key is bundled. The local-only QR preview is not
+          a production Firebase deployment and cannot serve phones over LAN.
+          Its bundled JWT key and seeded admin login are for this isolated test
+          only and must never be used on a production server.
           '@ | Set-Content dist/installer/README-FIRST.txt
           Copy-Item docs/whatsapp-qr-test.md dist/installer/WHATSAPP-QR-TEST.md
+      - name: Verify preview refuses an existing school install
+        shell: pwsh
+        run: |
+          try {
+            $installer = (Get-ChildItem dist/installer/*.exe | Select-Object -First 1).FullName
+            ./tests/windows/test-qr-preview-installer.ps1 -Installer $installer
+          } catch {
+            $message = "$($_.Exception.Message)`n$($_.ScriptStackTrace)".Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+            Write-Output "::error title=Preview isolation test failed::$message"
+            exit 1
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: server-notification-preview

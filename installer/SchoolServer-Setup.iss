@@ -53,6 +53,7 @@ Source: "Configure-Firebase.ps1"; DestDir: "{app}"; Flags: ignoreversion
 ; SQL Server LocalDB (bundled by CI — embedded, hamesha copy ho)
 Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
+#ifndef PreviewOnly
 [InstallDelete]
 ; Purani (Program Files) wali admin exe saaf kar do taake shortcut sirf nayi ki taraf jaaye
 Type: files; Name: "{app}\admin\SmartSchool.Admin.exe"
@@ -72,6 +73,7 @@ Type: files; Name: "{commondesktop}\SmartSchool Diagnostics.lnk"
 Type: files; Name: "{userdesktop}\SmartSchool Admin.lnk"
 Type: files; Name: "{userdesktop}\SmartSchool Pro.lnk"
 Type: files; Name: "{userdesktop}\SmartSchool Diagnostics.lnk"
+#endif
 
 [Icons]
 Name: "{group}\Queen International School"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"; IconFilename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
@@ -80,8 +82,13 @@ Name: "{commondesktop}\Queen International School"; Filename: "{localappdata}\Pr
 Name: "{commondesktop}\Queen School Diagnostics"; Filename: "{app}\SmartSchool-Diagnostics.bat"; IconFilename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
 ; API auto-start at EVERY login (all users) — runs as the interactive user whose
 ; per-user LocalDB is proven to work. "--hide-console" = seedha background (koi window nahi).
+#ifdef PreviewOnly
+Name: "{commonstartup}\SmartSchool API (background)"; Filename: "{app}\api\SmartSchool.API.exe"; \
+      Parameters: "--hide-console --urls http://127.0.0.1:5000"; WorkingDir: "{app}\api"; Flags: runminimized
+#else
 Name: "{commonstartup}\SmartSchool API (background)"; Filename: "{app}\api\SmartSchool.API.exe"; \
       Parameters: "--hide-console --urls http://0.0.0.0:5000"; WorkingDir: "{app}\api"; Flags: runminimized
+#endif
 
 [Run]
 ; 1. SQL Server 2022 LocalDB — silent + verbose MSI log (agar fail ho to diagnostics dikhayega)
@@ -89,21 +96,32 @@ Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\SqlLocalDB.msi"" IACCEPTSQLLOCA
     StatusMsg: "SQL Server LocalDB install ho raha hai…(ek minute)"
 
 ; 2. Purani (broken) service ho to saaf kar do — nay model mein service NAHIN hai
+#ifndef PreviewOnly
 Filename: "{sys}\sc.exe"; Parameters: "stop SmartSchoolApi"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden waituntilterminated
+#endif
 
 ; 3. Abhi ke login mein bhi API seedha shuru kar do (restart ka intezar nahi)
+#ifdef PreviewOnly
+Filename: "{app}\api\SmartSchool.API.exe"; Parameters: "--urls http://127.0.0.1:5000"; \
+    WorkingDir: "{app}\api"; Flags: runhidden nowait postinstall; \
+    StatusMsg: "SmartSchool test API shuru ho rahi hai…"
+#else
 Filename: "{app}\api\SmartSchool.API.exe"; Parameters: "--urls http://0.0.0.0:5000"; \
     WorkingDir: "{app}\api"; Flags: runhidden nowait postinstall; \
     StatusMsg: "SmartSchool API shuru ho rahi hai…"
+#endif
 
 [UninstallRun]
+#ifndef PreviewOnly
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im SmartSchool.API.exe"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "stop SmartSchoolApi"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden waituntilterminated
+#endif
 
 ; CHANGED: stop a previously running API before replacing its binaries during an upgrade.
 [Code]
+#ifndef PreviewOnly
 // Stops every running copy of the API (process, old service, anything still on port 5000) and
 // waits until the port is free. Returns True only when the old API is really gone.
 function StopOldApi(): Boolean;
@@ -132,6 +150,43 @@ begin
   else
     Result := 'Purani SmartSchool API abhi bhi chal rahi hai (port 5000). Task Manager mein SmartSchool.API.exe band karke setup dobara chalayein.';
 end;
+#else
+// Preview is for a clean, separate PC. Refuse common signs of an existing
+// school install/database. This is a safety net, not a substitute for a clean PC.
+function InitializeSetup(): Boolean;
+begin
+  if DirExists(ExpandConstant('{autopf}\SmartSchool Server')) or
+     FileExists(ExpandConstant('{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe')) or
+     FileExists(ExpandConstant('{commonstartup}\SmartSchool API (background).lnk')) or
+     FileExists(ExpandConstant('{%USERPROFILE}\SmartSchoolPro.mdf')) then
+  begin
+    Log('PREVIEW_BLOCK_EXISTING_INSTALL');
+    MsgBox('Existing school installation ya database mila. Yeh TEST PREVIEW live school PC par install na karein; alag clean test PC istemal karein.', mbError, MB_OK);
+    Result := False;
+    exit;
+  end;
+  Result := MsgBox('Sirf clean, alag TEST PC par install karein. Live school server ya us ki database par yeh preview install NA karein. Test jaari rakhein?', mbConfirmation, MB_YESNO) = IDYES;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  PsCmd: String;
+begin
+  if DirExists(ExpandConstant('{app}\api')) then
+  begin
+    Result := 'Is folder mein pehle se API hai. Test ke liye alag clean PC/folder chunein.';
+    exit;
+  end;
+  // Never terminate a live process or steal its port in a preview installer.
+  PsCmd := '-NoProfile -NonInteractive -Command "try { $p = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners(); if ($p | Where-Object { $_.Port -eq 5000 }) { exit 1 } else { exit 0 } } catch { exit 1 }"';
+  ResultCode := 1;
+  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), PsCmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+    Result := 'Port 5000 pehle se istemal ho raha hai ya check nahi ho saka. Preview ne koi process band nahi kiya; alag clean test PC istemal karein.'
+  else
+    Result := '';
+end;
+#endif
 
 [Messages]
 FinishedLabel=Queen International School install ho gaya!%n%nAdmin app: Desktop / Start Menu shortcut «Queen International School»%nAPI: http://localhost:5000 — ABHI shuru ho gayi hai aur har PC-login par background mein khud uthe gi.%nLogin: admin / Admin@12345 — pehli dafa database apne aap ban jayegi.

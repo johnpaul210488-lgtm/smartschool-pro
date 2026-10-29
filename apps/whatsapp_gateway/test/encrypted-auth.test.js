@@ -15,6 +15,9 @@ test('session and Signal keys are encrypted, reloadable, tamper-evident and rese
   const auth = createEncryptedAuth(options(dir));
   assert.equal(hasSavedSession(dir), false);
   await auth.saveCreds();
+  auth.state.creds.counter = 2;
+  await auth.saveCreds(); // Atomic replacement of an existing file, including on Windows.
+  await auth.state.keys.set({ session: { '../../private@example': { phone: '+920001234567', key: Buffer.from('secret-key') } } });
   await auth.state.keys.set({ session: { '../../private@example': { phone: '+920001234567', key: Buffer.from('secret-key') } },
     'app-state-sync-key': { one: { token: 'PRIVATE-DATA' } } });
   assert.equal(hasSavedSession(dir), true);
@@ -30,6 +33,7 @@ test('session and Signal keys are encrypted, reloadable, tamper-evident and rese
   if (process.platform === 'win32') assert.notEqual(fs.readFileSync(path.join(dir, 'master.key')).length, 32);
   const reloaded = createEncryptedAuth(options(dir));
   assert.equal(reloaded.state.creds.secret, 'NEVER-PLAINTEXT');
+  assert.equal(reloaded.state.creds.counter, 2);
   const value = await reloaded.state.keys.get('session', ['../../private@example']);
   assert.equal(value['../../private@example'].phone, '+920001234567');
   assert.deepEqual(value['../../private@example'].key, Buffer.from('secret-key'));
