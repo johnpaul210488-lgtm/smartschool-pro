@@ -36,4 +36,8 @@ public sealed class Fee
     public string? Notes { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Soft delete: a removed unpaid bill stays in the table (audit) and can be restored. Hidden everywhere else.</summary>
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAtUtc { get; set; }
 }

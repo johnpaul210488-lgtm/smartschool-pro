@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using SmartSchool.Admin.Models;
 using SmartSchool.Admin.Services;
 using SmartSchool.Admin.ViewModels;
 using SmartSchool.Admin.ViewModels.Buses;
@@ -348,25 +349,34 @@ public partial class MainViewModel : ObservableObject
     {
         var vm = new FeeDashboardViewModel();
         // CHANGED: class fee plans are managed separately from fee collection.
-        vm.ManagePlansRequested += () =>
+        // Fee plan screen (scope → period tab → fees → save / activate) and the Fee & balance screen
+        // (search student → collect / reverse / statement). Each links to the other.
+        void ShowFeePlan()
         {
-            var planVm = new FeePlanViewModel();
-            planVm.BackRequested += () => CurrentView = OpenFeeDashboard();
-            CurrentView = new FeePlanView { DataContext = planVm };
-        };
-        vm.CollectRequested += fee =>
+            var pvm = new FeePlanViewModel();
+            pvm.BackRequested += () => CurrentView = OpenFeeDashboard();
+            CurrentView = new FeePlanView { DataContext = pvm };
+        }
+        // Statement (mukammal history). studentId null = open page without a student.
+        void ShowFeeChargeFor(int? studentId)
         {
-            var cvm = new FeeCollectionViewModel(fee);
-            cvm.PaidAndShowReceipt += paidFee =>
-            {
-                var rvm = new FeeReceiptViewModel(paidFee);
-                rvm.BackRequested += () => CurrentView = OpenFeeDashboard();
-                CurrentView = new FeeReceiptView { DataContext = rvm };
-            };
-            cvm.PartialPaymentRecorded += _ => CurrentView = OpenFeeDashboard(); // <-- CHANGED: refresh balances after a partial receipt.
-            cvm.Cancelled += () => CurrentView = OpenFeeDashboard();
-            CurrentView = new FeeCollectionView { DataContext = cvm };
-        };
+            var cvm = new FeeChargeViewModel();
+            cvm.BackRequested += () => CurrentView = OpenFeeDashboard();
+            cvm.AutoBillingRequested += ShowFeePlan;
+            CurrentView = new FeeChargeView { DataContext = cvm };
+            if (studentId is int id) _ = cvm.ShowStudentAsync(id);
+        }
+        // Collect page: one student, every fee head with checkbox and amount.
+        void ShowStudentCollect(StudentFeeSummaryDto s)
+        {
+            var cvm = new StudentCollectViewModel(s.StudentId);
+            cvm.BackRequested += () => CurrentView = OpenFeeDashboard();
+            cvm.ViewStatementRequested += () => ShowFeeChargeFor(s.StudentId);
+            CurrentView = new StudentCollectView { DataContext = cvm };
+        }
+        vm.ManagePlansRequested += ShowFeePlan;
+        vm.CollectRequested += ShowStudentCollect;
+        vm.ViewStatementRequested += s => ShowFeeChargeFor(s.StudentId);
         return new FeeDashboardView { DataContext = vm };
     }
 

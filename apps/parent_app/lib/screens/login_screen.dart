@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 
@@ -16,16 +17,23 @@ class _LoginScreenState extends State<LoginScreen> {
   final _user = TextEditingController();
   final _pass = TextEditingController();
   bool _obscure = true;
+  // Server address: phone par ek baar set hota hai aur yaad rehta hai.
+  late final TextEditingController _serverCtrl =
+      TextEditingController(text: AppConfig.apiBase);
+  bool _showServer = false;
 
   @override
   void dispose() {
     _user.dispose();
     _pass.dispose();
+    _serverCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final auth = context.read<AuthProvider>();
+    // Login request se pehle server address save karein.
+    await AppConfig.saveServerOverride(_serverCtrl.text);
     final err = await auth.login(_user.text, _pass.text);
     if (!mounted) return;
     if (err == null) {
@@ -93,6 +101,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       border: const OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: () => setState(() => _showServer = !_showServer),
+                    icon: Icon(_showServer ? Icons.expand_less : Icons.dns, size: 18),
+                    label: Text(_showServer ? 'Server chhupayen' : 'Server settings',
+                        style: const TextStyle(fontSize: 13)),
+                  ),
+                  if (_showServer)
+                    TextField(
+                      controller: _serverCtrl,
+                      keyboardType: TextInputType.url,
+                      style: const TextStyle(fontSize: 16),
+                      decoration: const InputDecoration(
+                        labelText: 'Server (example: https://zia.tail758a5c.ts.net)',
+                        prefixIcon: Icon(Icons.dns),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
                   const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: auth.busy ? null : _submit,

@@ -5,6 +5,7 @@ import '../providers/app_state.dart';
 import '../services/app_updater.dart';
 import '../services/tts_service.dart';
 import 'trip_screen.dart';
+import 'widgets/gps_status_line.dart';
 import 'widgets/status_banner.dart';
 
 /// Home: assigned bus card + big START/END TRIP button + manifest preview.
@@ -23,7 +24,7 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SmartSchool Driver', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Queen International School', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           // Online/offline chip
           Padding(
@@ -104,6 +105,9 @@ class HomeScreen extends StatelessWidget {
                       ),
 
                     const SizedBox(height: 18),
+
+                    // ---- GPS status (sirf trip ke dauran) ----
+                    if (trip != null) const GpsStatusLine(),
 
                     // ---- Trip button ----
                     if (trip == null)
@@ -222,6 +226,14 @@ class HomeScreen extends StatelessWidget {
     if (!context.mounted) return;
     if (ok) {
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TripScreen()));
+    } else {
+      // Pehle error screen par nahi dikhta tha: ab wajah saaf dikhayi jati hai.
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        backgroundColor: Colors.red.shade800,
+        content: Text(state.error ?? 'Trip shuru nahi ho saka. Dobara koshish karein.',
+            style: const TextStyle(fontSize: 15)),
+      ));
     }
   }
 

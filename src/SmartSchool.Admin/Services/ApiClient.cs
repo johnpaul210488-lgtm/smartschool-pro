@@ -194,6 +194,10 @@ public sealed class ApiClient
     }
 
     // ---- typed endpoint helpers ----
+    /// <summary>Active trip wali buses ki aakhri location (map kholte hi load hoti hai).</summary>
+    public Task<(bool Ok, List<BusLocationUpdate>? Data, string Error, string Msg)> LiveBusesAsync()
+        => GetAsync<List<BusLocationUpdate>>("api/trips/live");
+
     public Task<(bool Ok, T? Data, string Error, string Msg)> GetAsync<T>(string url)
         => SendAsync<T>(HttpMethod.Get, url);
     public Task<(bool Ok, T? Data, string Error, string Msg)> PostAsync<T>(string url, object body)
@@ -222,11 +226,26 @@ public sealed class ApiClient
     public Task<(bool Ok, List<ClassListItem>? Data, string Error, string Msg)> ClassesAsync()
         => GetAsync<List<ClassListItem>>("api/classes");
 
-    public Task<(bool Ok, List<BusListItem>? Data, string Error, string Msg)> BusesAsync()
-        => GetAsync<List<BusListItem>>("api/buses");
+    public Task<(bool Ok, List<BusListItem>? Data, string Error, string Msg)> BusesAsync(bool includeInactive = false)
+        => GetAsync<List<BusListItem>>(includeInactive ? "api/buses?includeInactive=true" : "api/buses");
 
-    public Task<(bool Ok, List<DriverListItem>? Data, string Error, string Msg)> DriversAsync()
-        => GetAsync<List<DriverListItem>>("api/drivers");
+    /// <summary>
+    /// Saare drivers (server paged jawab deta hai: { items, totalPages }). Pehle yeh List expect karta tha,
+    /// is liye parse fail hota tha aur driver list hamesha khali rehti thi.
+    /// </summary>
+    public async Task<(bool Ok, List<DriverListItem>? Data, string Error, string Msg)> DriversAsync(bool includeInactive = false)
+    {
+        var all = new List<DriverListItem>();
+        for (var page = 1; page <= 100; page++)
+        {
+            var r = await GetAsync<PagedResult<DriverListItem>>(
+                $"api/drivers?page={page}&pageSize=200&includeInactive={(includeInactive ? "true" : "false")}");
+            if (!r.Ok || r.Data is null) return (false, null, r.Error, r.Msg);
+            all.AddRange(r.Data.Items);
+            if (r.Data.Items.Count == 0 || page >= r.Data.TotalPages) break;
+        }
+        return (true, all, string.Empty, string.Empty);
+    }
 
     public Task<(bool Ok, PagedResult<FeeListItem>? Data, string Error, string Msg)> FeesAsync(
         int? studentId = null, string? month = null, string? status = null, int page = 1, int pageSize = 50)
@@ -267,6 +286,60 @@ public sealed class ApiClient
     // CHANGED: expose immutable payment ledger rows in the collect-fee screen.
     public Task<(bool Ok, List<FeePaymentItem>? Data, string Error, string Msg)> FeePaymentHistoryAsync(int feeId)
         => GetAsync<List<FeePaymentItem>>($"api/fees/{feeId}/payments");
+
+    // Fee screen: add selected fees to a class's or one student's balance (manual, no plan needed).
+    public Task<(bool Ok, FeeChargeResultDto? Data, string Error, string Msg)> ChargeFeesAsync(object request)
+        => PostAsync<FeeChargeResultDto>("api/FeeCharges", request);
+
+    // Fee screen: full history (every fee, its status, and every payment with date & time).
+    public Task<(bool Ok, StudentFeeHistoryDto? Data, string Error, string Msg)> StudentFeeHistoryAsync(int studentId)
+        => GetAsync<StudentFeeHistoryDto>($"api/FeeCharges/student/{studentId}/history");
+
+    // Fee screen: collect a payment from a student (spread over open bills, oldest first).
+    public Task<(bool Ok, FeeCollectResultDto? Data, string Error, string Msg)> CollectStudentFeeAsync(int studentId, object request)
+        => PostAsync<FeeCollectResultDto>($"api/FeeCharges/student/{studentId}/collect", request);
+
+    // Fee screen: reverse a wrong payment (adds a negative ledger entry; the original stays).
+    public Task<(bool Ok, FeeCollectResultDto? Data, string Error, string Msg)> ReverseFeePaymentAsync(int paymentId, string reason)
+        => PostAsync<FeeCollectResultDto>($"api/FeeCharges/payments/{paymentId}/reverse", new { reason });
+
+    // Fee screen: correct an unpaid bill (server refuses when the bill already has payments).
+    public Task<(bool Ok, object? Data, string Error, string Msg)> UpdateFeeBillAsync(int feeId, object request)
+        => PutAsync<object>($"api/fees/{feeId}", request);
+
+    // Fee screen: delete an unpaid manual bill (server refuses when it has payments).
+    public Task<(bool Ok, string Error)> DeleteFeeBillAsync(int feeId)
+        => DeleteAsync($"api/fees/{feeId}");
+
+    // Fee dashboard: one row per student (sum of all fee heads).
+    public Task<(bool Ok, List<StudentFeeSummaryDto>? Data, string Error, string Msg)> StudentFeeSummariesAsync(
+        string? search, int? classId, string status)
+    {
+        // onlyDue=false: dashboard par Paid / Partial / Unpaid students bhi hamesha dikhen (pehle sirf baqaya wale aate the,
+        // is liye fees poori paid hote hi student list se ghaib ho jata tha). Status filter server par alag se lagta hai.
+        var q = $"api/FeeCharges/students?onlyDue=false&status={Uri.EscapeDataString(status)}";
+        if (!string.IsNullOrWhiteSpace(search)) q += $"&search={Uri.EscapeDataString(search.Trim())}";
+        if (classId is not null) q += $"&classId={classId}";
+        return GetAsync<List<StudentFeeSummaryDto>>(q);
+    }
+
+    // Statement: bills that were deleted, and the undo.
+    public Task<(bool Ok, List<DeletedBillDto>? Data, string Error, string Msg)> DeletedBillsAsync(int studentId)
+        => GetAsync<List<DeletedBillDto>>($"api/FeeCharges/student/{studentId}/deleted-bills");
+
+    public Task<(bool Ok, object? Data, string Error, string Msg)> RestoreBillAsync(int feeId)
+        => PostAsync<object>($"api/FeeCharges/bill/{feeId}/restore", new { });
+
+    // Fee plan: manual row (new fee head) and class-specific wording of an existing row.
+    public Task<(bool Ok, FeeHeadItemDto? Data, string Error, string Msg)> CreateCustomFeeHeadAsync(string name, string category)
+        => PostAsync<FeeHeadItemDto>("api/fee-plans/custom-heads", new { Name = name, Category = category });
+
+    public Task<(bool Ok, object? Data, string Error, string Msg)> RenameClassFeeHeadAsync(int classId, int feeHeadId, string? displayName)
+        => PutAsync<object>($"api/fee-plans/classes/{classId}/heads/{feeHeadId}/label", new { DisplayName = displayName });
+
+    // Collect page: pay the ticked fee heads of one student (partial amounts allowed).
+    public Task<(bool Ok, FeeCollectResultDto? Data, string Error, string Msg)> PaySelectedFeesAsync(int studentId, object request)
+        => PostAsync<FeeCollectResultDto>($"api/FeeCharges/student/{studentId}/pay-selected", request);
 
     public Task<(bool Ok, DuesSummaryResponse? Data, string Error, string Msg)> DuesAsync()
         => GetAsync<DuesSummaryResponse>("api/fees/dues");

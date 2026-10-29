@@ -226,17 +226,26 @@ class BusLocation {
     required this.latitude,
     required this.longitude,
     required this.timePakistan,
+    this.busNumber,
+    this.driverName,
+    this.speedKmh,
   });
 
   final int busId;
   final double latitude;
   final double longitude;
   final String timePakistan;
+  final String? busNumber;
+  final String? driverName;
+  final double? speedKmh;
 
   factory BusLocation.fromJson(Map<String, dynamic> j) => BusLocation(
-        busId: j['busId'] as int,
+        busId: (j['busId'] as num).toInt(),
         latitude: (j['latitude'] as num).toDouble(),
         longitude: (j['longitude'] as num).toDouble(),
         timePakistan: j['timePakistan'] as String? ?? '',
+        busNumber: j['busNumber']?.toString(),
+        driverName: j['driverName'] as String?,
+        speedKmh: (j['speedKmh'] as num?)?.toDouble(),
       );
 }

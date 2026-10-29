@@ -105,13 +105,15 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
    The release pipeline's Flutter create command generates **`com.smartschool.smartschool_parent`**, not
    the previously documented `com.smartschool.parent`. Do not rename an already
    installed app to match the old docs.
-2. Download that app's `google-services.json` (Android app config, not the
-   service-account key). For a local build put it in `apps/parent_app/android/app/`
-   and run `python3 scripts/configure_parent_android.py` from the repository root
-   after `flutter create`. For the release workflow set GitHub Actions secret
-   **`PARENT_GOOGLE_SERVICES_JSON`** to the entire JSON file. The release will
-   stop if it is missing, malformed or does not match the generated package.
-   Never commit the file or put a service-account private key in an APK/Actions secret.
+2. The existing `apps/parent_app/firebase/google-services.json` is the **public
+   Android client config** for project `queen-school`, not a service-account
+   private key. The release workflow uses it by default (or the optional
+   `PARENT_GOOGLE_SERVICES_JSON` Actions secret as an override), and validates
+   both project and application ID. For a local build copy the client config to
+   `apps/parent_app/android/app/` after `flutter create`, then run from the repo root:
+   `python3 scripts/configure_parent_android.py --expected-project queen-school`.
+   The API key in client config is exposed in every APK; restrict it appropriately
+   in Google Cloud. Never put a service-account private key in an APK or public repo.
 3. iOS is separate: add the matching Apple app, put `GoogleService-Info.plist`
    in `ios/Runner/`, enable Push/Background modes and upload an **APNs key** in
    Firebase (Cloud Messaging). The Android script does not configure iOS.

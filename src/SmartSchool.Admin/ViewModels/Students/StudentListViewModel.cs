@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using SmartSchool.Admin.Models;
 using SmartSchool.Admin.Services;
+using SmartSchool.Admin.Helpers;
 
 namespace SmartSchool.Admin.ViewModels.Students;
 
@@ -22,7 +23,7 @@ public partial class StudentListViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _importStatus = string.Empty;
     [ObservableProperty] private string _importDetails = string.Empty;
 
-    public ObservableCollection<StudentListItem> Students { get; } = new();
+    public BulkObservableCollection<StudentListItem> Students { get; } = new();
     public ObservableCollection<ClassListItem> Classes { get; } = new();
     public ICollectionView StudentsView { get; }
 
@@ -78,8 +79,7 @@ public partial class StudentListViewModel : ObservableObject, IDisposable
                 ToastService.Current.Error("Students", r.Error);
                 return;
             }
-            Students.Clear();
-            foreach (var s in r.Data.Items) Students.Add(s);
+            Students.ReplaceAll(r.Data.Items);
             TotalCount = r.Data.TotalCount;
         }
         finally

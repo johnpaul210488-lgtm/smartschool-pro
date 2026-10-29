@@ -4,7 +4,7 @@
 class S {
   static const Map<String, Map<String, String>> _t = {
     'en': {
-      'app_name': 'SmartSchool Parent',
+      'app_name': 'Queen International School',
       'username': 'Username / Phone',
       'password': 'Password',
       'login': 'Login',
@@ -65,7 +65,7 @@ class S {
       'refresh': 'Refresh',
     },
     'ur': {
-      'app_name': 'SmartSchool Parent',
+      'app_name': 'Queen International School',
       'username': 'Username / Phone',
       'password': 'Password',
       'login': 'Login Karein',

@@ -6,8 +6,9 @@ alerts + announcements, EN ⇄ UR language switch, WhatsApp opt-in/out.
 
 ## One-time platform setup (first run on the dev PC)
 
-This repo keeps Dart source + pubspec. Generate the native folders once on the
-build machine; do not commit Firebase configuration or private keys:
+This repo keeps Dart source, pubspec and the existing public Firebase Android
+client config. Generate the native folders once on the build machine; never
+commit a Firebase service-account private key:
 
 ```bash
 cd apps/parent_app
@@ -45,16 +46,18 @@ iOS: `GMSApiClient.provideAPIKey("YOUR_KEY")` in `AppDelegate.swift` (plus
    documented `com.smartschool.parent` is **not** this release's ID. Do not
    change the application ID just to match the old documentation; that makes a
    different app which cannot update the existing installation.
-2. Download that Android app's `google-services.json` to `android/app/`. From
-   the repository root run `python3 scripts/configure_parent_android.py`.
-   It validates the package, adds the Google Services Gradle plugin, Android
-   notification permission and the required desugaring configuration. The
-   file is app configuration, **not** the server service-account key.
-3. For GitHub Releases, set Actions secret `PARENT_GOOGLE_SERVICES_JSON` to the
-   **entire contents** of this Android app config in the GitHub repository
-   settings. The release now fails instead of silently shipping a push-less
-   parent APK when the secret is absent or for the wrong package. Never put a
-   service-account private key in this secret or in an APK.
+2. The existing public Android client config for Firebase project `queen-school`
+   is `firebase/google-services.json` (already used in the latest releases).
+   For a local build, copy it to `android/app/google-services.json` and run
+   `python3 scripts/configure_parent_android.py --expected-project queen-school`
+   from the repository root. It validates the project and package, adds the
+   Gradle plugin, Android notification permission and required desugaring.
+3. GitHub Releases use the checked-in client config by default; the optional
+   `PARENT_GOOGLE_SERVICES_JSON` Actions secret can override it with another
+   **Android app config from the same project**. A missing, malformed or
+   mismatched config fails the build. Client config is public in the APK; restrict
+   its Google API key appropriately. Never put a service-account private key in
+   this file, in the override, or in an APK.
 4. On the API host only, generate a service-account private key for the **same
    Firebase project**, save it in an access-restricted folder, and configure
    `"Firebase": { "Enabled": true, "CredentialsJsonPath": "C:\\secrets\\firebase-sa.json" }`

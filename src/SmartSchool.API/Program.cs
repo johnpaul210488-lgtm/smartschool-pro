@@ -162,6 +162,7 @@ try
     // ----------------------------- App services -----------------------------
     builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
     builder.Services.AddSingleton<ISchoolNotificationService, SchoolNotificationService>();
+    builder.Services.AddSingleton<SmartSchool.API.Services.LiveBusTracker>();
 
     builder.Services.AddSingleton<InMemoryWhatsAppQueue>();
     builder.Services.AddSingleton<IWhatsAppQueue>(sp => sp.GetRequiredService<InMemoryWhatsAppQueue>());
@@ -169,7 +170,7 @@ try
 
     // TwilioWhatsAppService uses the Twilio SDK, not a typed HttpClient.
     builder.Services.AddWhatsAppSender();
-    builder.Services.AddHttpClient<IGeocodingService, GoogleMapsGeocodingService>();
+    builder.Services.AddHttpClient<IGeocodingService, OsmGeocodingService>();
 
     // Firebase Cloud Messaging: dry-run until Firebase:Enabled=true + credentials JSON path set.
     builder.Services.AddSingleton<IFcmSender, FirebaseFcmSender>();

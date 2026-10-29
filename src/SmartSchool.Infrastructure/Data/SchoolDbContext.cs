@@ -114,6 +114,7 @@ public sealed class SchoolDbContext : DbContext
         mb.Entity<Fee>(e =>
         {
             e.ToTable("Fees");
+            e.HasQueryFilter(x => !x.IsDeleted); // soft-deleted bills are invisible unless IgnoreQueryFilters() is used
             e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
             e.Property(x => x.AmountPaid).HasColumnType("decimal(18,2)");
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
@@ -149,6 +150,7 @@ public sealed class SchoolDbContext : DbContext
             e.ToTable("ClassFeePlanItems");
             e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
             e.Property(x => x.BillingCycle).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.DisplayName).HasMaxLength(100);
             e.HasIndex(x => new { x.ClassId, x.FeeHeadId }).IsUnique();
             e.HasOne(x => x.Class).WithMany().HasForeignKey(x => x.ClassId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.FeeHead).WithMany(h => h.ClassPlanItems)

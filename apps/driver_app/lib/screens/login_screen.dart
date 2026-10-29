@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Icon(Icons.directions_bus_rounded, size: 82, color: Color(0xFF7C4DFF)),
                   const SizedBox(height: 10),
-                  const Text('SmartSchool Driver',
+                  const Text('Queen International School',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                   const Text('Bus Driver Login',

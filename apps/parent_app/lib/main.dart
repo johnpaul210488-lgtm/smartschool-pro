@@ -101,7 +101,7 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
     final type = msg.data['type'];
     final id = type == 'bus_event' ? msg.data['eventId'] : msg.data['id'];
     final key = type != null && id != null ? '$type:$id' : msg.messageId;
-    final title = msg.notification?.title ?? msg.data['title'] ?? 'SmartSchool';
+    final title = msg.notification?.title ?? msg.data['title'] ?? 'Queen International School';
     final body = msg.notification?.body ?? msg.data['body'] ?? '';
     final children = context.read<ChildrenProvider>();
     final notif = context.read<NotificationsProvider>();

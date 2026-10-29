@@ -22,7 +22,38 @@ public sealed class ParentsController : BaseApiController
 {
     private readonly IUnitOfWork _uow;
 
-    public ParentsController(IUnitOfWork uow) => _uow = uow;
+    private readonly SmartSchool.API.Services.LiveBusTracker _live;
+
+    public ParentsController(IUnitOfWork uow, SmartSchool.API.Services.LiveBusTracker live)
+    {
+        _uow = uow;
+        _live = live;
+    }
+
+    /// <summary>Parent ke bachon ki buses jo abhi active trip par hain: aakhri location (map khulte hi).</summary>
+    [HttpGet("me/live-buses")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<SmartSchool.Core.DTOs.BusLocationUpdate>>>> GetLiveBuses(CancellationToken ct)
+    {
+        var studentIds = await _uow.ParentStudents.Query()
+            .Where(ps => ps.ParentUserId == CallerUserId)
+            .Select(ps => ps.StudentId)
+            .ToListAsync(ct);
+        if (studentIds.Count == 0)
+            return OkEnvelope<IReadOnlyList<SmartSchool.Core.DTOs.BusLocationUpdate>>(Array.Empty<SmartSchool.Core.DTOs.BusLocationUpdate>());
+
+        var busIds = await _uow.Students.Query()
+            .Where(s => studentIds.Contains(s.Id) && s.BusId != null)
+            .Select(s => s.BusId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var activeBusIds = await _uow.Trips.Query()
+            .Where(t => t.Status == TripStatus.Active && busIds.Contains(t.BusId))
+            .Select(t => t.BusId)
+            .ToListAsync(ct);
+
+        return OkEnvelope<IReadOnlyList<SmartSchool.Core.DTOs.BusLocationUpdate>>(_live.Snapshot(activeBusIds));
+    }
 
     /// <summary>Summary sentence per status, localized for the app.</summary>
     public static readonly IReadOnlyDictionary<string, (string En, string Ur)> StatusText =

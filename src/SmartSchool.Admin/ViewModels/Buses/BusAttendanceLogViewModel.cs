@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using SmartSchool.Admin.Models;
 using SmartSchool.Admin.Services;
+using SmartSchool.Admin.Helpers;
 
 namespace SmartSchool.Admin.ViewModels.Buses;
 
@@ -14,7 +15,7 @@ public partial class BusAttendanceLogViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private BusListItem? _selectedBus;
 
-    public ObservableCollection<BusEventListItem> Events { get; } = new();
+    public BulkObservableCollection<BusEventListItem> Events { get; } = new();
     public ObservableCollection<BusListItem> Buses { get; } = new();
 
     public BusAttendanceLogViewModel()
@@ -68,8 +69,7 @@ public partial class BusAttendanceLogViewModel : ObservableObject, IDisposable
             var r = await _api.TodayAttendanceAsync(busId);
             if (r.Ok && r.Data is not null)
             {
-                Events.Clear();
-                foreach (var e in r.Data.OrderByDescending(e => e.Id)) Events.Add(e);
+                Events.ReplaceAll(r.Data.OrderByDescending(e => e.Id));
             }
             else ToastService.Current.Error("Attendance", r.Error);
         }

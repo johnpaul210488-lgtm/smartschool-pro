@@ -17,8 +17,9 @@ publish/
 # Secrets - never commit real credentials
 appsettings.*.Local.json
 secrets.json
-# Firebase Android/iOS app configs and service-account keys stay out of git.
-**/google-services.json
+# Never commit service-account keys or generated native Firebase config copies.
+# Client-only google-services.json files under apps/*/firebase are already public.
+**/android/app/google-services.json
 **/GoogleService-Info.plist
 **/firebase-sa.json
 **/*firebase-adminsdk*.json

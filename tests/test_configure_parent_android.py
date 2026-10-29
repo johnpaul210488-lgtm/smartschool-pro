@@ -46,8 +46,8 @@ class ConfigureParentAndroidTests(unittest.TestCase):
         assignment = f'applicationId = "{APP_ID}"' if kotlin else f'applicationId "{APP_ID}"'
         self.gradle.write_text(f'plugins {{\n    {android_plugin}\n}}\nandroid {{\n {assignment}\n}}\n')
 
-    def run_script(self):
-        return subprocess.run([sys.executable, str(SCRIPT), str(self.app)], capture_output=True, text=True)
+    def run_script(self, *args):
+        return subprocess.run([sys.executable, str(SCRIPT), str(self.app), *args], capture_output=True, text=True)
 
     def test_kotlin_gradle_configuration_is_idempotent(self):
         self.setup_gradle(kotlin=True)
@@ -82,6 +82,15 @@ class ConfigureParentAndroidTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("no client", result.stderr)
         self.assertEqual(before, [p.read_text() for p in (self.settings, self.gradle, self.manifest)])
+
+    def test_wrong_project_is_rejected_before_any_changes(self):
+        self.setup_gradle(kotlin=True)
+        before = [p.read_text() for p in (self.settings, self.gradle, self.manifest)]
+        result = self.run_script('--expected-project', 'queen-school')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('must belong to project queen-school', result.stderr)
+        self.assertEqual(before, [p.read_text() for p in (self.settings, self.gradle, self.manifest)])
+        self.assertEqual(self.run_script('--expected-project', 'example-project').returncode, 0)
 
     def test_missing_or_incomplete_config_fails(self):
         self.setup_gradle(kotlin=True)

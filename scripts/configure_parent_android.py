@@ -53,7 +53,7 @@ def add_plugin(text: str, is_kotlin: bool, settings: bool) -> str:
     return text[:position] + "\n    " + plugin + text[position:]
 
 
-def configure(app_dir: Path) -> str:
+def configure(app_dir: Path, expected_project: str | None = None) -> str:
     android = app_dir / "android"
     settings_file = gradle_file(android, "settings")
     app_file = gradle_file(android / "app", "build")
@@ -77,6 +77,8 @@ def configure(app_dir: Path) -> str:
     if not matching_clients:
         raise ValueError(f"Firebase Android app config has no client for applicationId {app_id}.")
     project = data.get("project_info", {})
+    if expected_project and project.get("project_id") != expected_project:
+        raise ValueError(f"Firebase Android app config must belong to project {expected_project}.")
     client = matching_clients[0]
     keys = client.get("api_key", [])
     if not (project.get("project_id") and project.get("project_number") and
@@ -118,9 +120,10 @@ def configure(app_dir: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("app_dir", nargs="?", type=Path, default=Path("apps/parent_app"))
+    parser.add_argument("--expected-project", help="Reject Android configs from a different Firebase project")
     args = parser.parse_args()
     try:
-        app_id = configure(args.app_dir)
+        app_id = configure(args.app_dir, args.expected_project)
     except (OSError, ValueError, TypeError, AttributeError) as error:
         print(f"Parent Firebase configuration error: {error}", file=sys.stderr)
         return 1
