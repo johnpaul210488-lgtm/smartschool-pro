@@ -185,6 +185,15 @@ jobs:
       - name: Firebase Android configuration tests
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
 
+  firebase-server-setup:
+    name: Firebase server setup (Windows PowerShell 5.1)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate credential and configuration handling
+        shell: powershell
+        run: .\tests\windows\test-firebase-setup.ps1
+
   admin-exe:
     name: Admin exe (Windows, downloadable)
     runs-on: windows-latest

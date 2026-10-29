@@ -44,8 +44,10 @@ Source: "..\build-artifacts\api\*"; DestDir: "{app}\api"; Flags: recursesubdirs 
 Source: "..\build-artifacts\api\appsettings.json"; DestDir: "{app}\api"; Flags: onlyifdoesntexist
 ; WPF Admin desktop (LocalAppData: self-updater kaam kare silently, koi UAC nahi)
 Source: "..\build-artifacts\admin\SmartSchool.Admin.exe"; DestDir: "{localappdata}\Programs\SmartSchool Admin"; Flags: ignoreversion
-; 1-click diagnostics
+; 1-click diagnostics and private Firebase server setup (no credentials bundled)
 Source: "SmartSchool-Diagnostics.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "Configure-Firebase.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "Configure-Firebase.ps1"; DestDir: "{app}"; Flags: ignoreversion
 ; SQL Server LocalDB (bundled by CI — embedded, hamesha copy ho)
 Source: "SqlLocalDB.msi"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
@@ -71,6 +73,7 @@ Type: files; Name: "{userdesktop}\SmartSchool Diagnostics.lnk"
 
 [Icons]
 Name: "{group}\Queen International School"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"; IconFilename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
+Name: "{group}\Queen School - Firebase Setup"; Filename: "{app}\Configure-Firebase.bat"; WorkingDir: "{app}"
 Name: "{commondesktop}\Queen International School"; Filename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"; IconFilename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
 Name: "{commondesktop}\Queen School Diagnostics"; Filename: "{app}\SmartSchool-Diagnostics.bat"; IconFilename: "{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe"
 ; API auto-start at EVERY login (all users) — runs as the interactive user whose

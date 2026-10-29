@@ -120,14 +120,20 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
 
 ### School API configuration
 
-4. In the **same Firebase project**, generate a service-account private key and
-   place it in a restricted folder on the school API host. Give the Windows user
-   running the API read access. Enable Firebase and set the absolute path in the
-   installed API's `appsettings.json` (normally
-   `C:\Program Files\SmartSchool Server\api\appsettings.json`), then restart the API. The installer defaults to
-   `Firebase:Enabled=false`; upgrading preserves the school's existing settings.
-   A missing file, bad credentials, wrong Firebase project, disabled Cloud Messaging
-   API, or offline server prevents delivery. Never share the private key or device tokens.
+4. On the school PC, after installing the updated server, run **Queen School -
+   Firebase Setup** from the Start menu. Approve administrator access and select
+   the service-account JSON for `queen-school` (not the Android client file).
+   The helper validates the project, writes a copy to a restricted ProgramData
+   folder and enables Firebase in `appsettings.json` without replacing the other
+   settings; it stores a restricted backup. It grants read access to detected API
+   and console users, administrators and LocalSystem. If the API runs as a different
+   Windows account, give that account read access as well. No key is bundled in
+   the installer. For custom installations set `Firebase__Enabled=true` and
+   `Firebase__CredentialsJsonPath` yourself. Defaults are disabled and upgrading
+   preserves the school's existing config. The helper does **not** restart the API:
+   review queued WhatsApp messages first because they may be sent automatically on
+   restart. Invalid credentials, wrong project, a disabled Cloud Messaging API or
+   an offline server also prevent delivery. Never share private keys or device tokens.
 5. Install the new parent APK using the same signing key as the existing APK;
    generated Flutter projects default to debug signing, and ephemeral CI runners
    can produce different keys. Plan stable signing or, with the parent's consent,

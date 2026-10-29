@@ -23,6 +23,7 @@ secrets.json
 **/GoogleService-Info.plist
 **/firebase-sa.json
 **/*firebase-adminsdk*.json
+**/*service-account*.json
 __pycache__/
 *.py[cod]
 
