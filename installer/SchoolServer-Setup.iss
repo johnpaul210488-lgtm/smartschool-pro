@@ -23,14 +23,22 @@
 #endif
 
 [Setup]
+#ifdef PreviewOnly
+AppName=Queen International School TEST PREVIEW
+#else
 AppName=Queen International School
+#endif
 AppVersion={#AppVersion}
 AppPublisher=Queen International School
 DefaultDirName={autopf}\SmartSchool Server
 DefaultGroupName=Queen International School
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist\installer
+#ifdef PreviewOnly
+OutputBaseFilename=QueenInternationalSchool-TEST-PREVIEW-{#AppVersion}
+#else
 OutputBaseFilename=QueenInternationalSchool-Setup-{#AppVersion}
+#endif
 SetupIconFile=Brand\QueenInternationalSchool.ico
 UninstallDisplayIcon={localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe
 PrivilegesRequired=admin
@@ -191,4 +199,8 @@ end;
 #endif
 
 [Messages]
+#ifdef PreviewOnly
+FinishedLabel=TEST PREVIEW sirf is test PC par install hua hai.%n%nAdmin app: Desktop / Start Menu «Queen International School»%nTest API: http://localhost:5000 — live server aur parent queue se alag.%nTest login: admin / Admin@12345.%n%nSirf alag test WhatsApp number aur ijazat wala test recipient istemal karein.
+#else
 FinishedLabel=Queen International School install ho gaya!%n%nAdmin app: Desktop / Start Menu shortcut «Queen International School»%nAPI: http://localhost:5000 — ABHI shuru ho gayi hai aur har PC-login par background mein khud uthe gi.%nLogin: admin / Admin@12345 — pehli dafa database apne aap ban jayegi.
+#endif
