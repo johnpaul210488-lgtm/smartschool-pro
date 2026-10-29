@@ -157,6 +157,8 @@ function InitializeSetup(): Boolean;
 begin
   if DirExists(ExpandConstant('{autopf}\SmartSchool Server')) or
      FileExists(ExpandConstant('{localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe')) or
+     FileExists(ExpandConstant('{localappdata}\Programs\SmartSchool Admin\appsettings.json')) or
+     FileExists(ExpandConstant('{localappdata}\SmartSchoolAdmin\session.bin')) or
      FileExists(ExpandConstant('{commonstartup}\SmartSchool API (background).lnk')) or
      FileExists(ExpandConstant('{%USERPROFILE}\SmartSchoolPro.mdf')) then
   begin
