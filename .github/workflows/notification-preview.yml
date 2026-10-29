@@ -1,5 +1,6 @@
 # Optional, non-publishing builds for testing notification fixes. Normal branch
-# pushes skip these expensive jobs; a commit containing [build preview] opts in.
+# pushes skip these expensive jobs; [build preview] opts into both and
+# [qr preview] builds only the Windows server test installer.
 name: Notification preview builds
 
 on:
@@ -75,7 +76,7 @@ jobs:
 
   server-installer:
     name: School server installer (preview only)
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build preview]') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build preview]') || contains(github.event.head_commit.message, '[qr preview]') }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

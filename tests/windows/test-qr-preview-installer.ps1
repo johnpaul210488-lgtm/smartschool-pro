@@ -13,8 +13,9 @@ $log = Join-Path $env:TEMP ("qr-preview-guard-" + [Guid]::NewGuid() + '.log')
 try {
     $p = Start-Process -FilePath $installerPath -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',("/LOG=`"$log`"") -PassThru
     if (-not $p.WaitForExit(20000)) {
+        $detail = if (Test-Path $log) { (Get-Content $log -Raw) } else { 'no setup log' }
         $p.Kill()
-        throw 'Preview did not promptly refuse an existing school installation.'
+        throw "Preview did not promptly refuse an existing school installation. Setup log: $detail"
     }
     if ($p.ExitCode -eq 0) { throw 'Preview accepted an existing school installation.' }
     if (-not (Test-Path $log) -or (Get-Content $log -Raw) -notmatch 'PREVIEW_BLOCK_EXISTING_INSTALL') {

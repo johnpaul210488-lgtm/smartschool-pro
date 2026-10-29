@@ -161,11 +161,11 @@ begin
      FileExists(ExpandConstant('{%USERPROFILE}\SmartSchoolPro.mdf')) then
   begin
     Log('PREVIEW_BLOCK_EXISTING_INSTALL');
-    MsgBox('Existing school installation ya database mila. Yeh TEST PREVIEW live school PC par install na karein; alag clean test PC istemal karein.', mbError, MB_OK);
+    SuppressibleMsgBox('Existing school installation ya database mila. Yeh TEST PREVIEW live school PC par install na karein; alag clean test PC istemal karein.', mbError, MB_OK, IDOK);
     Result := False;
     exit;
   end;
-  Result := MsgBox('Sirf clean, alag TEST PC par install karein. Live school server ya us ki database par yeh preview install NA karein. Test jaari rakhein?', mbConfirmation, MB_YESNO) = IDYES;
+  Result := SuppressibleMsgBox('Sirf clean, alag TEST PC par install karein. Live school server ya us ki database par yeh preview install NA karein. Test jaari rakhein?', mbConfirmation, MB_YESNO, IDNO) = IDYES;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
