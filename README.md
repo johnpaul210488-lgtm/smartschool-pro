@@ -209,10 +209,12 @@ Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (dr
 "Firebase": { "Enabled": false, "CredentialsJsonPath": "" }
 ```
 
-`Enabled:false` = **dry-run** (pushes logged, like the Twilio switch). Every pick-in/drop-out also
-sends an FCM multicast to the child's parents' registered devices (FirebaseAdmin SDK, dry-run safe);
-announcements broadcast to all parent devices. Apps register tokens via `POST /api/devices/register`
-(+ re-register on FCM token refresh). Setup: **docs/deployment-guide.md → section 4**.
+`Enabled:false` = **dry-run; no push is delivered**. Pick-in/drop-out sends FCM to registered
+devices of explicitly linked parents; announcements target all parent devices. Token registration
+alone does not prove delivery. The release APK requires the matching Android Firebase app config,
+and the API needs service-account credentials from the same Firebase project. Staff can check and
+create parent-child links through `/api/parent-links`. Setup and diagnostics:
+**docs/deployment-guide.md → section 4**.
 
 ## Test the critical real-time flow in Swagger (2 minutes)
 

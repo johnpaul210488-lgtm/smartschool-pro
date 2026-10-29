@@ -54,8 +54,8 @@ public interface ISchoolNotificationService
 public sealed record FcmPush(string Title, string Body, IReadOnlyDictionary<string, string>? Data = null);
 
 /// <summary>
-/// Firebase Cloud Messaging sender. Firebase:Enabled=false = dry-run (logged only),
-/// so the full chain is testable before the school creates a Firebase project.
+/// Firebase Cloud Messaging sender. Firebase:Enabled=false = dry-run (logged only;
+/// no messages are delivered and the accepted count is zero).
 /// </summary>
 public interface IFcmSender
 {

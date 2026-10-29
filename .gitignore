@@ -17,6 +17,13 @@ publish/
 # Secrets - never commit real credentials
 appsettings.*.Local.json
 secrets.json
+# Firebase Android/iOS app configs and service-account keys stay out of git.
+**/google-services.json
+**/GoogleService-Info.plist
+**/firebase-sa.json
+**/*firebase-adminsdk*.json
+__pycache__/
+*.py[cod]
 
 # OS noise
 Thumbs.db

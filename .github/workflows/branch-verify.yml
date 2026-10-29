@@ -27,6 +27,9 @@ jobs:
       - name: Build (Release, warnings as errors off)
         run: dotnet build SmartSchool.sln --configuration Release --no-restore
 
+      - name: Notification regression tests
+        run: dotnet test tests/SmartSchool.Tests/SmartSchool.Tests.csproj --configuration Release
+
       - name: EF Core migrations script must generate
         run: |
           dotnet tool install --global dotnet-ef --version 8.0.*
@@ -172,11 +175,15 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: pub get + analyze
+      - name: pub get + analyze + notification tests
         working-directory: apps/parent_app
         run: |
           flutter pub get
           flutter analyze --no-fatal-infos
+          flutter test
+
+      - name: Firebase Android configuration tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
 
   admin-exe:
     name: Admin exe (Windows, downloadable)

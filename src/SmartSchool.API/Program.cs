@@ -167,7 +167,8 @@ try
     builder.Services.AddSingleton<IWhatsAppQueue>(sp => sp.GetRequiredService<InMemoryWhatsAppQueue>());
     builder.Services.AddHostedService<WhatsAppQueueHostedService>();
 
-    builder.Services.AddHttpClient<IWhatsAppSender, TwilioWhatsAppService>();
+    // TwilioWhatsAppService uses the Twilio SDK, not a typed HttpClient.
+    builder.Services.AddWhatsAppSender();
     builder.Services.AddHttpClient<IGeocodingService, GoogleMapsGeocodingService>();
 
     // Firebase Cloud Messaging: dry-run until Firebase:Enabled=true + credentials JSON path set.
@@ -190,6 +191,10 @@ try
     builder.Services.AddHostedService<SmartSchool.API.Services.IoT.ThingWorxRelayService>();
 
     var app = builder.Build();
+
+    // Surface a disabled/misconfigured FCM setup at startup, even if no devices
+    // have registered yet. This does not connect to Firebase or send a push.
+    _ = app.Services.GetRequiredService<IFcmSender>();
 
     // ----------------------------- DB init + seed ---------------------------
     // NEVER die on DB problems (LocalDB cold start, missing install, etc.):

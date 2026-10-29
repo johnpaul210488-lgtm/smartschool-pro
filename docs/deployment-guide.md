@@ -98,13 +98,70 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
 
 ## 4. Firebase Cloud Messaging (parent + later driver app)
 
-1. Firebase Console → **Create project** (no Google Analytics needed).
-2. Add **Android app** `com.smartschool.parent` → download `google-services.json` → `android/app/`.
-3. Gradle wiring (see `apps/parent_app/README.md` → Firebase).
-4. iOS: add Apple app → `GoogleService-Info.plist` → `ios/Runner/` + enable Push/Background modes + upload **APNs key** in Firebase console (Cloud Messaging tab).
-5. **Server side:** Project settings → Service accounts → Generate new private key →
-   copy JSON to the API host → `Firebase:Enabled=true` + `Firebase:CredentialsJsonPath`.
-6. Test: run the app, watch API logs — `[FCM]` line shows the registered token; trigger a pick-in → push arrives.
+### Android APK and Firebase project
+
+1. In Firebase Console create/select the project and register the parent Android
+   app using the exact `applicationId` in the generated `android/app/build.gradle[.kts]`.
+   The release pipeline's Flutter create command generates **`com.smartschool.smartschool_parent`**, not
+   the previously documented `com.smartschool.parent`. Do not rename an already
+   installed app to match the old docs.
+2. Download that app's `google-services.json` (Android app config, not the
+   service-account key). For a local build put it in `apps/parent_app/android/app/`
+   and run `python3 scripts/configure_parent_android.py` from the repository root
+   after `flutter create`. For the release workflow set GitHub Actions secret
+   **`PARENT_GOOGLE_SERVICES_JSON`** to the entire JSON file. The release will
+   stop if it is missing, malformed or does not match the generated package.
+   Never commit the file or put a service-account private key in an APK/Actions secret.
+3. iOS is separate: add the matching Apple app, put `GoogleService-Info.plist`
+   in `ios/Runner/`, enable Push/Background modes and upload an **APNs key** in
+   Firebase (Cloud Messaging). The Android script does not configure iOS.
+
+### School API configuration
+
+4. In the **same Firebase project**, generate a service-account private key and
+   place it in a restricted folder on the school API host. Give the Windows user
+   running the API read access. Enable Firebase and set the absolute path in the
+   installed API's `appsettings.json` (normally
+   `C:\Program Files\SmartSchool Server\api\appsettings.json`), then restart the API. The installer defaults to
+   `Firebase:Enabled=false`; upgrading preserves the school's existing settings.
+   A missing file, bad credentials, wrong Firebase project, disabled Cloud Messaging
+   API, or offline server prevents delivery. Never share the private key or device tokens.
+5. Install the new parent APK using the same signing key as the existing APK;
+   generated Flutter projects default to debug signing, and ephemeral CI runners
+   can produce different keys. Plan stable signing or, with the parent's consent,
+   a reinstall (which clears app data). Log in, allow notification permission in
+   Android settings, and verify Settings → App Notifications. “Device registered”
+   only means the school API stored its token; it does not prove Firebase accepted
+   or delivered a push.
+
+### Parent-child link and diagnosis
+
+6. Staff should verify the correct parent and student before linking: it grants
+   the parent access to the child's information. Use an admin token in Swagger:
+   `GET /api/parent-links/student/{studentId}` shows accounts and device counts
+   (no tokens). If the correct active account is absent, use
+   `POST /api/parent-links` with `{"parentUsername":"parent1","studentId":1}`;
+   this is idempotent. Create a login via the staff-only `POST /api/auth/register`
+   if necessary. After linking, restart the parent app to refresh SignalR groups.
+   Never infer a link merely because two records share a phone number.
+7. Check `C:\ProgramData\SmartSchool\logs\smartschool-*.log` (installer):
+   - `FCM is disabled` / `[FCM DRY-RUN]`: **no push was sent**.
+   - `FCM device registered for user ...`: token registration reached the API;
+     the token itself is deliberately not logged.
+   - `no active parent accounts are linked` / `no registered devices`: fix the link or
+     open the configured app and sign in; use the staff-only link status endpoint.
+   - `FCM target[...] failed` / initialization errors: investigate Firebase
+     credentials, project and device token. `FCM accepted X/Y` means FCM accepted
+     requests, not that the OS displayed them.
+8. Test a **new** pick-in/drop-out while the parent app is in the background,
+   then with it open. Background notifications require real FCM + permission;
+   foreground may also show a SignalR banner. Avoid repeating the same event
+   within the 30-second debounce window.
+
+**WhatsApp is a separate channel:** fixing an FCM issue does not enable Twilio.
+After deploying the constructor fix, existing `Queued` WhatsApp rows can be
+re-enqueued by the sweeper and may send old events. Review `GET /api/whatsapp-logs?status=Queued`
+and Twilio configuration before restarting; do not assume a `DRYRUN-*` entry was delivered.
 
 ---
 

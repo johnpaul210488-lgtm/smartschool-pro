@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/config.dart';
+import '../core/fcm_service.dart';
 import '../core/session.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
@@ -91,6 +94,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ScaffoldMessenger.of(context)
                           .showSnackBar(SnackBar(content: Text(err)));
                     }
+                  },
+                ),
+
+                // Token registration is not proof of delivery: the server's
+                // Firebase credentials and phone permission must also be valid.
+                ValueListenableBuilder<PushStatus>(
+                  valueListenable: FcmService.instance.status,
+                  builder: (context, pushStatus, _) {
+                    final key = switch (pushStatus) {
+                      PushStatus.checking => 'push_checking',
+                      PushStatus.registered => 'push_registered',
+                      PushStatus.permissionDenied => 'push_permission_denied',
+                      PushStatus.registrationFailed => 'push_registration_failed',
+                      PushStatus.unavailable => 'push_unavailable',
+                    };
+                    return ListTile(
+                      leading: Icon(pushStatus == PushStatus.registered
+                          ? Icons.notifications_active
+                          : Icons.notifications_off_outlined),
+                      title: Text(loc.t('push_notifications')),
+                      subtitle: Text(loc.t(key)),
+                      trailing: IconButton(
+                        tooltip: loc.t('refresh'),
+                        icon: const Icon(Icons.refresh),
+                        onPressed: () {
+                          final auth = context.read<AuthProvider>();
+                          if (!auth.loggingOut && auth.isLoggedIn) {
+                            unawaited(FcmService.instance.init(auth.api));
+                          }
+                        },
+                      ),
+                    );
                   },
                 ),
 

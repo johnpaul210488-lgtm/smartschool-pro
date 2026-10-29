@@ -25,6 +25,16 @@
  .on("UpdateBusLocation", ...) -> live map                                stuck rows after restart
 ```
 
+## Parent APK notifications
+
+Pick/drop events also go via Firebase Cloud Messaging to devices registered by
+accounts explicitly linked to that child. Firebase is separate from Twilio:
+`Firebase:Enabled=false` is a dry-run and **does not send a push**. A connected
+foreground app can show a SignalR banner, but background alerts require a
+Firebase-configured APK, server credentials, a registered device, the correct
+parent-child link and notification permission. Setup and diagnosis are in
+[the deployment guide](deployment-guide.md#4-firebase-cloud-messaging-parent--later-driver-app).
+
 ## Messages sent to the father (templates in `BusAttendanceController`)
 
 - **Pick-In:** `Your child {Name} has boarded Bus #{X} at {time} from {location}. — SmartSchool Pro`

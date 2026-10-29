@@ -70,20 +70,27 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
       - name: Build parent APK
+        env:
+          PARENT_GOOGLE_SERVICES_JSON: ${{ secrets.PARENT_GOOGLE_SERVICES_JSON }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -e
           VER="${RELEASE_TAG#v}"
           cd apps/parent_app
           flutter create --platforms android --org com.smartschool --project-name smartschool_parent .
+          # Do not publish an APK that silently has no Firebase configuration.
+          # This secret is the Android app config, NOT a service-account private key.
+          if [ -z "$PARENT_GOOGLE_SERVICES_JSON" ]; then
+            echo '::error::Set the PARENT_GOOGLE_SERVICES_JSON Actions secret to the parent Android google-services.json before making a release.'
+            exit 1
+          fi
+          printf '%s' "$PARENT_GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          python3 ../../scripts/configure_parent_android.py .
           sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>|' android/app/src/main/AndroidManifest.xml
-          G=android/app/build.gradle.kts; [ -f "$G" ] || G=android/app/build.gradle
-          printf '\nandroid { compileOptions { isCoreLibraryDesugaringEnabled = true } }\ndependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") }\n' >> "$G"
           flutter pub get
-          flutter build apk --release --build-name="$VER" --build-number=$((GITHUB_RUN_NUMBER + 1)) || flutter build apk --release --build-name="$VER"
+          flutter build apk --release --build-name="$VER" --build-number=$((GITHUB_RUN_NUMBER + 1))
           cp build/app/outputs/flutter-apk/app-release.apk ../../dist/parent-release.apk
-        env:
-          RELEASE_TAG: ${{ env.RELEASE_TAG }}
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
       - uses: actions/upload-artifact@v4
         with:

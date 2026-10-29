@@ -6,8 +6,8 @@ alerts + announcements, EN ⇄ UR language switch, WhatsApp opt-in/out.
 
 ## One-time platform setup (first run on the dev PC)
 
-This repo keeps only Dart source + pubspec (CI analyzes it). Generate the
-native folders once — they are machine-local and ignored by git conventions:
+This repo keeps Dart source + pubspec. Generate the native folders once on the
+build machine; do not commit Firebase configuration or private keys:
 
 ```bash
 cd apps/parent_app
@@ -39,24 +39,52 @@ iOS: `GMSApiClient.provideAPIKey("YOUR_KEY")` in `AppDelegate.swift` (plus
 
 ## Firebase (push notifications)
 
-1. Firebase Console → create project → add Android app `com.smartschool.parent`
-   → download `google-services.json` → put in `android/app/`.
-2. `android/build.gradle` → add `classpath 'com.google.gms:google-services:4.4.2'`;
-   `android/app/build.gradle` → `apply plugin: 'com.google.gms.google-services'`.
-3. iOS: add Apple app → download `GoogleService-Info.plist` into
-   `ios/Runner/` → enable Push Notifications + Background Modes (remote notifications).
-4. Project settings → Service accounts → **Generate new private key** → save JSON
-   on the API host → set in API `appsettings.json`:
-   `"Firebase": { "Enabled": true, "CredentialsJsonPath": "C:\\secrets\\firebase-sa.json" }`.
-5. Android 13+: the app asks POST_NOTIFICATIONS permission at first launch.
+1. In Firebase Console, add the **actual existing Android application ID**. With
+   the `flutter create` command above, it is `com.smartschool.smartschool_parent`
+   (verify `android/app/build.gradle[.kts]` → `applicationId`). The previously
+   documented `com.smartschool.parent` is **not** this release's ID. Do not
+   change the application ID just to match the old documentation; that makes a
+   different app which cannot update the existing installation.
+2. Download that Android app's `google-services.json` to `android/app/`. From
+   the repository root run `python3 scripts/configure_parent_android.py`.
+   It validates the package, adds the Google Services Gradle plugin, Android
+   notification permission and the required desugaring configuration. The
+   file is app configuration, **not** the server service-account key.
+3. For GitHub Releases, set Actions secret `PARENT_GOOGLE_SERVICES_JSON` to the
+   **entire contents** of this Android app config in the GitHub repository
+   settings. The release now fails instead of silently shipping a push-less
+   parent APK when the secret is absent or for the wrong package. Never put a
+   service-account private key in this secret or in an APK.
+4. On the API host only, generate a service-account private key for the **same
+   Firebase project**, save it in an access-restricted folder, and configure
+   `"Firebase": { "Enabled": true, "CredentialsJsonPath": "C:\\secrets\\firebase-sa.json" }`
+   in the installed API's settings. Restart the API. The installer default is
+   disabled; upgrading preserves the existing `appsettings.json`.
+5. Install the new APK, sign in, allow notifications (Android 13+), and link the
+   parent to the correct child. Updates must be signed with the same key as the
+   installed APK. The generated Flutter project defaults to debug signing; an
+   ephemeral CI runner's debug key may differ, so plan a stable signing key or a
+   consented reinstall (which clears app data). In Settings → App Notifications,
+   “device registered” confirms registration with the school API only, **not**
+   actual Firebase delivery. Check server logs and test a real pick/drop in background.
+6. For iOS, separately add the matching Apple app, place `GoogleService-Info.plist`
+   in `ios/Runner/`, enable Push Notifications + Background Modes, and configure
+   APNs in Firebase. The Android setup script does not configure iOS.
 
-Without these files the app never crashes — FcmService just disables itself and
-live alerts still come over SignalR.
+Without Firebase, a connected foreground app can still show a SignalR banner,
+but it cannot receive background push notifications. See
+[`docs/deployment-guide.md`](../../docs/deployment-guide.md#4-firebase-cloud-messaging-parent--later-driver-app)
+for parent linking, diagnostics, and a live test.
 
 ## Login
 
-Parent accounts are created by the admin (WPF → Students → parent account) and
-linked to the child via a `ParentStudents` row. Demo seed (if `SeedDemoData`):
+A staff user can create a parent login via `POST /api/auth/register` and explicitly
+link it to a child via `POST /api/parent-links`; verify both identities before
+linking, because the parent receives access to that child's data. Check links
+and registered device counts via `GET /api/parent-links/student/{studentId}`.
+After a new link, restart the parent app to reconnect its live subscriptions.
+These are staff-only endpoints; the current WPF student screen does not create
+parent accounts/links. Demo seed (if `SeedDemoData`):
 
 ```
 username: parent1   password: Parent@123

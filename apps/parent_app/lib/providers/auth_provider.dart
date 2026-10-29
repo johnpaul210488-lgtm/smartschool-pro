@@ -10,6 +10,7 @@ class AuthProvider extends ChangeNotifier {
   final ApiClient api = ApiClient();
 
   bool busy = false;
+  bool loggingOut = false;
   String? error;
   bool get isLoggedIn => Session.isLoggedIn;
 
@@ -22,7 +23,8 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     try {
       await api.login(username, password);
-      await FcmService.instance.init(api);
+      // The root starts push registration after navigating; login must not hang
+      // while Firebase or the device-registration endpoint is unavailable.
       return null;
     } on ApiException catch (e) {
       error = e.message;
@@ -40,8 +42,13 @@ class AuthProvider extends ChangeNotifier {
   Future<void> linkDevice() => FcmService.instance.init(api);
 
   Future<void> logout() async {
-    await FcmService.instance.unregister(api);
-    await Session.clear();
-    notifyListeners();
+    loggingOut = true;
+    try {
+      await FcmService.instance.unregister(api);
+      await Session.clear();
+      notifyListeners();
+    } finally {
+      loggingOut = false;
+    }
   }
 }
