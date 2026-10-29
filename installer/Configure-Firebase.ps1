@@ -179,7 +179,7 @@ function Select-FirebaseKeyFile {
 }
 
 function Invoke-FirebaseSetup {
-    param([string]$KeyPath, [string]$RequestedApiFolder)
+    param([string]$KeyPath, [string]$RequestedApiFolder, [string]$PrivateFolder)
 
     $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = [System.Security.Principal.WindowsPrincipal]::new($identity)
@@ -192,7 +192,9 @@ function Invoke-FirebaseSetup {
 
     # Keep this separate from the writable SmartSchool logs directory. Do not
     # follow an existing junction/symlink planted in place of the private folder.
-    $secretDir = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'SmartSchool-Private'
+    $secretDir = if ($PrivateFolder) { $PrivateFolder } else {
+        Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'SmartSchool-Private'
+    }
     [void](New-Item -ItemType Directory -Path $secretDir -Force)
     if (([System.IO.File]::GetAttributes($secretDir) -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
         throw 'Private folder symlink/junction hai; is mein key nahi rakhi gayi.'
@@ -211,8 +213,11 @@ function Invoke-FirebaseSetup {
     }
     Write-Host ''
     Write-Host "Firebase project $ExpectedFirebaseProject ki server configuration save ho gayi." -ForegroundColor Green
-    Write-Host 'Key aur settings backup restricted ProgramData folder mein hain; doosri settings rakhi gayi hain.'
+    Write-Host 'Key aur settings backup restricted folder mein hain; doosri settings rakhi gayi hain.'
     Write-Host "Backup: $backup"
+    if ($env:Firebase__Enabled -or $env:Firebase__CredentialsJsonPath) {
+        Write-Host 'Firebase environment variables appsettings ko override kar sakti hain; API account ki settings check karein.' -ForegroundColor Yellow
+    }
     Write-Host ''
     Write-Host 'ZAROORI: API restart hone par purane queued WhatsApp messages dobara bheje ja sakte hain.' -ForegroundColor Yellow
     Write-Host 'Queue pehle review karein, phir server API restart karein. Yeh tool khud restart nahi karta.' -ForegroundColor Yellow

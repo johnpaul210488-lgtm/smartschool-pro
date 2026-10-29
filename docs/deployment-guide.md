@@ -170,7 +170,10 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
 After deploying the constructor fix, existing `Queued` WhatsApp rows can be
 re-enqueued by the sweeper and may send old events. Review `GET /api/whatsapp-logs?status=Queued`
 and Twilio configuration **before installing/upgrading or restarting the API**;
-the installer starts the API automatically. Do not assume a `DRYRUN-*` entry was delivered.
+the installer starts the API automatically. If Twilio is disabled, the existing
+worker's dry-run can mark queued messages as sent without delivery, so do not
+simply switch it off as a way of preserving the queue. A `DRYRUN-*` entry was
+not delivered.
 
 ---
 
