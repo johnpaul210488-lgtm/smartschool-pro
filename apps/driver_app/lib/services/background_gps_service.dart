@@ -116,6 +116,7 @@ class BackgroundGpsService {
     DartPluginRegistrant.ensureInitialized();
 
     Timer? timer;
+    StreamSubscription<Position>? posSub;
     int? activeTripId;
 
     Future<void> writeStatus(String text) async {
@@ -128,7 +129,7 @@ class BackgroundGpsService {
 
     bool loadedOverride = false;
 
-    Future<void> pushGps() async {
+    Future<void> pushGps([Position? fixed]) async {
       if (activeTripId == null) return;
       try {
         // Background isolate ko bhi saved server address chahiye.
@@ -136,9 +137,10 @@ class BackgroundGpsService {
           await AppConfig.loadServerOverride();
           loadedOverride = true;
         }
-        final pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-        );
+        final pos = fixed ??
+            await Geolocator.getCurrentPosition(
+              locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+            );
         final login = await SessionService().load();
         if (login == null) {
           await writeStatus('ERR: login session nahi mila');
@@ -175,14 +177,32 @@ class BackgroundGpsService {
 
     service.on('start').listen((data) {
       activeTripId = (data?['tripId'] as num?)?.toInt();
-      writeStatus('Trip #$activeTripId signal mila, GPS loop shuru');
+      writeStatus('Trip #$activeTripId signal mila, GPS stream shuru');
       timer?.cancel();
+      posSub?.cancel();
       pushGps(); // immediate first ping
-      timer = Timer.periodic(AppConfig.gpsPushInterval, (_) => pushGps());
+      // Continuous GPS stream (Android): minimize/Doze mein bhi location aati rehti hai.
+      // Timer.periodic minimize par ruk jata tha, isliye stream use ki hai.
+      posSub = Geolocator.getPositionStream(
+        locationSettings: AndroidSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 0,
+          intervalDuration: AppConfig.gpsPushInterval,
+          foregroundNotificationConfig: const ForegroundNotificationConfig(
+            notificationTitle: 'SmartSchool: Trip in progress',
+            notificationText: 'Bus ki location server ko ja rahi hai',
+            enableWakeLock: true,
+          ),
+        ),
+      ).listen(
+        (pos) => pushGps(pos),
+        onError: (e) => writeStatus('ERR: GPS stream: ${e.toString().split('\n').first}'),
+      );
     });
 
     service.on('stop').listen((_) {
       timer?.cancel();
+      posSub?.cancel();
       activeTripId = null;
       service.stopSelf();
     });

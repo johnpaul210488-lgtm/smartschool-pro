@@ -169,7 +169,7 @@ try
     builder.Services.AddHostedService<WhatsAppQueueHostedService>();
 
     builder.Services.AddHttpClient<IWhatsAppSender, TwilioWhatsAppService>();
-    builder.Services.AddHttpClient<IGeocodingService, GoogleMapsGeocodingService>();
+    builder.Services.AddHttpClient<IGeocodingService, OsmGeocodingService>();
 
     // Firebase Cloud Messaging: dry-run until Firebase:Enabled=true + credentials JSON path set.
     builder.Services.AddSingleton<IFcmSender, FirebaseFcmSender>();

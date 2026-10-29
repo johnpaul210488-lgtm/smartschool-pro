@@ -1,11 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 
 import '../core/app_updater.dart';
 import '../core/models.dart';
+import 'live_bus_map.dart';
 import '../providers/children_provider.dart';
 import '../providers/locale_provider.dart';
 
@@ -180,7 +179,7 @@ class _ChildCardView extends StatelessWidget {
             ),
           if (mapExpanded && child.busId != null)
             SizedBox(
-              height: 220,
+              height: 340,
               child: live == null
                   ? Center(
                       child: Padding(
@@ -191,43 +190,7 @@ class _ChildCardView extends StatelessWidget {
                         ),
                       ),
                     )
-                  : FlutterMap(
-                      options: MapOptions(
-                        initialCenter: ll.LatLng(live!.latitude, live!.longitude),
-                        initialZoom: 15,
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'smartschool_parent',
-                        ),
-                        MarkerLayer(markers: [
-                          Marker(
-                            point: ll.LatLng(live!.latitude, live!.longitude),
-                            width: 130,
-                            height: 56,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.black26),
-                                  ),
-                                  child: Text(
-                                    '🚌 #${child.busNumber ?? child.busId}',
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                const Icon(Icons.location_on, color: Colors.red, size: 30),
-                              ],
-                            ),
-                          ),
-                        ]),
-                      ],
-                    ),
+                  : LiveBusMap(loc: live!, title: 'Bus #${child.busNumber ?? child.busId}'),
             ),
         ],
       ),

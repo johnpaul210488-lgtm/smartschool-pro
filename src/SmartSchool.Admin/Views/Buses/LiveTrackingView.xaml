@@ -32,7 +32,21 @@
         <Grid Grid.Row="2">
             <!-- GMap control -->
             <gmap:GMapControl x:Name="Map" MouseWheelZoomEnabled="True"
-                              CanDragMap="True" MinZoom="4" MaxZoom="18" Zoom="13"/>
+                              CanDragMap="True" MinZoom="4" MaxZoom="18" Zoom="13"
+                              Cursor="Hand"/>
+
+            <!-- Map controls: zoom (+/-), buses ko dobara fit karna. Drag = hand se map hilayein. -->
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                        Margin="14">
+                <Button Content="+" Width="44" Height="44" FontSize="22" FontWeight="Bold"
+                        ToolTip="Zoom in" Click="ZoomIn_Click" Margin="0,0,0,6"/>
+                <Button Content="−" Width="44" Height="44" FontSize="22" FontWeight="Bold"
+                        ToolTip="Zoom out" Click="ZoomOut_Click" Margin="0,0,0,6"/>
+                <Button Content="🎯 Buses dikhayein" Padding="10,6" FontSize="13"
+                        ToolTip="Sab live buses screen par laayein" Click="FitBuses_Click"/>
+            </StackPanel>
+
+            <!-- Right-side live list -->
 
             <!-- Right-side live list -->
             <!-- map-tile status/error banner (code-behind: probe ke baad dikhti hai) -->
