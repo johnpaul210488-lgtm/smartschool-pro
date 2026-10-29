@@ -14,7 +14,7 @@ This is an **unofficial** Baileys/WhatsApp Web integration, not affiliated with 
 
 ## Test on a separate, clean Windows PC
 
-1. Use a non-production preview build on an isolated test PC/database. Never install it over the live school server. The installer automatically starts the API; see the queue warning above.
+1. Use the non-production preview on a separate clean Windows PC/database. Never install it over the live school server. The preview includes the API's .NET runtime, Node, npm dependencies and the SQL LocalDB installer; it starts the test API automatically. See the queue warning above.
 2. Log in to the admin app on that PC as Admin or SuperAdmin. Open **WhatsApp Test**. Check the risk acknowledgement, click **QR test shuru karein**, and confirm. A fresh QR is displayed only after this action, and expires if left unattended.
 3. On the separate test sender's phone, open WhatsApp → **Linked devices** → **Link a device**, and scan the QR shown on the server PC. Never send a QR screenshot, one-time code, token, session files or key to anyone. The account may disconnect, so monitor the status.
 4. Enter a separate test recipient in international form such as `+923001234567`, confirm that you own it or have the recipient's permission, and send one sample pick-in and one sample drop-out. Check the recipient phone manually. No actual parent/attendance event is delivered by this stage.
