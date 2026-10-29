@@ -59,6 +59,19 @@ public sealed class WhatsAppQrTestSecurityTests
     }
 
     [Fact]
+    public async Task BrowserOriginCannotAccessQrEvenViaLoopbackOrHttps()
+    {
+        var local = CreateController(IPAddress.Loopback, "http");
+        local.Request.Headers["Origin"] = "https://untrusted.example";
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await local.Qr(default)).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await local.Start(new(true), default)).StatusCode);
+        var secure = CreateController(IPAddress.Parse("192.0.2.4"), "https");
+        secure.Request.Headers["Sec-Fetch-Site"] = "cross-site";
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await secure.Send(
+            new("+923001234567", "pick", true, Guid.NewGuid()), default)).StatusCode);
+    }
+
+    [Fact]
     public async Task ConsentAndConfirmationAreRequiredBeforeAccessingTheGateway()
     {
         var controller = CreateController(IPAddress.Loopback, "http");

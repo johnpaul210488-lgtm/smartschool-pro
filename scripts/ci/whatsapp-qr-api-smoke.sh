@@ -8,6 +8,7 @@ code() { curl -sS -o /dev/null -w '%{http_code}' "$@"; }
 admin=$(curl -sS -X POST "$base/api/auth/login" -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"Admin@12345"}' | jq -r '.data.token // empty')
 [[ -n "$admin" ]] || fail 'Admin login failed.'
+[[ "$(code "$base/api/whatsapp-qr-test/qr" -H "Authorization: Bearer $admin" -H 'Origin: https://untrusted.example')" == 403 ]] || fail 'Browser-origin QR access was not rejected.'
 status=$(curl -sS "$base/api/whatsapp-qr-test/status" -H "Authorization: Bearer $admin")
 [[ "$(printf '%s' "$status" | jq -r '.data.state')" == disabled ]] || fail 'QR gateway was not disabled by default.'
 [[ "$(code -X POST "$base/api/whatsapp-qr-test/start" -H "Authorization: Bearer $admin" -H 'Content-Type: application/json' -d '{"riskConfirmed":false}')" == 400 ]] || fail 'Missing risk confirmation was accepted.'

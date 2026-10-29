@@ -19,6 +19,10 @@ public sealed class WhatsAppQrTestController(QrTestGatewayService gateway) : Bas
     // test recipient over the installer's default cleartext LAN connection.
     private bool IsSecureRequest()
     {
+        // This test screen is a desktop client, not a browser API. The app's
+        // general CORS policy permits LAN clients, so reject browser-origin and
+        // fetch-metadata requests here even when they reach localhost/HTTPS.
+        if (Request.Headers.ContainsKey("Origin") || Request.Headers.ContainsKey("Sec-Fetch-Site")) return false;
         if (Request.IsHttps) return true;
         var remote = HttpContext.Connection.RemoteIpAddress;
         if (remote is null) return false;
@@ -26,7 +30,7 @@ public sealed class WhatsAppQrTestController(QrTestGatewayService gateway) : Bas
     }
 
     private ActionResult InsecureRequest() => StatusCode(StatusCodes.Status403Forbidden,
-        SmartSchool.Shared.Common.ApiResponse.Fail("QR test ke liye server PC par admin app ya HTTPS istemal karein."));
+        SmartSchool.Shared.Common.ApiResponse.Fail("QR test ke liye server PC par admin desktop app ya HTTPS istemal karein; browser requests allowed nahi."));
 
     [HttpGet("status")]
     public async Task<ActionResult> Status(CancellationToken ct)
