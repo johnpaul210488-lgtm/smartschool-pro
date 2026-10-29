@@ -27,7 +27,7 @@ public sealed class OsmGeocodingService : IGeocodingService
     {
         _http = http;
         _logger = logger;
-        _http.Timeout = TimeSpan.FromSeconds(8);
+        _http.Timeout = TimeSpan.FromSeconds(3);
         _http.DefaultRequestHeaders.UserAgent.Clear();
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("SmartSchoolPro", "1.0"));
         _http.DefaultRequestHeaders.Accept.Clear();
@@ -42,21 +42,27 @@ public sealed class OsmGeocodingService : IGeocodingService
         var key = string.Create(CultureInfo.InvariantCulture, $"{lat:F4},{lng:F4}");
         if (Cache.TryGetValue(key, out var cached)) return cached;
 
+        // Attendance request ko na roke: poora lookup (queue + network) 2.5 second mein khatam.
+        // Late hone par GPS fallback label; attendance phir bhi save hoti hai.
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        budget.CancelAfter(TimeSpan.FromSeconds(2.5));
+        var token = budget.Token;
+
         try
         {
-            await Gate.WaitAsync(ct);
+            await Gate.WaitAsync(token);
             try
             {
                 var wait = TimeSpan.FromSeconds(1.1) - (DateTime.UtcNow - _lastCallUtc);
-                if (wait > TimeSpan.Zero) await Task.Delay(wait, ct);
+                if (wait > TimeSpan.Zero) await Task.Delay(wait, token);
 
                 var url = string.Create(CultureInfo.InvariantCulture,
                     $"https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=en&lat={lat}&lon={lng}");
-                using var response = await _http.GetAsync(url, ct);
+                using var response = await _http.GetAsync(url, token);
                 _lastCallUtc = DateTime.UtcNow;
                 if (!response.IsSuccessStatusCode) return fallback;
 
-                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
                 var label = BuildLabel(doc.RootElement, fallback);
                 if (label != fallback) Cache[key] = label;
                 return label;
@@ -65,6 +71,11 @@ public sealed class OsmGeocodingService : IGeocodingService
             {
                 Gate.Release();
             }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // Budget khatam (slow/queue) - fallback, koi error nahi.
+            return fallback;
         }
         catch (Exception ex)
         {
