@@ -1,0 +1,64 @@
+using System.Net;
+using System.Reflection;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using SmartSchool.API.Controllers;
+using SmartSchool.API.Services;
+using SmartSchool.Core.Interfaces;
+using SmartSchool.Shared.Constants;
+using Xunit;
+
+namespace SmartSchool.Tests;
+
+public sealed class WhatsAppQrTestSecurityTests
+{
+    [Fact]
+    public void QrEndpointsAreStaffOnlyAndTestGatewayIsNotTheProductionSender()
+    {
+        var authorization = Assert.Single(typeof(WhatsAppQrTestController)
+            .GetCustomAttributes<AuthorizeAttribute>(inherit: false));
+        Assert.Equal(AppRoles.Staff, authorization.Roles);
+        Assert.False(typeof(IWhatsAppSender).IsAssignableFrom(typeof(QrTestGatewayService)));
+        var cache = Assert.Single(typeof(WhatsAppQrTestController)
+            .GetCustomAttributes<ResponseCacheAttribute>(inherit: false));
+        Assert.True(cache.NoStore);
+    }
+
+    [Fact]
+    public async Task CleartextLanCannotSeeQrStartSendOrUnlinkEvenWithSpoofedForwardingHeaders()
+    {
+        // No service is required: every endpoint must reject before accessing it.
+        var controller = CreateController(IPAddress.Parse("192.168.1.40"), "http");
+        controller.Request.Headers["X-Forwarded-For"] = "127.0.0.1";
+        controller.Request.Headers["X-Forwarded-Proto"] = "https";
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Status(default)).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Qr(default)).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Start(new(true), default)).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Send(
+            new("+923001234567", "pick", true, Guid.NewGuid()), default)).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Unlink(new(true), default)).StatusCode);
+    }
+
+    [Fact]
+    public async Task ConsentAndConfirmationAreRequiredBeforeAccessingTheGateway()
+    {
+        var controller = CreateController(IPAddress.Loopback, "http");
+        Assert.IsType<BadRequestObjectResult>(await controller.Start(new(false), default));
+        Assert.IsType<BadRequestObjectResult>(await controller.Unlink(new(false), default));
+        Assert.IsType<BadRequestObjectResult>(await controller.Send(
+            new("+923001234567", "pick", false, Guid.NewGuid()), default));
+        Assert.IsType<BadRequestObjectResult>(await controller.Send(
+            new("03001234567", "pick", true, Guid.NewGuid()), default));
+        Assert.IsType<BadRequestObjectResult>(await controller.Send(
+            new("+923001234567", "custom-text", true, Guid.NewGuid()), default));
+    }
+
+    private static WhatsAppQrTestController CreateController(IPAddress remote, string scheme)
+    {
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = remote;
+        context.Request.Scheme = scheme;
+        return new WhatsAppQrTestController(null!) { ControllerContext = new ControllerContext { HttpContext = context } };
+    }
+}

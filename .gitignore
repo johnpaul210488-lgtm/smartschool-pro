@@ -48,6 +48,10 @@ Thumbs.db
 *.bacpac
 *.dacpac
 
+# Node packages and local WhatsApp session data must never be committed.
+**/node_modules/
+apps/whatsapp_gateway/.session/
+
 # Logs
 logs/
 *.log

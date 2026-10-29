@@ -12,6 +12,8 @@
 ;   - copy installer\appsettings.installer.json → build-artifacts\api\appsettings.json
 ;     (replace __JWT_KEY__ with a random 64-char string)
 ;   - dotnet ef migrations bundle --self-contained -r win-x64 -o build-artifacts\efbundle.exe
+;   - on Windows with Node 22.22.3, run scripts\package-whatsapp-qr.ps1
+;     (puts the disabled-by-default test gateway inside build-artifacts\api)
 ;   - put SqlLocalDB.msi next to this file
 ;   - ISCC.exe SchoolServer-Setup.iss
 ; ============================================================================

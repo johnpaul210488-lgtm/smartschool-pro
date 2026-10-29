@@ -168,6 +168,11 @@ try
     builder.Services.AddSingleton<IWhatsAppQueue>(sp => sp.GetRequiredService<InMemoryWhatsAppQueue>());
     builder.Services.AddHostedService<WhatsAppQueueHostedService>();
 
+    // Separate, explicitly enabled QR test gateway. It is NOT a sender for the
+    // production outbox and does not change Twilio or Firebase behavior.
+    builder.Services.AddSingleton<QrTestGatewayService>();
+    builder.Services.AddHostedService<QrTestGatewayService>(sp => sp.GetRequiredService<QrTestGatewayService>());
+
     // TwilioWhatsAppService uses the Twilio SDK, not a typed HttpClient.
     builder.Services.AddWhatsAppSender();
     builder.Services.AddHttpClient<IGeocodingService, OsmGeocodingService>();

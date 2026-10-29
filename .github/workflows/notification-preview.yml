@@ -81,6 +81,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '8.0.x' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22.22.3' }
       - name: Test Firebase setup on Windows PowerShell 5.1
         shell: powershell
         run: |
@@ -120,6 +122,15 @@ jobs:
           $key = [Convert]::ToBase64String($bytes)
           (Get-Content installer/appsettings.installer.json -Raw).Replace('__JWT_KEY__', $key) |
             Set-Content build-artifacts/api/appsettings.json -Encoding utf8
+      - name: Package disabled-by-default WhatsApp QR test gateway
+        shell: pwsh
+        run: |
+          try { ./scripts/package-whatsapp-qr.ps1 }
+          catch {
+            $message = "$($_.Exception.Message)`n$($_.ScriptStackTrace)".Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+            Write-Output "::error title=QR test packaging failed::$message"
+            exit 1
+          }
       - name: Download and verify SQL Server LocalDB installer
         shell: pwsh
         run: |
@@ -137,15 +148,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Get-ChildItem dist/installer/*.exe)) { throw 'Installer output missing' }
           @'
-          TEST ENVIRONMENTS ONLY - not published as a release.
-          This installer starts the API automatically. BEFORE installing or
-          restarting, review old queued WhatsApp messages: the fixed queue can
-          send them. Existing appsettings.json is preserved on upgrade.
+          TEST ENVIRONMENTS ONLY - not published as a release. Do not install
+          over the live school server or use a copy of its database. This
+          installer starts the API automatically. Existing Twilio settings and
+          old queued messages can cause sends; disabled Twilio can also mark
+          unsent jobs as successful dry-runs. Existing settings are preserved.
+          The unofficial WhatsApp QR gateway is disabled by default and sends
+          only manually approved, synthetic samples to a test recipient. It is
+          not wired to real school events or the historical queue.
           No Firebase private key is bundled. On the school PC, use the Start
           menu Firebase setup helper with your own queen-school service key.
           For a new production installation, generate a unique JWT key on that
           server instead of using the preview installer's bundled test key.
           '@ | Set-Content dist/installer/README-FIRST.txt
+          Copy-Item docs/whatsapp-qr-test.md dist/installer/WHATSAPP-QR-TEST.md
       - uses: actions/upload-artifact@v4
         with:
           name: server-notification-preview

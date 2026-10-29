@@ -85,6 +85,9 @@ jobs:
           done
           curl -sS http://127.0.0.1:5000/health || (tail -n 100 /tmp/api.log && exit 1)
 
+      - name: QR test API security smoke test (no WhatsApp connection)
+        run: bash scripts/ci/whatsapp-qr-api-smoke.sh
+
       - name: Fee plan + partial payment smoke test
         run: bash scripts/fees-api-smoke-test.sh
 
@@ -184,6 +187,32 @@ jobs:
 
       - name: Firebase Android configuration tests
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+  whatsapp-qr-test:
+    name: QR gateway security tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.3'
+      - name: Install locked test dependencies
+        working-directory: apps/whatsapp_gateway
+        run: npm ci --ignore-scripts --omit=dev --no-audit --no-fund
+      - name: Test gateway without a WhatsApp account
+        working-directory: apps/whatsapp_gateway
+        shell: pwsh
+        run: |
+          npm test 2>&1 | Tee-Object "$env:RUNNER_TEMP/qr-test.log"
+          if ($LASTEXITCODE -ne 0) {
+            $text = (Get-Content "$env:RUNNER_TEMP/qr-test.log" -Raw).Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+            Write-Output "::error title=QR test failed::$text"
+            exit 1
+          }
 
   firebase-server-setup:
     name: Firebase server setup (Windows PowerShell 5.1)
