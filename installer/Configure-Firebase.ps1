@@ -146,14 +146,18 @@ function Set-FirebaseApiSettings {
     $suffix = [guid]::NewGuid().ToString('N')
     $backup = Join-Path $BackupDirectory "appsettings-backup-$suffix.json"
     $temp = "$ConfigPath.$suffix.tmp"
+    $replaceBackup = "$ConfigPath.$suffix.replace-backup"
     try {
         # These newly created backup bytes inherit the restricted directory ACL.
         [System.IO.File]::WriteAllBytes($backup, [System.IO.File]::ReadAllBytes($ConfigPath))
         [System.IO.File]::WriteAllText($temp, $json, [System.Text.UTF8Encoding]::new($false))
-        # Both files are in the API directory; replace is atomic on the same volume.
-        [System.IO.File]::Replace($temp, $ConfigPath, $null)
+        # Windows PowerShell 5.1 converts a null backup argument to an invalid
+        # empty path. Use a temporary same-volume backup for the atomic replace.
+        [System.IO.File]::Replace($temp, $ConfigPath, $replaceBackup)
     } finally {
-        if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force }
+        # Cleanup errors must not make a successful replacement look like failure.
+        if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue }
+        if (Test-Path -LiteralPath $replaceBackup) { Remove-Item -LiteralPath $replaceBackup -Force -ErrorAction SilentlyContinue }
     }
     return $backup
 }

@@ -61,9 +61,10 @@ iOS: `GMSApiClient.provideAPIKey("YOUR_KEY")` in `AppDelegate.swift` (plus
 4. On the school API host, run **Queen School - Firebase Setup** from the Start
    menu in the updated server installer and select the `queen-school` service-
    account private key. The helper protects the file and updates only Firebase
-   settings. It does not restart the server: review queued WhatsApp messages first,
-   because they may be sent automatically when the API restarts. The installer
-   default is disabled; upgrading preserves the existing `appsettings.json`.
+   settings. Review queued WhatsApp messages **before installing/upgrading** the
+   server: the installer starts the API and old messages may send automatically.
+   The helper itself does not restart the server. The installer default is
+   disabled; upgrading preserves the existing `appsettings.json`.
 5. Install the new APK, sign in, allow notifications (Android 13+), and link the
    parent to the correct child. Updates must be signed with the same key as the
    installed APK. The generated Flutter project defaults to debug signing; an

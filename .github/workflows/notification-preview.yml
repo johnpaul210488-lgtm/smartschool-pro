@@ -1,0 +1,153 @@
+# Optional, non-publishing builds for testing notification fixes. Normal branch
+# pushes skip these expensive jobs; a commit containing [build preview] opts in.
+name: Notification preview builds
+
+on:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parent-apk:
+    name: Parent APK (preview only)
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build preview]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Analyze and test
+        working-directory: apps/parent_app
+        run: |
+          set -e
+          flutter pub get
+          flutter analyze --no-fatal-infos
+          flutter test
+      - name: Build parent preview APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eo pipefail
+          {
+          TAG=$(gh release view --json tagName --jq .tagName)
+          VERSION=$(TAG="$TAG" python3 -c 'import os,re; m=re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)",os.environ["TAG"]); assert m, "latest tag must be vMAJOR.MINOR.PATCH"; print(f"{m[1]}.{m[2]}.{int(m[3])+1}")')
+          cd apps/parent_app
+          flutter create --platforms android --org com.smartschool --project-name smartschool_parent .
+          cp firebase/google-services.json android/app/google-services.json
+          python3 ../../scripts/configure_parent_android.py . --expected-project queen-school
+          sed -i 's|android:label="[^"]*"|android:label="Queen International School"|' android/app/src/main/AndroidManifest.xml
+          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>|' android/app/src/main/AndroidManifest.xml
+          flutter pub get
+          # Preview intentionally uses a low version code and a temporary debug
+          # signing key: it is for a test device, not an in-place production update.
+          flutter build apk --release --build-name="$VERSION" --build-number=1
+          mkdir -p ../../preview-parent
+          cp build/app/outputs/flutter-apk/app-release.apk ../../preview-parent/parent-preview.apk
+          cat > ../../preview-parent/README-FIRST.txt <<'EOF'
+          TEST DEVICE ONLY - not a public release or automatic update.
+          This APK uses a temporary debug signing key and version code 1. It will
+          probably not update the installed app; reinstalling removes local app data.
+          Get the parent's consent before uninstalling. A stable production signing
+          key and a real-device delivery test are still required for release.
+          Firebase project: queen-school. No server service-account key is bundled.
+          EOF
+          } 2>&1 | tee "$RUNNER_TEMP/parent-preview.log"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parent-notification-preview
+          path: preview-parent/
+          retention-days: 14
+      - name: Add build errors as an annotation
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          log = Path(os.environ['RUNNER_TEMP']) / 'parent-preview.log'
+          text = log.read_text(errors='replace')[-12000:] if log.exists() else 'See the failed setup or test step.'
+          print('::error title=Parent preview build failed::' + text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+          PY
+
+  server-installer:
+    name: School server installer (preview only)
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build preview]') }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - name: Test Firebase setup on Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          try { .\tests\windows\test-firebase-setup.ps1 }
+          catch {
+            $message = "$($_.Exception.Message)`n$($_.ScriptStackTrace)".Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+            Write-Output "::error title=Firebase setup test failed::$message"
+            exit 1
+          }
+      - name: Notification regression tests
+        run: dotnet test tests/SmartSchool.Tests/SmartSchool.Tests.csproj --configuration Release
+      - name: Choose preview version after latest release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = (gh release view --json tagName --jq .tagName).Trim()
+          if ($LASTEXITCODE -ne 0 -or $tag -notmatch '^v?(\d+)\.(\d+)\.(\d+)$') { throw 'Latest release must have a vMAJOR.MINOR.PATCH tag' }
+          $v = "$($Matches[1]).$($Matches[2]).$([int]$Matches[3] + 1)"
+          "BUILD_VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Publish admin preview
+        shell: pwsh
+        run: |
+          dotnet publish src/SmartSchool.Admin/SmartSchool.Admin.csproj `
+            -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=$env:BUILD_VERSION -o build-artifacts/admin
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Publish API preview
+        shell: pwsh
+        run: |
+          dotnet publish src/SmartSchool.API/SmartSchool.API.csproj -c Release `
+            -p:Version=$env:BUILD_VERSION -o build-artifacts/api
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $bytes = [byte[]]::new(48)
+          [Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+          $key = [Convert]::ToBase64String($bytes)
+          (Get-Content installer/appsettings.installer.json -Raw).Replace('__JWT_KEY__', $key) |
+            Set-Content build-artifacts/api/appsettings.json -Encoding utf8
+      - name: Download and verify SQL Server LocalDB installer
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri 'https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/SqlLocalDB.msi' -OutFile installer/SqlLocalDB.msi
+          $f = Get-Item installer/SqlLocalDB.msi
+          if ($f.Length -lt 40MB) { throw 'SqlLocalDB.msi is too small' }
+          $b = [System.IO.File]::ReadAllBytes($f.FullName)[0..3]
+          if (-not ($b[0] -eq 0xD0 -and $b[1] -eq 0xCF -and $b[2] -eq 0x11 -and $b[3] -eq 0xE0)) { throw 'SqlLocalDB.msi has an invalid signature' }
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' "/DAppVersion=$env:BUILD_VERSION" installer/SchoolServer-Setup.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Get-ChildItem dist/installer/*.exe)) { throw 'Installer output missing' }
+          @'
+          TEST ENVIRONMENTS ONLY - not published as a release.
+          This installer starts the API automatically. BEFORE installing or
+          restarting, review old queued WhatsApp messages: the fixed queue can
+          send them. Existing appsettings.json is preserved on upgrade.
+          No Firebase private key is bundled. On the school PC, use the Start
+          menu Firebase setup helper with your own queen-school service key.
+          For a new production installation, generate a unique JWT key on that
+          server instead of using the preview installer's bundled test key.
+          '@ | Set-Content dist/installer/README-FIRST.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-notification-preview
+          path: dist/installer/
+          retention-days: 14

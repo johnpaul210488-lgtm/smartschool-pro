@@ -169,7 +169,8 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
 **WhatsApp is a separate channel:** fixing an FCM issue does not enable Twilio.
 After deploying the constructor fix, existing `Queued` WhatsApp rows can be
 re-enqueued by the sweeper and may send old events. Review `GET /api/whatsapp-logs?status=Queued`
-and Twilio configuration before restarting; do not assume a `DRYRUN-*` entry was delivered.
+and Twilio configuration **before installing/upgrading or restarting the API**;
+the installer starts the API automatically. Do not assume a `DRYRUN-*` entry was delivered.
 
 ---
 
