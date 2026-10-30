@@ -77,10 +77,11 @@ Dependency rule: `API → Infrastructure → Core → Shared` (each only referen
 - **Real-time**: `SchoolNotificationHub` at `/hubs/notifications`; groups **AdminGroup**,
   **ParentGroup_{studentId}**, **BusGroup_{busId}**; events `SendPickInAlert`, `SendDropOutAlert`,
   `UpdateBusLocation`, `SendTripUpdate`.
-- **WhatsApp outbox**: DB row first (deduped by CorrelationId), bounded wake-up channel,
-  durable retry schedule, three total attempts inside 120 seconds, restart sweeper and manual retry.
-  The linked-device sidecar adds encrypted idempotent receipts, a strict randomized 6–10 second lane,
-  daily/per-recipient limits and no group/bulk surface.
+- **WhatsApp outbox**: DB row first (deduped by CorrelationId), atomic SQL handoff claim,
+  bounded wake-up channel, durable retry schedule, three total attempts inside 120 seconds and a
+  restart sweeper. Explicit recipient permission is checked again immediately before handoff.
+  The linked-device sidecar adds DPAPI-keyed encrypted idempotent receipts, a strict randomized
+  6–10 second lane, daily/per-recipient limits and no group/bulk surface.
 - **Time**: DB stores UTC; `PkTime` converts to PST (Asia/Karachi) at the boundary.
 
 ## Scale notes (500+ students, 20+ buses)

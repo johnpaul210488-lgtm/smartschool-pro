@@ -24,4 +24,15 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Fees WHERE StudentId = @StudentId)
         (@StudentId, 5000.00, N'2026-09', '2026-09-10', '2026-09-08', N'Paid', N'INV-202609-000001', N'legacy paid fee', SYSUTCDATETIME()),
         (@StudentId, 5000.00, N'2026-10', '2026-10-10', NULL, N'Partial', NULL, N'legacy partial fee - amount verified manually', SYSUTCDATETIME());
 
+-- Prove the provider upgrade never releases historical or ambiguous alerts.
+IF NOT EXISTS (SELECT 1 FROM dbo.WhatsAppLogs WHERE [Message] = N'LEGACY-QUEUED-SENTINEL')
+    INSERT INTO dbo.WhatsAppLogs
+        (CorrelationId, StudentId, EventType, ParentPhone, [Message], [Status], RetryCount,
+         Error, ProviderMessageId, CreatedAtUtc, LastAttemptAtUtc, SentAtUtc)
+    VALUES
+        (NEWID(), @StudentId, N'PickIn', N'+923001234567', N'LEGACY-QUEUED-SENTINEL', N'Queued', 0,
+         NULL, NULL, DATEADD(HOUR, -1, SYSUTCDATETIME()), NULL, NULL),
+        (NEWID(), @StudentId, N'PickIn', N'+923001234567', N'LEGACY-HANDOFF-SENTINEL', N'Sending', 0,
+         NULL, NULL, DATEADD(HOUR, -1, SYSUTCDATETIME()), DATEADD(HOUR, -1, SYSUTCDATETIME()), NULL);
+
 SELECT @StudentId AS LegacyStudentId;

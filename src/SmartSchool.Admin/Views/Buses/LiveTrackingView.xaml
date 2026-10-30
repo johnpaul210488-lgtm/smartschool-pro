@@ -7,13 +7,12 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
             <TextBlock Text="📍 Live Bus Tracking" FontSize="26" FontWeight="Bold"/>
-            <TextBlock Text="{Binding StatusLine}" VerticalAlignment="Bottom" Margin="16,0,0,2"
-                       FontSize="12" Opacity="0.75"/>
             <ComboBox x:Name="ProviderPicker" Width="185" VerticalAlignment="Center"
                       HorizontalAlignment="Right" Margin="24,0,0,2" SelectedIndex="0"
                       SelectionChanged="ProviderPicker_SelectionChanged"
@@ -24,10 +23,30 @@
             </ComboBox>
         </StackPanel>
 
-        <Grid Grid.Row="1">
+        <!-- Status line: alag row, bada aur wrap hone wala, taake saaf nazar aaye -->
+        <Border Grid.Row="1" Background="#FFE3F2FD" CornerRadius="6" Padding="12,6" Margin="0,0,0,8">
+            <TextBlock Text="{Binding StatusLine}" FontSize="15" FontWeight="SemiBold"
+                       Foreground="#FF0D47A1" TextWrapping="Wrap"/>
+        </Border>
+
+        <Grid Grid.Row="2">
             <!-- GMap control -->
             <gmap:GMapControl x:Name="Map" MouseWheelZoomEnabled="True"
-                              CanDragMap="True" MinZoom="4" MaxZoom="18" Zoom="13"/>
+                              CanDragMap="True" MinZoom="4" MaxZoom="18" Zoom="13"
+                              Cursor="Hand"/>
+
+            <!-- Map controls: zoom (+/-), buses ko dobara fit karna. Drag = hand se map hilayein. -->
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                        Margin="14">
+                <Button Content="+" Width="44" Height="44" FontSize="22" FontWeight="Bold"
+                        ToolTip="Zoom in" Click="ZoomIn_Click" Margin="0,0,0,6"/>
+                <Button Content="−" Width="44" Height="44" FontSize="22" FontWeight="Bold"
+                        ToolTip="Zoom out" Click="ZoomOut_Click" Margin="0,0,0,6"/>
+                <Button Content="🎯 Buses dikhayein" Padding="10,6" FontSize="13"
+                        ToolTip="Sab live buses screen par laayein" Click="FitBuses_Click"/>
+            </StackPanel>
+
+            <!-- Right-side live list -->
 
             <!-- Right-side live list -->
             <!-- map-tile status/error banner (code-behind: probe ke baad dikhti hai) -->

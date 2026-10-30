@@ -1,10 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_updater.dart';
 import '../core/models.dart';
+import 'live_bus_map.dart';
 import '../providers/children_provider.dart';
 import '../providers/locale_provider.dart';
 
@@ -179,26 +179,18 @@ class _ChildCardView extends StatelessWidget {
             ),
           if (mapExpanded && child.busId != null)
             SizedBox(
-              height: 220,
+              height: 340,
               child: live == null
-                  ? Center(child: Text(loc.t('waiting_gps')))
-                  : GoogleMap(
-                      initialCameraPosition: CameraPosition(
-                        target: LatLng(live!.latitude, live!.longitude),
-                        zoom: 15,
-                      ),
-                      markers: {
-                        Marker(
-                          markerId: MarkerId('bus-${child.busId}'),
-                          position: LatLng(live!.latitude, live!.longitude),
-                          infoWindow: InfoWindow(
-                              title: '${loc.t('bus_lbl')} #${child.busNumber}',
-                              snippet: live!.timePakistan),
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          'Bus ki location abhi nahi aayi. Driver app par trip start hote hi yahan dikhegi.',
+                          textAlign: TextAlign.center,
                         ),
-                      },
-                      myLocationButtonEnabled: false,
-                      zoomControlsEnabled: false,
-                    ),
+                      ),
+                    )
+                  : LiveBusMap(loc: live!, title: 'Bus #${child.busNumber ?? child.busId}'),
             ),
         ],
       ),

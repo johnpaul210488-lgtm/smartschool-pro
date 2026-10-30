@@ -15,6 +15,7 @@ public interface IUnitOfWork : IDisposable, IAsyncDisposable
     IRepository<Trip> Trips { get; }
     IRepository<BusAttendance> BusAttendances { get; }
     IRepository<WhatsAppLog> WhatsAppLogs { get; }
+    IRepository<WhatsAppConsent> WhatsAppConsents { get; }
     IRepository<ParentStudent> ParentStudents { get; }
     IRepository<DeviceToken> DeviceTokens { get; }
     IRepository<Announcement> Announcements { get; }

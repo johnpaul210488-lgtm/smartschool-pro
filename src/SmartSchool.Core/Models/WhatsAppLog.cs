@@ -3,9 +3,8 @@ using SmartSchool.Shared.Enums;
 namespace SmartSchool.Core.Models;
 
 /// <summary>
-/// Durable outbox row for every WhatsApp message: written BEFORE the first
-/// send attempt so a crash or Twilio outage never loses a message - the
-/// background queue retries Queued rows with backoff.
+/// Durable provider-neutral outbox row for every WhatsApp alert, written before
+/// the first send attempt. Upgrade migration explicitly retires unfinished legacy rows.
 /// </summary>
 public sealed class WhatsAppLog
 {
@@ -31,7 +30,7 @@ public sealed class WhatsAppLog
 
     public string? Error { get; set; }
 
-    /// <summary>Twilio SID (or DRYRUN-* in dev mode).</summary>
+    /// <summary>Provider identifier, if known; submission is not proof of delivery.</summary>
     public string? ProviderMessageId { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

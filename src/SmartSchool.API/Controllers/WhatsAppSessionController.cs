@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartSchool.Core.Interfaces;
@@ -15,10 +16,29 @@ public sealed class WhatsAppSessionController : BaseApiController
 
     public WhatsAppSessionController(IWhatsAppSessionManager sessions) => _sessions = sessions;
 
+    private bool IsSecureAdminChannel()
+    {
+        // QR/session material is for the native admin app, never browser-origin fetch.
+        if (Request.Headers.ContainsKey("Origin") || Request.Headers.ContainsKey("Sec-Fetch-Site"))
+            return false;
+        if (Request.IsHttps) return true;
+        var remote = HttpContext.Connection.RemoteIpAddress;
+        return remote is not null && IPAddress.IsLoopback(
+            remote.IsIPv4MappedToIPv6 ? remote.MapToIPv4() : remote);
+    }
+
+    private ActionResult<ApiResponse<WhatsAppSessionInfo>> InsecureChannel()
+        => StatusCode(StatusCodes.Status403Forbidden,
+            ApiResponse<WhatsAppSessionInfo>.Fail(
+                "Open WhatsApp Connection in the admin app on the server PC, or configure trusted HTTPS."));
+
     /// <summary>Current provider, connection/QR state and enforced safety counters.</summary>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<WhatsAppSessionInfo>>> Get(CancellationToken ct)
-        => OkEnvelope(await _sessions.GetStatusAsync(ct));
+    {
+        if (!IsSecureAdminChannel()) return InsecureChannel();
+        return OkEnvelope(await _sessions.GetStatusAsync(ct));
+    }
 
     /// <summary>
     /// Starts/restores linked-device login. A QR is never generated until an
@@ -29,6 +49,7 @@ public sealed class WhatsAppSessionController : BaseApiController
         WhatsAppConnectRequest request,
         CancellationToken ct)
     {
+        if (!IsSecureAdminChannel()) return InsecureChannel();
         if (!request.AcceptTermsAndRisk)
             return BadRequestEnvelope(
                 "Read and accept the WhatsApp terms/compliance notice before generating a QR code.");
@@ -50,6 +71,7 @@ public sealed class WhatsAppSessionController : BaseApiController
         WhatsAppLogoutRequest request,
         CancellationToken ct)
     {
+        if (!IsSecureAdminChannel()) return InsecureChannel();
         if (!request.ConfirmUnlink)
             return BadRequestEnvelope("Explicit unlink confirmation is required.");
 

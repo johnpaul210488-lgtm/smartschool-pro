@@ -6,6 +6,8 @@ on:
     branches: [ main ]
     paths:
       - 'apps/parent_app/**'
+      - 'scripts/configure_parent_android.py'
+      - 'tests/test_configure_parent_android.py'
       - '.github/workflows/flutter-parent-ci.yml'
   workflow_dispatch:
 
@@ -34,3 +36,10 @@ jobs:
 
       - name: Analyze
         run: flutter analyze --no-fatal-infos
+
+      - name: Push registration tests
+        run: flutter test
+
+      - name: Android Firebase configuration tests
+        working-directory: .
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v

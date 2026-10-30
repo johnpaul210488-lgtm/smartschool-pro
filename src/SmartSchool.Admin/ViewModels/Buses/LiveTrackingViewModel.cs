@@ -35,9 +35,39 @@ public partial class LiveTrackingViewModel : ObservableObject, IDisposable
 
     public LiveTrackingViewModel()
     {
-        WeakReferenceMessenger.Default.Register<BusLocationMessage>(this, (_, m) =>
+        WeakReferenceMessenger.Default.Register<BusLocationMessage>(this, (_, m) => Apply(m.Payload));
+
+        WeakReferenceMessenger.Default.Register<TripUpdateMessage>(this, (_, m) =>
         {
-            var u = m.Payload;
+            if (m.Payload.Status is "Completed" or "Cancelled")
+            {
+                var pin = Pins.FirstOrDefault(p => p.BusId == m.Payload.BusId);
+                if (pin is not null) Pins.Remove(pin);
+                AnyBusLive = Pins.Count > 0;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Map khulte hi active buses ki aakhri location server se lata hai, taake bus
+    /// agle GPS ping ka intezar kiye baghair nazar aaye. View ke DataContext set hone ke baad call karein.
+    /// </summary>
+    public async Task LoadSnapshotAsync()
+    {
+        var r = await ApiClient.Instance.LiveBusesAsync();
+        if (!r.Ok || r.Data is null)
+        {
+            // Server purana ho to live endpoint nahi milta: masla yahan saaf dikhayein.
+            StatusLine = "⚠️ Server se live data nahi mila. Server ko v1.1.79 par update karein.";
+            return;
+        }
+        foreach (var u in r.Data) Apply(u);
+        if (r.Data.Count == 0) StatusLine = "Abhi koi bus live nahi (koi trip shuru nahi hui).";
+    }
+
+    private void Apply(BusLocationUpdate u)
+    {
+        {
             var pin = Pins.FirstOrDefault(p => p.BusId == u.BusId);
             if (pin is null)
             {
@@ -54,17 +84,7 @@ public partial class LiveTrackingViewModel : ObservableObject, IDisposable
             AnyBusLive = true;
             StatusLine = $"🟢 {Pins.Count} bus(es) live — last: Bus #{u.BusNumber} @ {u.TimePakistan}";
             LocationArrived?.Invoke(u);
-        });
-
-        WeakReferenceMessenger.Default.Register<TripUpdateMessage>(this, (_, m) =>
-        {
-            if (m.Payload.Status is "Completed" or "Cancelled")
-            {
-                var pin = Pins.FirstOrDefault(p => p.BusId == m.Payload.BusId);
-                if (pin is not null) Pins.Remove(pin);
-                AnyBusLive = Pins.Count > 0;
-            }
-        });
+        }
     }
 
     public void Dispose() => WeakReferenceMessenger.Default.UnregisterAll(this);

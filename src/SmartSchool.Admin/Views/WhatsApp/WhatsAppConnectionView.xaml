@@ -99,6 +99,53 @@
                         </StackPanel>
                     </materialDesign:Card>
 
+                    <materialDesign:Card Padding="20" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Recipient permission" FontSize="17" FontWeight="SemiBold"/>
+                            <TextBlock Text="A current father/mother number is eligible only after staff records the recipient’s explicit permission. A parent-app opt-out still blocks sending."
+                                       TextWrapping="Wrap" Opacity="0.72" Margin="0,6,0,12"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Text="{Binding StudentSearch, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                         materialDesign:HintAssist.Hint="Student name or roll number" Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="Search" Command="{Binding SearchStudentsCommand}"
+                                        IsEnabled="{Binding IsIdle}" Style="{StaticResource QisOutlineButton}"/>
+                            </Grid>
+
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox ItemsSource="{Binding Students}" SelectedItem="{Binding SelectedStudent}"
+                                          DisplayMemberPath="FullName" materialDesign:HintAssist.Hint="Student"
+                                          Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="Load numbers" Command="{Binding LoadContactsCommand}"
+                                        IsEnabled="{Binding IsIdle}" Style="{StaticResource QisOutlineButton}"/>
+                            </Grid>
+
+                            <ComboBox ItemsSource="{Binding Contacts}" SelectedItem="{Binding SelectedContact}"
+                                      DisplayMemberPath="Description" materialDesign:HintAssist.Hint="Recipient"
+                                      Margin="0,10,0,0"/>
+                            <CheckBox IsChecked="{Binding ParentPermissionConfirmed}" Margin="2,12,0,10">
+                                <TextBlock Text="I confirm this recipient explicitly agreed to these transactional school alerts."
+                                           TextWrapping="Wrap"/>
+                            </CheckBox>
+                            <WrapPanel>
+                                <Button Content="Record permission" Command="{Binding GrantConsentCommand}"
+                                        IsEnabled="{Binding IsIdle}" Style="{StaticResource QisPrimaryButton}" Margin="0,0,8,8"/>
+                                <Button Content="Revoke permission" Command="{Binding RevokeConsentCommand}"
+                                        IsEnabled="{Binding IsIdle}" Style="{StaticResource QisDangerButton}" Margin="0,0,8,8"/>
+                            </WrapPanel>
+                            <TextBlock Text="{Binding ConsentFeedback}" TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.78"/>
+                        </StackPanel>
+                    </materialDesign:Card>
+
                     <materialDesign:Card Padding="20">
                         <StackPanel>
                             <TextBlock Text="Safe operating rules" FontSize="17" FontWeight="SemiBold"/>

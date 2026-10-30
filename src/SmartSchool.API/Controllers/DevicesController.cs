@@ -15,8 +15,13 @@ namespace SmartSchool.API.Controllers;
 public sealed class DevicesController : BaseApiController
 {
     private readonly IUnitOfWork _uow;
+    private readonly ILogger<DevicesController> _logger;
 
-    public DevicesController(IUnitOfWork uow) => _uow = uow;
+    public DevicesController(IUnitOfWork uow, ILogger<DevicesController> logger)
+    {
+        _uow = uow;
+        _logger = logger;
+    }
 
     [HttpPost("register")]
     public async Task<ActionResult<ApiResponse<object>>> Register(RegisterDeviceRequest request, CancellationToken ct)
@@ -46,6 +51,8 @@ public sealed class DevicesController : BaseApiController
         }
 
         await _uow.SaveChangesAsync(ct);
+        // Never write the FCM token itself to the logs.
+        _logger.LogInformation("FCM device registered for user {UserId} on {Platform}.", CallerUserId, platform);
         return OkEnvelope(new { registered = true }, "Device registered for push notifications.");
     }
 

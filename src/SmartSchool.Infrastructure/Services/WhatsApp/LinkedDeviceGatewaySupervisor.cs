@@ -16,6 +16,7 @@ public sealed class LinkedDeviceGatewaySupervisor : BackgroundService
     private readonly HttpClient _healthClient;
     private Process? _ownedProcess;
     private int _consecutiveStartFailures;
+    private int _consecutiveUnhealthyChecks;
 
     public LinkedDeviceGatewaySupervisor(
         IOptions<WhatsAppOptions> options,
@@ -42,14 +43,23 @@ public sealed class LinkedDeviceGatewaySupervisor : BackgroundService
         {
             try
             {
-                if (!await IsHealthyAsync(linked.BaseUrl, stoppingToken)
-                    && (_ownedProcess is null || _ownedProcess.HasExited))
+                var healthy = await IsHealthyAsync(linked.BaseUrl, stoppingToken);
+                if (healthy)
+                {
+                    _consecutiveStartFailures = 0;
+                    _consecutiveUnhealthyChecks = 0;
+                }
+                else if (_ownedProcess is null || _ownedProcess.HasExited)
                 {
                     StartGateway(linked);
                 }
-                else if (_ownedProcess is { HasExited: false })
+                else if (++_consecutiveUnhealthyChecks >= 6)
                 {
-                    _consecutiveStartFailures = 0;
+                    _logger.LogWarning(
+                        "Owned linked-device gateway stayed unhealthy for {Checks} checks; restarting it.",
+                        _consecutiveUnhealthyChecks);
+                    _ownedProcess.Kill(entireProcessTree: true);
+                    _consecutiveUnhealthyChecks = 0;
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -95,6 +105,7 @@ public sealed class LinkedDeviceGatewaySupervisor : BackgroundService
 
     private void StartGateway(LinkedDeviceOptions linked)
     {
+        _consecutiveUnhealthyChecks = 0;
         _ownedProcess?.Dispose();
         _ownedProcess = null;
 

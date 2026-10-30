@@ -4,7 +4,7 @@
 class S {
   static const Map<String, Map<String, String>> _t = {
     'en': {
-      'app_name': 'SmartSchool Parent',
+      'app_name': 'Queen International School',
       'username': 'Username / Phone',
       'password': 'Password',
       'login': 'Login',
@@ -48,6 +48,12 @@ class S {
       'english': 'English',
       'urdu': 'اردو (Urdu)',
       'whatsapp_alerts': 'WhatsApp Alerts',
+      'push_notifications': 'App Notifications',
+      'push_checking': 'Checking device registration…',
+      'push_registered': 'Device registered. Delivery also requires Firebase on the school server.',
+      'push_permission_denied': 'Notifications are off. Enable them in phone settings.',
+      'push_registration_failed': 'Device not registered. Check the school server and retry.',
+      'push_unavailable': 'Firebase unavailable. Check app setup and internet, then retry.',
       'phone_number': 'Phone Number',
       'save': 'Save',
       'saved': 'Saved ✔',
@@ -59,7 +65,7 @@ class S {
       'refresh': 'Refresh',
     },
     'ur': {
-      'app_name': 'SmartSchool Parent',
+      'app_name': 'Queen International School',
       'username': 'Username / Phone',
       'password': 'Password',
       'login': 'Login Karein',
@@ -103,6 +109,12 @@ class S {
       'english': 'English',
       'urdu': 'اردو (Urdu)',
       'whatsapp_alerts': 'WhatsApp Alerts',
+      'push_notifications': 'App Notifications',
+      'push_checking': 'Device registration check ho rahi hai…',
+      'push_registered': 'Device registered hai. Delivery ke liye school server par Firebase bhi zaroori hai.',
+      'push_permission_denied': 'Notifications band hain. Phone settings mein on karein.',
+      'push_registration_failed': 'Device register nahi hua. School server check kar ke dobara koshish karein.',
+      'push_unavailable': 'Firebase nahi chal raha. App setup aur internet check kar ke dobara koshish karein.',
       'phone_number': 'Phone Number',
       'save': 'Save Karein',
       'saved': 'Save ho gaya ✔',

@@ -11,6 +11,7 @@ on:
       - 'src/SmartSchool.Infrastructure/**'
       - 'src/SmartSchool.Shared/**'
       - 'src/SmartSchool.Admin/**'
+      - 'tests/SmartSchool.Tests/**'
       - 'SmartSchool.sln'
       - '.github/workflows/api-ci.yml'
   workflow_dispatch:
@@ -31,6 +32,9 @@ jobs:
 
       - name: Build (Release)
         run: dotnet build SmartSchool.sln --configuration Release --no-restore
+
+      - name: Notification regression tests
+        run: dotnet test tests/SmartSchool.Tests/SmartSchool.Tests.csproj --configuration Release
 
       - name: EF Core model check (migrations script must generate)
         run: |

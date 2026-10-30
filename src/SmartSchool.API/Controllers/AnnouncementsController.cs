@@ -20,12 +20,15 @@ public sealed class AnnouncementsController : BaseApiController
     private readonly IUnitOfWork _uow;
     private readonly ISchoolNotificationService _notify;
     private readonly IFcmSender _fcm;
+    private readonly ILogger<AnnouncementsController> _logger;
 
-    public AnnouncementsController(IUnitOfWork uow, ISchoolNotificationService notify, IFcmSender fcm)
+    public AnnouncementsController(IUnitOfWork uow, ISchoolNotificationService notify, IFcmSender fcm,
+        ILogger<AnnouncementsController> logger)
     {
         _uow = uow;
         _notify = notify;
         _fcm = fcm;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -79,15 +82,20 @@ public sealed class AnnouncementsController : BaseApiController
         try
         {
             var tokens = await _uow.DeviceTokens.Query()
-                .Where(d => d.User.Role == Shared.Enums.UserRole.Parent)
+                .Where(d => d.User.Role == Shared.Enums.UserRole.Parent && d.User.IsActive)
                 .Select(d => d.Token)
                 .ToListAsync(ct);
+            if (tokens.Count == 0)
+                _logger.LogWarning("FCM skipped for announcement {AnnouncementId}: no parent devices are registered.", announcement.Id);
             await _fcm.SendToDevicesAsync(tokens,
                 new FcmPush($"📢 {title}", body.Length > 120 ? body[..120] + "…" : body,
                     new Dictionary<string, string> { ["type"] = "announcement", ["id"] = announcement.Id.ToString() }),
                 ct);
         }
-        catch { /* push is best-effort */ }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "FCM push failed for announcement {AnnouncementId}", announcement.Id);
+        }
 
         return OkEnvelope(new AnnouncementListItem(announcement.Id, title, body, author, timeText),
             "Announcement published.");

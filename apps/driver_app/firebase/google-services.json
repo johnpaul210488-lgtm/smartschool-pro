@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "744028150485",
+    "project_id": "queen-school",
+    "storage_bucket": "queen-school.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:744028150485:android:222c6f9f7efe434118a05c",
+        "android_client_info": {
+          "package_name": "com.smartschool.smartschool_driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBT1toWc7azFp47xvievoQeDQJyTWhlXis"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

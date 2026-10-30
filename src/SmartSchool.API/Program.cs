@@ -162,6 +162,7 @@ try
     // ----------------------------- App services -----------------------------
     builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
     builder.Services.AddSingleton<ISchoolNotificationService, SchoolNotificationService>();
+    builder.Services.AddSingleton<SmartSchool.API.Services.LiveBusTracker>();
 
     // Provider-neutral WhatsApp boundary. Existing installations that only have
     // Twilio:* keep working; fresh configurations use the explicit WhatsApp:Provider.
@@ -212,7 +213,7 @@ try
     builder.Services.AddHostedService<LinkedDeviceGatewaySupervisor>();
     builder.Services.AddHostedService<WhatsAppQueueHostedService>();
 
-    builder.Services.AddHttpClient<IGeocodingService, GoogleMapsGeocodingService>();
+    builder.Services.AddHttpClient<IGeocodingService, OsmGeocodingService>();
 
     // Firebase Cloud Messaging: dry-run until Firebase:Enabled=true + credentials JSON path set.
     builder.Services.AddSingleton<IFcmSender, FirebaseFcmSender>();
@@ -234,6 +235,10 @@ try
     builder.Services.AddHostedService<SmartSchool.API.Services.IoT.ThingWorxRelayService>();
 
     var app = builder.Build();
+
+    // Surface a disabled/misconfigured FCM setup at startup, even if no devices
+    // have registered yet. This does not connect to Firebase or send a push.
+    _ = app.Services.GetRequiredService<IFcmSender>();
 
     // ----------------------------- DB init + seed ---------------------------
     // NEVER die on DB problems (LocalDB cold start, missing install, etc.):

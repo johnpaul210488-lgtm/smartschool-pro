@@ -45,6 +45,9 @@ jobs:
       - name: Build (Release, warnings as errors off)
         run: dotnet build SmartSchool.sln --configuration Release --no-restore
 
+      - name: Notification regression tests
+        run: dotnet test tests/SmartSchool.Tests/SmartSchool.Tests.csproj --configuration Release
+
       - name: EF Core migrations script must generate
         run: |
           dotnet tool install --global dotnet-ef --version 8.0.*
@@ -56,6 +59,8 @@ jobs:
           echo "---- generated migration statements ----"
           grep -c "CREATE TABLE\|ALTER TABLE\|CREATE INDEX" /tmp/ef-check.sql || true
           if grep -q "FeePayments" /tmp/ef-check.sql; then echo "FeePayments migration present"; else echo "FeePayments migration MISSING"; exit 1; fi
+          grep -q "WhatsAppConsents" /tmp/ef-check.sql || { echo "WhatsAppConsents migration MISSING"; exit 1; }
+          grep -q "RetryWindowStartedAtUtc" /tmp/ef-check.sql || { echo "Durable WhatsApp safety migration MISSING"; exit 1; }
 
   api-smoke:
     name: API smoke test (SQL Server 2022)
@@ -99,6 +104,11 @@ jobs:
             sleep 2
           done
           curl -sS http://127.0.0.1:5000/health || (tail -n 100 /tmp/api.log && exit 1)
+
+      - name: SQL outbox atomic-claim regression test
+        env:
+          SQL_WHATSAPP_TEST_CONNECTION: 'Server=127.0.0.1,1433;Database=SmartSchoolPro;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True;MultipleActiveResultSets=true'
+        run: dotnet test tests/SmartSchool.Tests/SmartSchool.Tests.csproj --configuration Release --filter FullyQualifiedName~SqlAtomicClaimPreventsConcurrentDuplicateSubmission
 
       - name: Fee plan + partial payment smoke test
         run: bash scripts/fees-api-smoke-test.sh
@@ -190,11 +200,30 @@ jobs:
         with:
           channel: stable
           cache: true
-      - name: pub get + analyze
+      - name: pub get + analyze + notification tests
         working-directory: apps/parent_app
         run: |
           flutter pub get
           flutter analyze --no-fatal-infos
+          flutter test
+
+      - name: Firebase Android configuration tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+  firebase-server-setup:
+    name: Firebase server setup (Windows PowerShell 5.1)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate credential and configuration handling
+        shell: powershell
+        run: |
+          try { .\tests\windows\test-firebase-setup.ps1 }
+          catch {
+            $message = "$($_.Exception.Message)`n$($_.ScriptStackTrace)".Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+            Write-Output "::error title=Firebase setup test failed::$message"
+            exit 1
+          }
 
   admin-exe:
     name: Admin exe (Windows, downloadable)

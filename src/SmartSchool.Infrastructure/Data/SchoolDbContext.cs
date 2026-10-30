@@ -24,6 +24,7 @@ public sealed class SchoolDbContext : DbContext
     public DbSet<Trip> Trips => Set<Trip>();
     public DbSet<BusAttendance> BusAttendances => Set<BusAttendance>();
     public DbSet<WhatsAppLog> WhatsAppLogs => Set<WhatsAppLog>();
+    public DbSet<WhatsAppConsent> WhatsAppConsents => Set<WhatsAppConsent>();
     public DbSet<ParentStudent> ParentStudents => Set<ParentStudent>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
@@ -114,6 +115,7 @@ public sealed class SchoolDbContext : DbContext
         mb.Entity<Fee>(e =>
         {
             e.ToTable("Fees");
+            e.HasQueryFilter(x => !x.IsDeleted); // soft-deleted bills are invisible unless IgnoreQueryFilters() is used
             e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
             e.Property(x => x.AmountPaid).HasColumnType("decimal(18,2)");
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
@@ -149,6 +151,7 @@ public sealed class SchoolDbContext : DbContext
             e.ToTable("ClassFeePlanItems");
             e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
             e.Property(x => x.BillingCycle).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.DisplayName).HasMaxLength(100);
             e.HasIndex(x => new { x.ClassId, x.FeeHeadId }).IsUnique();
             e.HasOne(x => x.Class).WithMany().HasForeignKey(x => x.ClassId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.FeeHead).WithMany(h => h.ClassPlanItems)
@@ -237,6 +240,15 @@ public sealed class SchoolDbContext : DbContext
              .HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(x => new { x.Status, x.NextAttemptAtUtc });
             e.HasIndex(x => x.StudentId);
+        });
+
+        mb.Entity<WhatsAppConsent>(e =>
+        {
+            e.ToTable("WhatsAppConsents");
+            e.Property(x => x.PhoneE164).HasMaxLength(16).IsRequired();
+            e.HasIndex(x => new { x.StudentId, x.PhoneE164 }).IsUnique();
+            e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         mb.Entity<ParentStudent>(e =>

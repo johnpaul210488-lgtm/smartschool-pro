@@ -28,7 +28,15 @@ public enum WhatsAppStatus
 {
     Queued = 0,
     Sent = 1,
-    Failed = 2
+    Failed = 2,
+    // Retained for database compatibility and audit display. The current worker
+    // processes only Queued; these states never cross the provider boundary.
+    PendingQr = 3,
+    Sending = 4,
+    Submitted = 5,
+    Unknown = 6,
+    Held = 7,
+    Expired = 8
 }
 
 public enum TripType

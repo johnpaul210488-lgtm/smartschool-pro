@@ -32,12 +32,13 @@ public partial class App : Application
                     ? $"✅ Report bhej di gai — GitHub par issue #{n} ban gai. {((result.Occurrences > 1) ? $"(yeh crash ab tak {result.Occurrences} dafa aya)" : "")}"
                     : "✅ Report server mein save ho gai — GitHub off hai to jab server online ho khud GitHub chali jayegi.";
             MessageBox.Show(
-                $"Masoom masla aa gaya — app ab band ho jayegi.\n\n" +
+                $"Ek kaam mein masla aa gaya — app chalti rahegi, bas woh kaam dobara karein.\n\n" +
                 $"{reportLine}\n\n" +
                 $"Is issue par kaam shuru karne ke liye bas mujhe keh dein: 'GitHub par nayi bug report aayi hai'.\n\n" +
                 $"— Technical detail —\n{ex.GetType().Name}: {ex.Message}",
                 "Queen International School — Bug report", MessageBoxButton.OK, MessageBoxImage.Warning);
-            e.Handled = false;
+            // App band nahi hogi: UI ka ek action fail ho to baaqi kaam (students, attendance, fees) chalta rahe.
+            e.Handled = true;
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => WriteCrash(e.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, e) => { WriteCrash(e.Exception); e.SetObserved(); };

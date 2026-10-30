@@ -11,6 +11,11 @@ on:
       version:
         description: 'Version (e.g. v1.1.0)'
         required: true
+      preview_only:
+        description: 'Build downloadable artifacts without publishing a GitHub Release'
+        type: boolean
+        default: false
+        required: false
 
 permissions:
   contents: write
@@ -26,6 +31,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '8.0.x' }
+
+      - name: Verify Firebase server setup
+        shell: powershell
+        run: |
+          try { .\tests\windows\test-firebase-setup.ps1 }
+          catch {
+            $message = "$($_.Exception.Message)`n$($_.ScriptStackTrace)".Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
+            Write-Output "::error title=Firebase setup test failed::$message"
+            exit 1
+          }
 
       - name: Publish admin exe (version = tag)
         shell: pwsh
@@ -58,6 +73,7 @@ jobs:
           VER="${RELEASE_TAG#v}"
           cd apps/driver_app
           flutter create --platforms android --org com.smartschool --project-name smartschool_driver .
+          python3 ../../tools/ci/firebase_setup.py android firebase/google-services.json
           # flutter_local_notifications release builds need core library desugaring
           G=android/app/build.gradle.kts; [ -f "$G" ] || G=android/app/build.gradle
           printf '\nandroid { compileOptions { isCoreLibraryDesugaringEnabled = true } }\ndependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") }\n' >> "$G"
@@ -70,20 +86,31 @@ jobs:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
       - name: Build parent APK
+        env:
+          PARENT_GOOGLE_SERVICES_JSON: ${{ secrets.PARENT_GOOGLE_SERVICES_JSON }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           set -e
           VER="${RELEASE_TAG#v}"
           cd apps/parent_app
           flutter create --platforms android --org com.smartschool --project-name smartschool_parent .
+          # The checked-in client config is already public in existing APKs.
+          # The optional override must also be Android config, NEVER a service-account key.
+          if [ -n "$PARENT_GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$PARENT_GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          elif [ -f firebase/google-services.json ]; then
+            cp firebase/google-services.json android/app/google-services.json
+          else
+            echo '::error::Parent Firebase Android app config is missing.'
+            exit 1
+          fi
+          python3 ../../scripts/configure_parent_android.py . --expected-project queen-school
+          sed -i 's|android:label="[^"]*"|android:label="Queen International School"|' android/app/src/main/AndroidManifest.xml
           sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>|' android/app/src/main/AndroidManifest.xml
-          G=android/app/build.gradle.kts; [ -f "$G" ] || G=android/app/build.gradle
-          printf '\nandroid { compileOptions { isCoreLibraryDesugaringEnabled = true } }\ndependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") }\n' >> "$G"
           flutter pub get
-          flutter build apk --release --build-name="$VER" --build-number=$((GITHUB_RUN_NUMBER + 1)) || flutter build apk --release --build-name="$VER"
+          flutter build apk --release --build-name="$VER" --build-number=$((GITHUB_RUN_NUMBER + 1))
           cp build/app/outputs/flutter-apk/app-release.apk ../../dist/parent-release.apk
-        env:
-          RELEASE_TAG: ${{ env.RELEASE_TAG }}
-          GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -114,14 +141,15 @@ jobs:
   # ---------------- One-click school-server installer (Inno Setup) ----------------
   installer:
     runs-on: windows-latest
-    needs: [admin-exe]
+    # Never publish an installer unless the complete EF migration graph compiled.
+    needs: [admin-exe, efbundle]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '8.0.x' }
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: '22.22.3'
           cache: npm
           cache-dependency-path: src/SmartSchool.WhatsAppGateway/package-lock.json
 
@@ -135,24 +163,27 @@ jobs:
         run: |
           $v = $env:RELEASE_TAG.TrimStart('v','V')
           # CHANGED: stamp the API binaries so the installed server version is verifiable.
-          dotnet publish src/SmartSchool.API/SmartSchool.API.csproj -c Release -p:Version=$v -p:InformationalVersion=$v -o build-artifacts/api
+          dotnet publish src/SmartSchool.API/SmartSchool.API.csproj -c Release -r win-x64 --self-contained true `
+            -p:Version=$v -p:InformationalVersion=$v -o build-artifacts/api
           Copy-Item installer/appsettings.installer.json build-artifacts/api/appsettings.json -Force
-          $key = -join ((48..57)+(65..90)+(97..122) | Get-Random -Count 64 | % {[char]$_})
-          (Get-Content build-artifacts/api/appsettings.json) -replace '__JWT_KEY__', $key | Set-Content build-artifacts/api/appsettings.json
+          # Leave the placeholder for the installer to replace locally on each fresh install.
+          # An upgrade preserves its existing config/key byte-for-byte.
 
-      - name: Stage portable linked-device gateway
+      - name: Test and stage portable linked-device gateway
         shell: pwsh
         run: |
           Push-Location src/SmartSchool.WhatsAppGateway
           npm ci --omit=dev
+          npm run check
           npm test
+          npm audit --omit=dev
           Pop-Location
           $dest = "build-artifacts/whatsapp-gateway"
           New-Item -ItemType Directory -Force "$dest/src" | Out-Null
           Copy-Item src/SmartSchool.WhatsAppGateway/src/* "$dest/src" -Recurse -Force
-          Copy-Item src/SmartSchool.WhatsAppGateway/package.json,src/SmartSchool.WhatsAppGateway/package-lock.json $dest -Force
+          Copy-Item src/SmartSchool.WhatsAppGateway/package.json,src/SmartSchool.WhatsAppGateway/package-lock.json,src/SmartSchool.WhatsAppGateway/NODE-LICENSE $dest -Force
           Copy-Item src/SmartSchool.WhatsAppGateway/node_modules "$dest/node_modules" -Recurse -Force
-          # A private filename lets the installer stop only our portable Node process.
+          # Product-specific filename allows the installer/supervisor to stop only its own runtime.
           Copy-Item (Get-Command node).Source "$dest/SmartSchool.WhatsAppGateway.exe" -Force
 
       - name: Download SQL Server LocalDB installer (2022) + VERIFY it is a real MSI
@@ -185,6 +216,7 @@ jobs:
 
   # ---------------- GitHub Release with everything attached ----------------
   release:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.preview_only }}
     runs-on: ubuntu-latest
     needs: [admin-exe, apks, installer]
     steps:
@@ -203,6 +235,7 @@ jobs:
           cp release-files/apks/*.apk dist/
           cp release-files/installer-exe/*.exe dist/
           gh release create "$RELEASE_TAG" dist/* \
+            --target "$GITHUB_SHA" \
             --title "Queen International School $RELEASE_TAG" \
             --generate-notes \
             --latest

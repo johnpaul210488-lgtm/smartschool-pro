@@ -25,6 +25,7 @@ GO
 -- ---------- drop children first (safe re-run) ----------
 IF OBJECT_ID('dbo.DeviceTokens',  'U') IS NOT NULL DROP TABLE dbo.DeviceTokens;
 IF OBJECT_ID('dbo.ParentStudents','U') IS NOT NULL DROP TABLE dbo.ParentStudents;
+IF OBJECT_ID('dbo.WhatsAppConsents','U') IS NOT NULL DROP TABLE dbo.WhatsAppConsents;
 IF OBJECT_ID('dbo.WhatsAppLogs',  'U') IS NOT NULL DROP TABLE dbo.WhatsAppLogs;
 IF OBJECT_ID('dbo.BusAttendance', 'U') IS NOT NULL DROP TABLE dbo.BusAttendance;
 IF OBJECT_ID('dbo.Trips',         'U') IS NOT NULL DROP TABLE dbo.Trips;
@@ -208,10 +209,24 @@ CREATE TABLE dbo.WhatsAppLogs
     SentAtUtc              DATETIME2        NULL,
     CONSTRAINT UQ_WaLogs_CorrelationId UNIQUE (CorrelationId),
     CONSTRAINT FK_WaLogs_Students FOREIGN KEY (StudentId) REFERENCES dbo.Students (Id) ON DELETE SET NULL,
-    CONSTRAINT CK_WaLogs_Status CHECK ([Status] IN ('Queued','Sent','Failed'))
+    CONSTRAINT CK_WaLogs_Status CHECK ([Status] IN ('Queued','Sent','Failed','PendingQr','Sending','Submitted','Unknown','Held','Expired'))
 );
 CREATE INDEX IX_WaLogs_Status_NextAttempt ON dbo.WhatsAppLogs ([Status], NextAttemptAtUtc);
 CREATE INDEX IX_WaLogs_StudentId          ON dbo.WhatsAppLogs (StudentId);
+
+-- Explicit recipient permission; a parent-app opt-out still takes precedence.
+CREATE TABLE dbo.WhatsAppConsents
+(
+    Id              BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_WhatsAppConsents PRIMARY KEY,
+    StudentId       INT              NOT NULL,
+    PhoneE164       NVARCHAR(16)     NOT NULL,
+    Granted         BIT              NOT NULL,
+    ChangedAtUtc    DATETIME2        NOT NULL,
+    ChangedByUserId INT              NOT NULL,
+    CONSTRAINT FK_WhatsAppConsents_Students FOREIGN KEY (StudentId) REFERENCES dbo.Students (Id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IX_WhatsAppConsents_StudentId_PhoneE164
+    ON dbo.WhatsAppConsents (StudentId, PhoneE164);
 
 -- ---------- parent app links & push tokens ----------
 CREATE TABLE dbo.ParentStudents

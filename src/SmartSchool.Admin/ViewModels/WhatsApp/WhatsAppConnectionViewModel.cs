@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -31,6 +32,18 @@ public partial class WhatsAppConnectionViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isConnected;
     [ObservableProperty] private bool _hasSavedSession;
     [ObservableProperty] private bool _isLinkedDeviceProvider;
+    [ObservableProperty] private string _studentSearch = string.Empty;
+    [ObservableProperty] private StudentListItem? _selectedStudent;
+    [ObservableProperty] private WhatsAppConsentContact? _selectedContact;
+    [ObservableProperty] private bool _parentPermissionConfirmed;
+    [ObservableProperty] private string _consentFeedback =
+        "Search a student, load the current father/mother numbers, then record permission received from that recipient.";
+
+    public ObservableCollection<StudentListItem> Students { get; } = new();
+    public ObservableCollection<WhatsAppConsentContact> Contacts { get; } = new();
+    public bool IsIdle => !IsBusy;
+
+    partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsIdle));
 
     public WhatsAppConnectionViewModel()
     {
@@ -171,6 +184,7 @@ public partial class WhatsAppConnectionViewModel : ObservableObject, IDisposable
             "unavailable" => ("Local gateway unavailable", session.LastError ?? "API supervisor gateway ko restart karega."),
             "dry_run" => ("Dry-run provider", "Koi live WhatsApp message send nahi hoga; outbox flow test mode mein hai."),
             "managed_provider" => ("Managed provider selected", "Twilio credentials/API se sending hoti hai; QR linking apply nahi karta."),
+            "configuration_error" => ("Provider configuration error", session.LastError ?? "Check the server WhatsApp provider configuration."),
             _ => ("Disconnected", session.LastError ?? "Terms accept karke QR connection start karein.")
         };
 
@@ -182,6 +196,117 @@ public partial class WhatsAppConnectionViewModel : ObservableObject, IDisposable
               $"(limit {session.Safety.MaxMessagesPerDay})  •  Random spacing " +
               $"{session.Safety.MinSendIntervalMs / 1000.0:0.#}–{session.Safety.MaxSendIntervalMs / 1000.0:0.#} sec  •  " +
               $"Per recipient/hour: {session.Safety.MaxMessagesPerRecipientHour}  •  Pending: {session.Safety.PendingRequests}";
+    }
+
+    [RelayCommand]
+    private async Task SearchStudentsAsync()
+    {
+        if (IsBusy) return;
+        if (StudentSearch.Trim().Length < 2)
+        {
+            ConsentFeedback = "Enter at least two letters of the student name or roll number.";
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var result = await _api.StudentsAsync(StudentSearch.Trim(), pageSize: 25);
+            Students.Clear();
+            Contacts.Clear();
+            SelectedStudent = null;
+            SelectedContact = null;
+            if (result.Ok && result.Data is not null)
+            {
+                foreach (var student in result.Data.Items.Where(s => s.IsActive))
+                    Students.Add(student);
+                ConsentFeedback = Students.Count == 0
+                    ? "No active student matched the search."
+                    : "Select a student, then load the current recipient numbers.";
+            }
+            else
+            {
+                ConsentFeedback = result.Error;
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadContactsAsync()
+    {
+        if (IsBusy || SelectedStudent is null) return;
+        IsBusy = true;
+        try
+        {
+            var result = await _api.GetAsync<WhatsAppConsentStudent>(
+                $"api/whatsapp-consents/student/{SelectedStudent.Id}");
+            Contacts.Clear();
+            SelectedContact = null;
+            ParentPermissionConfirmed = false;
+            if (result.Ok && result.Data is not null)
+            {
+                foreach (var contact in result.Data.Contacts)
+                    Contacts.Add(contact);
+                ConsentFeedback = Contacts.Count == 0
+                    ? "This student has no valid father/mother number."
+                    : $"{result.Data.StudentName}: select the recipient. A parent opt-out always takes precedence.";
+            }
+            else
+            {
+                ConsentFeedback = result.Error;
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private Task GrantConsentAsync() => ChangeConsentAsync(grant: true);
+
+    [RelayCommand]
+    private Task RevokeConsentAsync() => ChangeConsentAsync(grant: false);
+
+    private async Task ChangeConsentAsync(bool grant)
+    {
+        if (IsBusy || SelectedStudent is null || SelectedContact is null) return;
+        if (grant && !ParentPermissionConfirmed)
+        {
+            ConsentFeedback = "Confirm that this recipient explicitly agreed before recording permission.";
+            return;
+        }
+
+        var verb = grant ? "record permission for" : "revoke permission for";
+        if (MessageBox.Show(
+                $"{SelectedStudent.FullName}: {verb} {SelectedContact.Phone}?",
+                "WhatsApp recipient permission",
+                MessageBoxButton.YesNo,
+                grant ? MessageBoxImage.Question : MessageBoxImage.Warning,
+                MessageBoxResult.No) != MessageBoxResult.Yes)
+            return;
+
+        IsBusy = true;
+        try
+        {
+            var result = await _api.PostAsync<object>("api/whatsapp-consents", new
+            {
+                studentId = SelectedStudent.Id,
+                phone = SelectedContact.Phone,
+                granted = grant,
+                consentConfirmed = grant && ParentPermissionConfirmed
+            });
+            ConsentFeedback = result.Ok ? result.Msg : result.Error;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+        await LoadContactsAsync();
     }
 
     private static ImageSource? DecodeDataImage(string dataUrl)

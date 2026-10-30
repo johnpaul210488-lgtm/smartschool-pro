@@ -9,6 +9,7 @@ using SmartSchool.Core.Interfaces;
 using SmartSchool.Core.Models;
 using SmartSchool.Infrastructure.Data;
 using SmartSchool.Shared.Enums;
+using SmartSchool.Shared.Helpers;
 
 namespace SmartSchool.Infrastructure.Services.WhatsApp;
 
@@ -120,6 +121,10 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
     }
 
+    /// <summary>Processes one durable row; public for deterministic integration tests.</summary>
+    public Task ProcessAsync(Guid correlationId, CancellationToken ct = default)
+        => HandleJobAsync(new WhatsAppJob(correlationId, null, null, string.Empty, string.Empty), ct);
+
     private async Task HandleJobAsync(WhatsAppJob job, CancellationToken ct)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -129,20 +134,13 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
         var log = await db.WhatsAppLogs.FirstOrDefaultAsync(l => l.CorrelationId == job.CorrelationId, ct);
         if (log is null)
         {
-            log = new WhatsAppLog
-            {
-                CorrelationId = job.CorrelationId,
-                StudentId = job.StudentId,
-                ParentPhone = job.ParentPhone,
-                Message = job.Message,
-                Status = WhatsAppStatus.Queued,
-                CreatedAtUtc = DateTime.UtcNow
-            };
-            db.WhatsAppLogs.Add(log);
-            await db.SaveChangesAsync(ct);
+            _logger.LogWarning("WhatsApp wake-up {CorrelationId} has no durable outbox row; ignored.", job.CorrelationId);
+            return;
         }
 
-        if (log.Status is WhatsAppStatus.Sent or WhatsAppStatus.Failed)
+        // Compatibility/audit states from earlier QR builds are deliberately inert.
+        // Only an explicitly eligible Queued row can cross a provider boundary.
+        if (log.Status != WhatsAppStatus.Queued)
             return;
         if (string.Equals(log.FailureCode, HandoffInProgress, StringComparison.Ordinal))
         {
@@ -157,6 +155,19 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
         }
         if (log.NextAttemptAtUtc is { } notBefore && notBefore > DateTime.UtcNow)
             return;
+
+        // Consent and the student's current recipient number are revalidated at the
+        // final boundary so a revocation made after enqueue still stops the send.
+        if (!await IsRecipientAllowedAsync(db, log, ct))
+        {
+            log.Status = WhatsAppStatus.Held;
+            log.FailureCode = "consent_required";
+            log.Error = "Explicit permission is missing/revoked, the parent opted out, or the student's number changed.";
+            log.NextAttemptAtUtc = null;
+            await db.SaveChangesAsync(ct);
+            _logger.LogInformation("WhatsApp alert {CorrelationId} held by the consent gate.", log.CorrelationId);
+            return;
+        }
 
         var now = DateTime.UtcNow;
         var retryWindowStart = log.RetryWindowStartedAtUtc ?? log.CreatedAtUtc;
@@ -173,14 +184,12 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
             return;
         }
 
-        // Commit an uncertainty marker before crossing the provider boundary. If the
-        // process stops after handoff but before the result is persisted, restart
-        // recovery fails closed instead of risking a duplicate alert.
-        log.LastAttemptAtUtc = now;
-        log.NextAttemptAtUtc = null;
-        log.FailureCode = HandoffInProgress;
-        log.Error = null;
-        await db.SaveChangesAsync(ct);
+        // Atomically claim the row immediately before crossing the provider boundary.
+        // This prevents two API processes from handing off the same alert. A process
+        // interruption leaves Sending + handoff_in_progress, which recovery fails
+        // closed as DeliveryUnknown instead of risking a duplicate.
+        log = await ClaimForHandoffAsync(db, log.CorrelationId, now, ct);
+        if (log is null) return;
 
         WhatsAppSendResult result;
         try
@@ -246,6 +255,42 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
             log.CorrelationId, log.RetryCount, _options.MaxAttempts, result.FailureKind, nextAttempt);
     }
 
+    private static async Task<WhatsAppLog?> ClaimForHandoffAsync(
+        SchoolDbContext db,
+        Guid correlationId,
+        DateTime now,
+        CancellationToken ct)
+    {
+        if (db.Database.IsRelational())
+        {
+            var claimed = await db.WhatsAppLogs
+                .Where(l => l.CorrelationId == correlationId
+                            && l.Status == WhatsAppStatus.Queued
+                            && (l.NextAttemptAtUtc == null || l.NextAttemptAtUtc <= now))
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(l => l.Status, WhatsAppStatus.Sending)
+                    .SetProperty(l => l.LastAttemptAtUtc, now)
+                    .SetProperty(l => l.NextAttemptAtUtc, (DateTime?)null)
+                    .SetProperty(l => l.FailureCode, HandoffInProgress)
+                    .SetProperty(l => l.Error, (string?)null), ct);
+            if (claimed != 1) return null;
+            db.ChangeTracker.Clear();
+            return await db.WhatsAppLogs.SingleAsync(l => l.CorrelationId == correlationId, ct);
+        }
+
+        // EF's in-memory provider is used only by deterministic unit tests.
+        var item = await db.WhatsAppLogs.SingleOrDefaultAsync(
+            l => l.CorrelationId == correlationId && l.Status == WhatsAppStatus.Queued, ct);
+        if (item is null || item.NextAttemptAtUtc is { } due && due > now) return null;
+        item.Status = WhatsAppStatus.Sending;
+        item.LastAttemptAtUtc = now;
+        item.NextAttemptAtUtc = null;
+        item.FailureCode = HandoffInProgress;
+        item.Error = null;
+        await db.SaveChangesAsync(ct);
+        return item;
+    }
+
     private TimeSpan RetryDelay(int failedAttempts, int? providerRetryAfterSeconds)
     {
         var exponent = Math.Min(5, Math.Max(0, failedAttempts - 1));
@@ -293,33 +338,91 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
 
     private async Task SweepDueMessagesAsync(CancellationToken ct)
     {
-        try
+        while (!ct.IsCancellationRequested)
         {
-            while (!ct.IsCancellationRequested)
+            try
             {
-                using (var scope = _scopeFactory.CreateScope())
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
+                var now = DateTime.UtcNow;
+                var interruptedBefore = now.AddSeconds(-_options.RetryWindowSeconds);
+                var interrupted = await db.WhatsAppLogs
+                    .Where(l => l.Status == WhatsAppStatus.Sending
+                                && l.FailureCode == HandoffInProgress
+                                && l.LastAttemptAtUtc <= interruptedBefore)
+                    .OrderBy(l => l.LastAttemptAtUtc)
+                    .Take(100)
+                    .ToListAsync(ct);
+                foreach (var log in interrupted)
                 {
-                    var db = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
-                    var now = DateTime.UtcNow;
-                    var due = await db.WhatsAppLogs
-                        .AsNoTracking()
-                        .Where(l => l.Status == WhatsAppStatus.Queued
-                                    && l.RetryCount < _options.MaxAttempts
-                                    && (l.NextAttemptAtUtc == null || l.NextAttemptAtUtc <= now))
-                        .OrderBy(l => l.CreatedAtUtc)
-                        .Take(100)
-                        .Select(l => new WhatsAppJob(
-                            l.CorrelationId, null, l.StudentId, l.ParentPhone, l.Message))
-                        .ToListAsync(ct);
-
-                    foreach (var job in due)
-                        await _queue.EnqueueAsync(job, ct);
+                    await FailPermanentlyAsync(
+                        log,
+                        WhatsAppFailureKind.DeliveryUnknown.ToString(),
+                        "The API stopped during provider handoff. Delivery is unknown, so the alert was not sent again.",
+                        scope,
+                        db,
+                        ct);
                 }
 
+                var due = await db.WhatsAppLogs
+                    .AsNoTracking()
+                    .Where(l => l.Status == WhatsAppStatus.Queued
+                                && l.RetryCount < _options.MaxAttempts
+                                && (l.NextAttemptAtUtc == null || l.NextAttemptAtUtc <= now))
+                    .OrderBy(l => l.CreatedAtUtc)
+                    .Take(100)
+                    .Select(l => new WhatsAppJob(
+                        l.CorrelationId, null, l.StudentId, l.ParentPhone, l.Message))
+                    .ToListAsync(ct);
+
+                foreach (var job in due)
+                    await _queue.EnqueueAsync(job, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "WhatsApp durable outbox sweep failed; it will retry after the bounded interval.");
+            }
+
+            try
+            {
                 await Task.Delay(_sweepInterval, ct);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+    }
+
+    public static async Task<bool> IsRecipientAllowedAsync(
+        SchoolDbContext db,
+        WhatsAppLog log,
+        CancellationToken ct = default)
+    {
+        if (log.StudentId is null || PhoneNormalizer.ToE164(log.ParentPhone) is not { } phone)
+            return false;
+
+        var student = await db.Students.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == log.StudentId && s.IsActive, ct);
+        if (student is null
+            || (phone != PhoneNormalizer.ToE164(student.FatherPhone)
+                && phone != PhoneNormalizer.ToE164(student.MotherPhone)))
+            return false;
+
+        var consented = await db.WhatsAppConsents.AsNoTracking()
+            .AnyAsync(c => c.StudentId == student.Id && c.PhoneE164 == phone && c.Granted, ct);
+        if (!consented) return false;
+
+        var matchingParentSettings = await db.ParentStudents.AsNoTracking()
+            .Where(p => p.StudentId == student.Id)
+            .Select(p => new { p.ParentUser.Phone, p.ParentUser.ReceiveWhatsApp })
+            .ToListAsync(ct);
+        return !matchingParentSettings.Any(
+            p => PhoneNormalizer.ToE164(p.Phone) == phone && !p.ReceiveWhatsApp);
     }
 
     private static string Truncate(string value, int max)

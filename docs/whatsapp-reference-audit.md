@@ -107,16 +107,16 @@ The “avoid unofficial clients” warning is notable because the audited integr
 | Provider coupling | One `IWhatsAppSender` boundary selects DryRun, official Twilio or LinkedDevice. Attendance/controller code is provider-neutral. |
 | QR flow | Admin-only API and WPF page; explicit terms/risk acceptance before QR bootstrap; live polling displays regenerated QR values. |
 | Session restore | Encrypted Baileys auth state is detected and restored on gateway startup. |
-| Secret storage | A random 256-bit AES-GCM session key and separate API bearer secret are generated locally. Auth/receipt files are authenticated encrypted blobs, written atomically. No QR, message body or full phone number is logged. |
-| Network exposure | Gateway binds to `127.0.0.1` by default and refuses non-loopback binding unless an explicit override is set. API-to-gateway calls require a 256-bit bearer token. |
+| Secret storage | A random 256-bit AES-GCM session key and separate API bearer secret are generated locally. Windows protects the session key with current-user DPAPI; auth/receipt files are authenticated encrypted blobs written atomically. No QR, message body or full phone number is logged. |
+| Network exposure | Gateway binds to `127.0.0.1` by default and refuses non-loopback binding unless explicitly overridden. API-to-gateway calls require a 256-bit bearer token; QR/consent APIs reject browser-origin and remote plain-HTTP access. |
 | Process stability | API hosted supervisor starts/restarts the bundled portable gateway and stops only the process it owns. Installer gives the Node executable a product-specific process name. |
-| Durable outbox | Database row is written before enqueue. Bounded 10,000-item in-process wake-up lane, correlation dedupe and startup sweeper are preserved. |
-| Durable retries | `NextAttemptAtUtc` is persisted. Three total attempts fit inside a 120-second window; late alerts are failed instead of being sent long after the bus event. |
+| Durable outbox | Database row is written before enqueue. Bounded 10,000-item wake-up lane, correlation dedupe and startup sweeper are preserved; SQL atomically claims a row before provider handoff. |
+| Durable retries | `NextAttemptAtUtc` is persisted. Three total attempts fit inside a 120-second window; events older than five minutes and late retries are stopped instead of being presented as current alerts. |
 | Idempotency | The database correlation GUID is sent to the gateway. Successful receipts are durably encrypted. A repeated key returns the original receipt. A crash/ambiguous outcome fails closed as `DeliveryUnknown` instead of risking an automatic duplicate. |
 | Pacing | One strict send lane; no priority bypass; random 6–10 second interval. |
 | Volume limits | 300 attempted linked-device sends per Pakistan day and 12 per recipient per rolling hour by default. Pending/unknown attempts consume limits. |
 | Allowed use | Only one-to-one text with classification `transactional`; no group JIDs, broadcasts, bulk API, marketing API, scraping or contact import. |
-| Consent | Existing parent `ReceiveWhatsApp` opt-out is preserved. Bus-event double-tap debounce and phone normalization are preserved. |
+| Consent | Staff must record explicit permission for the student’s current father/mother number. The worker revalidates that ledger immediately before handoff; parent `ReceiveWhatsApp` opt-out still overrides it. |
 | Disconnect handling | Network closure/timeouts use jittered backoff capped at 72 seconds. Logout/bad session clears auth. Replaced/forbidden sessions do not reconnect aggressively. |
 | Observability | Admin status shows provider, QR/session state, linked number, pacing and daily counters. Permanent failures retain a reason code and raise an admin alert without exposing the full number. |
 

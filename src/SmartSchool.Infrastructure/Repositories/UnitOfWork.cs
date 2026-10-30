@@ -22,6 +22,7 @@ public sealed class UnitOfWork : IUnitOfWork
         Trips = new Repository<Trip>(context);
         BusAttendances = new Repository<BusAttendance>(context);
         WhatsAppLogs = new Repository<WhatsAppLog>(context);
+        WhatsAppConsents = new Repository<WhatsAppConsent>(context);
         ParentStudents = new Repository<ParentStudent>(context);
         DeviceTokens = new Repository<DeviceToken>(context);
         Announcements = new Repository<Announcement>(context);
@@ -37,6 +38,7 @@ public sealed class UnitOfWork : IUnitOfWork
     public IRepository<Trip> Trips { get; }
     public IRepository<BusAttendance> BusAttendances { get; }
     public IRepository<WhatsAppLog> WhatsAppLogs { get; }
+    public IRepository<WhatsAppConsent> WhatsAppConsents { get; }
     public IRepository<ParentStudent> ParentStudents { get; }
     public IRepository<DeviceToken> DeviceTokens { get; }
     public IRepository<Announcement> Announcements { get; }

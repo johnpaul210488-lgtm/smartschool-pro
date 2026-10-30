@@ -205,9 +205,11 @@ Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (dr
   consented transactional text alerts: no group/broadcast/marketing/contact-scraping API.
 - Its strict lane uses real randomized 6–10 second spacing, a 300/day cap, 12/recipient/hour cap and
   durable correlation-key receipts. Ambiguous outcomes fail closed rather than automatically duplicating.
-- Every provider uses the DB-first outbox (`WhatsAppLogs`), a bounded 10,000-item wake-up channel,
-  restart sweep and persisted `NextAttemptAtUtc`: at most three total attempts inside 120 seconds.
-- The 30-second bus-event debounce, parent language preference and `ReceiveWhatsApp` opt-out remain enforced.
+- Every provider uses the DB-first outbox (`WhatsAppLogs`), an atomic SQL handoff claim, bounded
+  10,000-item wake-up channel, restart sweep and persisted `NextAttemptAtUtc`: at most three total
+  attempts inside 120 seconds. Interrupted handoffs fail closed as `DeliveryUnknown`.
+- Staff must record the recipient’s explicit permission for the student’s current father/mother number;
+  the worker revalidates it immediately before handoff. Parent `ReceiveWhatsApp` opt-out still wins.
 - **Linked-device mode is unofficial and cannot guarantee against account restrictions.** Read the complete
   audit, exact reference behavior and operating rules in **`docs/whatsapp-reference-audit.md`**.
 
@@ -217,10 +219,12 @@ Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (dr
 "Firebase": { "Enabled": false, "CredentialsJsonPath": "" }
 ```
 
-`Enabled:false` = **dry-run** (pushes logged, like the WhatsApp DryRun provider). Every pick-in/drop-out also
-sends an FCM multicast to the child's parents' registered devices (FirebaseAdmin SDK, dry-run safe);
-announcements broadcast to all parent devices. Apps register tokens via `POST /api/devices/register`
-(+ re-register on FCM token refresh). Setup: **docs/deployment-guide.md → section 4**.
+`Enabled:false` = **dry-run; no push is delivered**. Pick-in/drop-out sends FCM to registered
+devices of explicitly linked parents; announcements target all parent devices. Token registration
+alone does not prove delivery. The release APK requires the matching Android Firebase app config,
+and the API needs service-account credentials from the same Firebase project. Staff can check and
+create parent-child links through `/api/parent-links`. Setup and diagnostics:
+**docs/deployment-guide.md → section 4**.
 
 ## Test the critical real-time flow in Swagger (2 minutes)
 

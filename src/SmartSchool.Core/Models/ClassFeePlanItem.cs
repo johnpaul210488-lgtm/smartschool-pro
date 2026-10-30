@@ -15,4 +15,7 @@ public sealed class ClassFeePlanItem
     public bool IsIncluded { get; set; }
     public bool IsOptionalForStudent { get; set; }
     public DateOnly? EffectiveFrom { get; set; }
+
+    /// <summary>Class-specific wording of the fee head (e.g. "Tuition Fee - Class 5"). Null = catalogue name.</summary>
+    public string? DisplayName { get; set; }
 }

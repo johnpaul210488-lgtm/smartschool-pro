@@ -13,8 +13,8 @@ driver app logged in as `driver1` (Bus #7), parent app as `parent1`, all on the 
 | A2 | Tap **PICK-IN** on a student | Green confirmation; event appears in driver history |
 | A3 | WPF admin | Toast + beep "PICK-IN …"; bus attendance grid gets the row; live map pin |
 | A4 | API console/log | `[WhatsApp DRY-RUN]` block (or real WhatsApp if enabled) with the formatted template |
-| A5 | `GET /api/whatsapp-logs` | Row **Sent** with `DRYRUN-*`, Twilio SID, or linked-device message ID |
-| A6 | Parent app (same Wi-Fi, push registered) | Push + in-app banner "{name} has BOARDED Bus #7"; dashboard chip flips to **On Bus****; live bus marker moves on the map |
+| A5 | `GET /api/whatsapp-logs` | With explicit recipient permission: row **Sent** with `DRYRUN-*`, Twilio SID, or linked-device message ID; without permission: **Held** |
+| A6 | Parent app (Firebase APK configured, parent linked, permission allowed; server Firebase enabled) | In background: OS notification. In foreground: one in-app banner (SignalR/FCM deduplicated); dashboard chip flips to **On Bus**; live bus marker moves |
 | A7 | Repeat same tap within 30 s | Response says *duplicate tap ignored*; NO new attendance row, NO second WhatsApp |
 
 ## B. Drop-Out chain

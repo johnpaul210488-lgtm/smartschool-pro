@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppConfig {
   static const String _defaultBase = String.fromEnvironment(
     'API_BASE',
-    defaultValue: 'http://10.0.2.2:5000',
+    defaultValue: 'https://zia.tail758a5c.ts.net',
   );
 
   static const _kBaseOverride = 'api_base_override';
@@ -23,7 +23,14 @@ class AppConfig {
   static Future<void> loadServerOverride() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_kBaseOverride);
-    if (saved != null && saved.trim().isNotEmpty) apiBaseUrl = saved.trim();
+    if (saved != null && saved.trim().isNotEmpty) {
+      // Purana LAN/emulator default save ho to hata dein, taake naya public address use ho.
+      if (saved.trim() == 'http://192.168.1.10:5000' || saved.trim() == 'http://10.0.2.2:5000') {
+        await prefs.remove(_kBaseOverride);
+      } else {
+        apiBaseUrl = saved.trim();
+      }
+    }
   }
 
   /// Called from the login screen when the driver edits the server address.
@@ -40,7 +47,7 @@ class AppConfig {
   }
 
   /// GPS uplink interval while a trip is active.
-  static const Duration gpsPushInterval = Duration(seconds: 15);
+  static const Duration gpsPushInterval = Duration(seconds: 1);
 
   /// How often the offline outbox retries when the network is back.
   static const Duration syncInterval = Duration(seconds: 45);
@@ -48,6 +55,6 @@ class AppConfig {
   /// Persistent notification (background trip tracking).
   static const int foregroundNotificationId = 888;
   static const String notificationChannelId = 'smartschool_trip_channel';
-  static const String notificationTitle = 'SmartSchool: Trip in progress';
+  static const String notificationTitle = 'Queen International School: Trip in progress';
   static const String notificationBody = 'Tracking active — parents & admin live dekh rahe hain';
 }

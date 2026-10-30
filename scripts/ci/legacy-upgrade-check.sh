@@ -79,5 +79,13 @@ COUNT="$(body_of "$r" | jq -r '.data | length')"
 num_eq "$COUNT" 0 "ledger rows for the legacy partial fee"
 ok "no fake payment rows were created for the legacy partial fee"
 
+r="$(api GET "/api/whatsapp-logs?pageSize=200")"
+[ "$(code_of "$r")" = "200" ] || { LAST_BODY="$(body_of "$r")"; fail "WhatsApp upgrade audit list failed"; }
+QUEUED_STATUS="$(body_of "$r" | jq -r '[.data.items[] | select(.message=="LEGACY-QUEUED-SENTINEL")][0] | (.status + ":" + .failureCode)')"
+HANDOFF_STATUS="$(body_of "$r" | jq -r '[.data.items[] | select(.message=="LEGACY-HANDOFF-SENTINEL")][0] | (.status + ":" + .failureCode)')"
+[ "$QUEUED_STATUS" = "Failed:legacy_not_replayed" ] || fail "legacy queued WhatsApp row was not safely retired: $QUEUED_STATUS"
+[ "$HANDOFF_STATUS" = "Failed:DeliveryUnknown" ] || fail "legacy ambiguous WhatsApp handoff was not blocked: $HANDOFF_STATUS"
+ok "legacy WhatsApp queue and ambiguous handoff were retired without replay"
+
 echo
 echo "All $pass upgrade checks passed."

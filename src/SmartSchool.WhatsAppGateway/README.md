@@ -17,7 +17,7 @@ npm start
 The gateway binds to `127.0.0.1:5110`. On first start it creates:
 
 - `client-secret.json` — bearer key read by SmartSchool.API;
-- `session.key` — local AES-256-GCM key, not read by the API;
+- `session.key` — local AES-256-GCM key; current-user DPAPI-protected on Windows and mode `0600` elsewhere;
 - `auth-state.enc` — encrypted Baileys credentials/keys after linking;
 - `send-receipts.enc` — encrypted idempotency/safety ledger after sending.
 

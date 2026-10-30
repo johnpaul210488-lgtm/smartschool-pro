@@ -4,109 +4,146 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:helpers="clr-namespace:SmartSchool.Admin.Helpers">
 
-    <!-- CHANGED: form Enter/arrow navigation; Tab and Shift+Tab use WPF traversal. -->
     <Grid helpers:FormKeyboardNavigation.IsEnabled="True">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="340"/>
+            <ColumnDefinition Width="360"/>
             <ColumnDefinition/>
         </Grid.ColumnDefinitions>
 
-        <!-- Form -->
-        <materialDesign:Card Grid.Column="0" Padding="22" Margin="0,0,12,0" VerticalAlignment="Top">
-            <StackPanel>
-                <TextBlock Text="🚌 Bus Form" FontSize="20" FontWeight="Bold" Margin="0,0,0,14"/>
-                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
-                    <TextBlock Text="BUS NUMBER *" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Text="{Binding FormNumber, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
-                    <TextBlock Text="ROUTE *" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Text="{Binding FormRoute, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
-                    <TextBlock Text="VEHICLE NO *" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Text="{Binding FormVehicleNo, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
-                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
-                    <TextBlock Text="CAPACITY" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
-                                 Text="{Binding FormCapacity, UpdateSourceTrigger=PropertyChanged}"/>
+        <!-- ===== Form: header upar, buttons neeche (hamesha nazar aate hain), fields beech mein scroll ===== -->
+        <materialDesign:Card Grid.Column="0" Padding="16" Margin="0,0,12,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <TextBlock Text="Bus Form" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding FormTitle}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    <TextBlock Text="Edit karne ke liye list mein bus ke saamne 'Edit' dabayein. Naya bus ke liye 'New bus'."
+                               FontSize="12" Opacity="0.7" TextWrapping="Wrap" Margin="0,4,0,0"/>
                 </StackPanel>
 
-                <StackPanel Margin="0,0,0,14"> <!-- CHANGED: label above + outlined (student-form style) -->
-                    <TextBlock Text="ASSIGN DRIVER (bus select ke baad)" FontWeight="SemiBold" FontSize="12" Opacity="0.85" Margin="0,0,0,4"/>
-                    <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                                    ItemsSource="{Binding Drivers}" DisplayMemberPath="FullName"
-                                    SelectionChanged="DriverCombo_SelectionChanged"/>
-                </StackPanel>
-
-                <TextBlock Text="{Binding FormError}" Foreground="#F44336" FontSize="12"
-                           TextWrapping="Wrap" Margin="0,6,0,0"
-                           Visibility="{Binding FormError, Converter={StaticResource NotEmptyToVis}}"/>
-
-                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                    <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
-                    <Button Command="{Binding NewBusCommand}"
-                            Style="{StaticResource QisOutlineButton}" Margin="0,0,8,0">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" Margin="0,0,6,0"/>
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                    <TextBlock Text="{Binding FormError}" Foreground="#C62828" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Visibility="{Binding FormError, Converter={StaticResource NotEmptyToVis}}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Command="{Binding SaveCommand}" Style="{StaticResource QisPrimaryButton}"
+                                HorizontalAlignment="Stretch" ToolTip="Bus ki tabdeeli save karein">
+                            <TextBlock Text="Save karein"/>
+                        </Button>
+                        <Button Grid.Column="2" Command="{Binding NewBusCommand}" Style="{StaticResource QisOutlineButton}"
+                                HorizontalAlignment="Stretch" ToolTip="Naya bus banane ke liye form khali karein">
                             <TextBlock Text="New bus"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Command="{Binding SaveCommand}" Style="{StaticResource QisPrimaryButton}">
-                        <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="ContentSaveOutline" Width="16" Height="16" Margin="0,0,6,0"/>
-                            <TextBlock Text="Save bus"/>
-                        </StackPanel>
+                        </Button>
+                    </Grid>
+                    <Button Command="{Binding ToggleActiveCommand}" Style="{StaticResource QisOutlineButton}"
+                            HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                            ToolTip="Bus ko list se hata dein ya wapas active karein (data delete nahi hota)">
+                        <TextBlock Text="{Binding ToggleActiveText}"/>
                     </Button>
                 </StackPanel>
-            </StackPanel>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+                    <StackPanel>
+                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,12"
+                                 materialDesign:HintAssist.Hint="Bus number *"
+                                 Text="{Binding FormNumber, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,12"
+                                 materialDesign:HintAssist.Hint="Route *"
+                                 Text="{Binding FormRoute, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,12"
+                                 materialDesign:HintAssist.Hint="Vehicle no *"
+                                 Text="{Binding FormVehicleNo, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,16"
+                                 materialDesign:HintAssist.Hint="Capacity (1 - 200)"
+                                 Text="{Binding FormCapacity, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <Separator Margin="0,0,0,12"/>
+
+                        <TextBlock Text="Driver" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                                  ItemsSource="{Binding Drivers}" DisplayMemberPath="DisplayName"
+                                  materialDesign:HintAssist.Hint="Driver chunein (bus select ho to assign ho jayega)"
+                                  ToolTip="Driver chunein: selected bus par assign ho jayega"
+                                  SelectionChanged="DriverCombo_SelectionChanged"/>
+                        <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12" Opacity="0.8">
+                            <Run Text="Is bus ka driver: "/>
+                            <Run Text="{Binding SelectedBus.DriverName, TargetNullValue='koi nahi', FallbackValue='bus chunein'}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                        <Button Command="{Binding UnassignDriverCommand}" Style="{StaticResource QisOutlineButton}"
+                                HorizontalAlignment="Left" Margin="0,8,0,0" ToolTip="Is bus se driver hata dein">
+                            <TextBlock Text="Driver hatayein"/>
+                        </Button>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
         </materialDesign:Card>
 
-        <!-- Grid -->
+        <!-- ===== List ===== -->
         <materialDesign:Card Grid.Column="1" Padding="10">
-            <DataGrid 
-                      helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding Buses}" AutoGenerateColumns="False" IsReadOnly="True"
-                      CanUserAddRows="False" SelectedItem="{Binding SelectedBus, Mode=TwoWay}"
-                      GridLinesVisibility="Horizontal" RowHeaderWidth="0">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="#" Binding="{Binding BusNumber}" Width="60"/>
-                    <DataGridTextColumn Header="Route" Binding="{Binding Route}" Width="2*"/>
-                    <DataGridTextColumn Header="Vehicle" Binding="{Binding VehicleNo}" Width="*"/>
-                    <DataGridTextColumn Header="Capacity" Binding="{Binding Capacity}" Width="80"/>
-                    <DataGridTextColumn Header="Students" Binding="{Binding StudentCount}" Width="80"/>
-                    <DataGridTextColumn Header="Driver" Binding="{Binding DriverName, TargetNullValue='—'}" Width="*"/>
-                    <DataGridTemplateColumn Header="Status" Width="80">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <materialDesign:PackIcon Kind="Circle" Width="12" Height="12"
-                                    HorizontalAlignment="Center">
-                                    <materialDesign:PackIcon.Foreground>
-                                        <Binding Path="IsActive" Converter="{StaticResource BoolToBrush}"/>
-                                    </materialDesign:PackIcon.Foreground>
-                                </materialDesign:PackIcon>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Header="" Width="60">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button ToolTip="Deactivate bus"
-                                        Command="{Binding DataContext.DeleteCommand,
-                                            RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}"
-                                        Style="{StaticResource QisIconButton}"
-                                        Foreground="#9A3549">
-                                    <materialDesign:PackIcon Kind="DeleteOutline" Width="18" Height="18"/>
-                                </Button>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
+            <DockPanel>
+                <CheckBox DockPanel.Dock="Top" IsChecked="{Binding ShowInactive}" Margin="6,0,0,8"
+                          Content="Inactive (band) buses bhi dikhayein"/>
+                <DataGrid helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding Buses}" AutoGenerateColumns="False"
+                          IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single"
+                          SelectedItem="{Binding SelectedBus, Mode=TwoWay}"
+                          GridLinesVisibility="Horizontal" RowHeaderWidth="0"
+                          ToolTip="Row par click karein: bus edit karne ke liye form mein khul jayegi">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="#" Binding="{Binding BusNumber}" Width="60"/>
+                        <DataGridTextColumn Header="Route" Binding="{Binding Route}" Width="2*"/>
+                        <DataGridTextColumn Header="Vehicle" Binding="{Binding VehicleNo}" Width="*"/>
+                        <DataGridTextColumn Header="Capacity" Binding="{Binding Capacity}" Width="80"/>
+                        <DataGridTextColumn Header="Students" Binding="{Binding StudentCount}" Width="80"/>
+                        <DataGridTextColumn Header="Driver" Binding="{Binding DriverName, TargetNullValue='—'}" Width="*"/>
+                        <DataGridTemplateColumn Header="Status" Width="90">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="Active"/>
+                                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                                        <Setter Property="Text" Value="Inactive"/>
+                                                        <Setter Property="Foreground" Value="#9E9E9E"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="Kaam" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="4,0">
+                                        <Button Content="Edit" Style="{StaticResource QisOutlineButton}" Margin="0,0,6,0"
+                                                ToolTip="Is bus ko form mein kholein"
+                                                Command="{Binding DataContext.EditBusCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Content="{Binding ActionText}" Style="{StaticResource QisOutlineButton}" Margin="0,0,6,0"
+                                                ToolTip="Bus ko band (deactivate) ya wapas active karein"
+                                                Command="{Binding DataContext.ToggleActiveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button ToolTip="Bus hatayein (sirf wo bus jis ka koi record nahi)"
+                                                Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                Style="{StaticResource QisIconButton}"
+                                                Foreground="#9A3549">
+                                            <materialDesign:PackIcon Kind="DeleteOutline" Width="18" Height="18"/>
+                                        </Button>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
         </materialDesign:Card>
     </Grid>
 </UserControl>

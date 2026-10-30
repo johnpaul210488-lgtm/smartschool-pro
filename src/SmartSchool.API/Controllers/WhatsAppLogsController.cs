@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartSchool.Core.DTOs;
 using SmartSchool.Core.Interfaces;
+using SmartSchool.Infrastructure.Services.WhatsApp;
 using SmartSchool.Shared.Common;
 using SmartSchool.Shared.Constants;
 using SmartSchool.Shared.Enums;
@@ -79,7 +80,12 @@ public sealed class WhatsAppLogsController : BaseApiController
         if (log.Status == WhatsAppStatus.Sent)
             return ConflictEnvelope("This message was already sent.");
         if (log.Status != WhatsAppStatus.Failed)
-            return ConflictEnvelope("This message is already queued or being handed to the provider.");
+            return ConflictEnvelope("This message is already queued/held or being handed to the provider.");
+        if (log.EventType is "PickIn" or "DropOut"
+            && !WhatsAppOutboxRules.IsFresh(log.CreatedAtUtc, DateTime.UtcNow))
+            return ConflictEnvelope("This time-sensitive bus alert is now stale and cannot be replayed. Contact the parent directly if needed.");
+        if (log.FailureCode == "legacy_not_replayed")
+            return ConflictEnvelope("Historical provider rows are audit-only and cannot be replayed. Create a fresh event if a new alert is required.");
         if (log.FailureCode == WhatsAppFailureKind.DeliveryUnknown.ToString())
             return ConflictEnvelope(
                 "WhatsApp may already have accepted this message. Automatic/manual resend is blocked to avoid a duplicate; verify in the selected provider or linked phone first.");

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartSchool.Core.DTOs;
 using SmartSchool.Core.Interfaces;
 using SmartSchool.Core.Models;
+using SmartSchool.Infrastructure.Services.WhatsApp;
 using SmartSchool.Shared.Common;
 using SmartSchool.Shared.Constants;
 using SmartSchool.Shared.Enums;
@@ -15,7 +16,7 @@ namespace SmartSchool.API.Controllers;
 /// <summary>
 /// THE critical endpoints of the whole system. Driver taps PICK-IN / DROP-OUT ->
 /// (1) event persisted, (2) SignalR alert to AdminGroup + ParentGroup_{studentId},
-/// (3) father's WhatsApp message queued (durable outbox, retries if Twilio is down).
+/// (3) eligible fresh WhatsApp messages go to the consent-gated durable outbox.
 /// </summary>
 [ApiController]
 [Route("api/bus-attendance")]
@@ -209,38 +210,49 @@ public sealed class BusAttendanceController : BaseApiController
         var parents = await _uow.ParentStudents.Query()
             .Where(ps => ps.StudentId == student.Id)
             .Join(_uow.Users.Query(), ps => ps.ParentUserId, u => u.Id,
-                (ps, u) => new { u.Id, u.Phone, u.PreferredLanguage, u.ReceiveWhatsApp })
+                (ps, u) => new { u.Id, u.Phone, u.PreferredLanguage, u.ReceiveWhatsApp, u.IsActive, u.Role })
             .ToListAsync(ct);
 
-        // (2a) FCM push to the parent's registered devices (best-effort, grouped by language).
+        // (2a) FCM push to active linked parents only (best-effort, grouped by language).
         try
         {
-            var parentIds = parents.Select(p => p.Id).ToArray();
-            var devices = await _uow.DeviceTokens.Query()
-                .Where(d => parentIds.Contains(d.UserId))
-                .Select(d => new { d.UserId, d.Token })
-                .ToListAsync(ct);
-
-            foreach (var grp in devices.GroupBy(d =>
-                         parents.First(p => p.Id == d.UserId).PreferredLanguage == "ur" ? "ur" : "en"))
+            var pushParents = parents.Where(p => p.IsActive && p.Role == UserRole.Parent).ToArray();
+            var parentIds = pushParents.Select(p => p.Id).ToArray();
+            if (parentIds.Length == 0)
+                _logger.LogWarning("FCM skipped for bus event {EventId}, student {StudentId}: no active parent accounts are linked.",
+                    busEvent.Id, student.Id);
+            else
             {
-                var picked = type == BusAttendanceType.PickIn;
-                var (title, body) = grp.Key == "ur"
-                    ? ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
-                       picked ? $"{student.FullName} Bus #{bus.BusNumber} mai baith chuka hai — waqt: {stampText}"
-                              : $"{student.FullName} Bus #{bus.BusNumber} se mehfooz utar chuka hai — waqt: {stampText}")
-                    : ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
-                       picked ? $"{student.FullName} has BOARDED Bus #{bus.BusNumber} at {stampText}."
-                              : $"{student.FullName} has been DROPPED OFF safely at {stampText}.");
+                var devices = await _uow.DeviceTokens.Query()
+                    .Where(d => parentIds.Contains(d.UserId))
+                    .Select(d => new { d.UserId, d.Token })
+                    .ToListAsync(ct);
+                var parentsWithoutDevices = parentIds.Except(devices.Select(d => d.UserId)).Count();
+                if (parentsWithoutDevices > 0)
+                    _logger.LogWarning("FCM for bus event {EventId}, student {StudentId}: {Count} linked parent account(s) have no registered devices.",
+                        busEvent.Id, student.Id, parentsWithoutDevices);
 
-                await _fcm.SendToDevicesAsync(grp.Select(d => d.Token).ToArray(),
-                    new FcmPush(title, body, new Dictionary<string, string>
-                    {
-                        ["type"] = "bus_event",
-                        ["studentId"] = student.Id.ToString(),
-                        ["eventType"] = type.ToString(),
-                        ["eventId"] = busEvent.Id.ToString()
-                    }), ct);
+                foreach (var grp in devices.GroupBy(d =>
+                             pushParents.First(p => p.Id == d.UserId).PreferredLanguage == "ur" ? "ur" : "en"))
+                {
+                    var picked = type == BusAttendanceType.PickIn;
+                    var (title, body) = grp.Key == "ur"
+                        ? ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
+                           picked ? $"{student.FullName} Bus #{bus.BusNumber} mai baith chuka hai — waqt: {stampText}"
+                                  : $"{student.FullName} Bus #{bus.BusNumber} se mehfooz utar chuka hai — waqt: {stampText}")
+                        : ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
+                           picked ? $"{student.FullName} has BOARDED Bus #{bus.BusNumber} at {stampText}."
+                                  : $"{student.FullName} has been DROPPED OFF safely at {stampText}.");
+
+                    await _fcm.SendToDevicesAsync(grp.Select(d => d.Token).ToArray(),
+                        new FcmPush(title, body, new Dictionary<string, string>
+                        {
+                            ["type"] = "bus_event",
+                            ["studentId"] = student.Id.ToString(),
+                            ["eventType"] = type.ToString(),
+                            ["eventId"] = busEvent.Id.ToString()
+                        }), ct);
+                }
             }
         }
         catch (Exception ex)
@@ -256,32 +268,39 @@ public sealed class BusAttendanceController : BaseApiController
             recipients.Add(student.MotherPhone!);
 
         var queued = 0;
-        foreach (var phone in recipients)
+        foreach (var phone in recipients.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            // Parent-app toggle: that parent disabled WhatsApp alerts → respect it.
-            var owner = parents.FirstOrDefault(p => PhoneMatches(p.Phone, phone));
-            if (owner is { ReceiveWhatsApp: false })
-            {
-                _logger.LogInformation("WhatsApp skipped for {Phone} — parent disabled alerts in app settings.", phone);
-                continue;
-            }
-
+            var normalizedPhone = PhoneNormalizer.ToE164(phone);
+            var matchingParents = parents.Where(p => PhoneMatches(p.Phone, phone)).ToArray();
+            var parentOptedOut = matchingParents.Any(p => !p.ReceiveWhatsApp);
+            var consentGranted = normalizedPhone is not null
+                && await _uow.WhatsAppConsents.AnyAsync(
+                    c => c.StudentId == student.Id && c.PhoneE164 == normalizedPhone && c.Granted, ct);
+            var fresh = WhatsAppOutboxRules.IsFresh(timestampUtc, DateTime.UtcNow);
+            var eligible = normalizedPhone is not null && consentGranted && !parentOptedOut && fresh;
+            var owner = matchingParents.FirstOrDefault();
             var message = MessageFor(owner?.PreferredLanguage == "ur" ? "ur" : defaultLanguage);
             var correlationId = Guid.NewGuid();
             await _uow.WhatsAppLogs.AddAsync(new WhatsAppLog
             {
                 CorrelationId = correlationId,
                 StudentId = student.Id,
-                EventType = type.ToString(), // "PickIn" | "DropOut" — used by rate-limit/debounce views
-                ParentPhone = phone,
+                EventType = type.ToString(),
+                ParentPhone = normalizedPhone ?? phone,
                 Message = message,
-                Status = WhatsAppStatus.Queued,
+                Status = eligible ? WhatsAppStatus.Queued : fresh ? WhatsAppStatus.Held : WhatsAppStatus.Expired,
+                FailureCode = eligible ? null : fresh ? "consent_required" : "stale_event",
+                Error = eligible ? null
+                    : !fresh ? "Historical/stale bus event was not sent."
+                    : parentOptedOut ? "Parent opted out; WhatsApp alert was held."
+                    : "Explicit permission for the student's current recipient number is missing.",
                 CreatedAtUtc = DateTime.UtcNow
             }, ct);
             await _uow.SaveChangesAsync(ct);
 
+            if (!eligible) continue;
             await _whatsAppQueue.EnqueueAsync(
-                new WhatsAppJob(correlationId, busEvent.Id, student.Id, phone, message), ct);
+                new WhatsAppJob(correlationId, busEvent.Id, student.Id, normalizedPhone!, message), ct);
             queued++;
         }
 
@@ -297,15 +316,8 @@ public sealed class BusAttendanceController : BaseApiController
                 : $"{student.FullName} marked as dropped.");
     }
 
-    /// <summary>Loose phone comparison: last 10 digits (covers 0300… vs +92300… formats).</summary>
     private static bool PhoneMatches(string? userPhone, string recipientPhone)
-    {
-        if (string.IsNullOrWhiteSpace(userPhone)) return false;
-        var a = new string(userPhone.Where(char.IsDigit).ToArray());
-        var b = new string(recipientPhone.Where(char.IsDigit).ToArray());
-        return a.Length >= 10 && b.Length >= 10
-               && a[^10..] == b[^10..];
-    }
+        => PhoneNormalizer.ToE164(userPhone) is { } normalized && normalized == PhoneNormalizer.ToE164(recipientPhone);
 
     /// <summary>Event feed for one student. Staff/teachers, or the student's own parent.</summary>
     [HttpGet("student/{studentId:int}")]

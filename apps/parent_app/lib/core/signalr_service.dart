@@ -17,10 +17,10 @@ class SignalRService {
     required this.onAnnouncement,
   });
 
-  /// (eventType, studentId) — ChildrenProvider refreshes on this.
-  final void Function(String eventType, int studentId) onAlert;
+  /// Full payload lets the app display a foreground alert and deduplicate FCM.
+  final void Function(String eventType, Map<String, dynamic> payload) onAlert;
   final void Function(BusLocation location) onBusLocation;
-  final void Function() onAnnouncement;
+  final void Function(Map<String, dynamic> payload) onAnnouncement;
 
   HubConnection? _hub;
   bool get isConnected => _hub?.state == HubConnectionState.Connected;
@@ -40,17 +40,20 @@ class SignalRService {
 
       _hub!.on('SendPickInAlert', (args) {
         final m = _first(args);
-        if (m != null) onAlert('PickIn', m['studentId'] as int? ?? 0);
+        if (m != null) onAlert('PickIn', m);
       });
       _hub!.on('SendDropOutAlert', (args) {
         final m = _first(args);
-        if (m != null) onAlert('DropOut', m['studentId'] as int? ?? 0);
+        if (m != null) onAlert('DropOut', m);
       });
       _hub!.on('UpdateBusLocation', (args) {
         final m = _first(args);
         if (m != null) onBusLocation(BusLocation.fromJson(m));
       });
-      _hub!.on('ReceiveAnnouncement', (_) => onAnnouncement());
+      _hub!.on('ReceiveAnnouncement', (args) {
+        final m = _first(args);
+        if (m != null) onAnnouncement(m);
+      });
 
       _hub!.onclose(({error}) => debugPrint('[SignalR] closed: $error'));
       _hub!.onreconnecting(({error}) => debugPrint('[SignalR] reconnecting…'));

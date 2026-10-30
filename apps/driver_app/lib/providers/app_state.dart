@@ -7,6 +7,7 @@ import '../config/app_config.dart';
 import '../models/models.dart';
 import '../services/api_client.dart';
 import '../services/background_gps_service.dart';
+import '../services/fcm_service.dart';
 import '../services/gps_service.dart';
 import '../services/offline_outbox.dart';
 import '../services/session_service.dart';
@@ -55,6 +56,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     await refreshBusAndManifest();
     _startConnectivityWatch();
+    unawaited(FcmService.instance.init(_api));
   }
 
   void _startConnectivityWatch() {
@@ -88,6 +90,7 @@ class AppState extends ChangeNotifier {
       authStatus = AuthStatus.loggedIn;
       await refreshBusAndManifest();
       _startConnectivityWatch();
+      unawaited(FcmService.instance.init(_api));
       return true;
     } on ApiException catch (e) {
       error = e.toString();
@@ -101,6 +104,7 @@ class AppState extends ChangeNotifier {
   Future<void> doLogout() async {
     await endTrip(silent: true);
     await BackgroundGpsService.instance.stopTrip();
+    await FcmService.instance.unregister(_api);
     await _api.logout();
     login = null;
     bus = null;
@@ -112,11 +116,28 @@ class AppState extends ChangeNotifier {
 
   // =============== bus + manifest ===============
 
+  /// Server par jo trip chal rahi hai use app mein wapas laata hai (app restart / pehle ki trip).
+  Future<void> restoreActiveTrip() async {
+    try {
+      final trips = await _api.myActiveTrips();
+      final previousId = activeTrip?.id;
+      activeTrip = trips.isEmpty ? null : trips.first;
+      if (activeTrip != null && activeTrip!.id != previousId) {
+        await BackgroundGpsService.instance.startTrip(activeTrip!.id);
+        _startFgPush(activeTrip!.id);
+      }
+    } catch (_) {
+      // Offline: jo state hai wahi rehne do.
+    }
+    notifyListeners();
+  }
+
   Future<void> refreshBusAndManifest() async {
     try {
       bus = await _api.myBus();
       error = null;
       await loadManifest();
+      await restoreActiveTrip();
     } on ApiException catch (e) {
       // Offline par manifest pehle se hai to chalne do; warna error dikhao.
       if (students.isEmpty) error = e.toString();
@@ -140,6 +161,37 @@ class AppState extends ChangeNotifier {
 
   // =============== trip ===============
 
+  // Fallback: jab app khuli ho to GPS khud bhi bhejta hai (background service na chale to bhi bus map par aaye).
+  Timer? _fgTimer;
+  bool _fgBusy = false;
+
+  void _startFgPush(int tripId) {
+    _fgTimer?.cancel();
+    Future<void> tick() async {
+      if (_fgBusy) return; // pichla tick abhi chal raha ho to skip
+      _fgBusy = true;
+      try {
+        final pos = await _gps.currentFix();
+        await _api.pushLocation(tripId, pos.latitude, pos.longitude,
+            pos.speed < 0 ? 0 : pos.speed * 3.6);
+        await BackgroundGpsService.writeGpsStatus('OK: app khuli hai, server ko bheja');
+      } catch (e) {
+        await BackgroundGpsService.writeGpsStatus(
+            'ERR (app): ${e.toString().split('\n').first}');
+      } finally {
+        _fgBusy = false;
+      }
+    }
+
+    unawaited(tick());
+    _fgTimer = Timer.periodic(AppConfig.gpsPushInterval, (_) => tick());
+  }
+
+  void _stopFgPush() {
+    _fgTimer?.cancel();
+    _fgTimer = null;
+  }
+
   Future<bool> startTrip() async {
     final b = bus;
     if (b == null) {
@@ -151,12 +203,23 @@ class AppState extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
-      // GPS permission zaroor — trip hi track hona hai
-      await _gps.currentFix();
+      // GPS permission zaroor (permission na ho to trip nahi). Fix ka timeout trip ko na roke.
+      try {
+        await _gps.currentFix();
+      } on StateError {
+        rethrow;
+      } catch (_) {
+        // GPS fix late/timeout: trip shuru karein, tracking khud location bhejti rahegi.
+      }
 
       activeTrip = await _api.startTrip(b.id);
       await BackgroundGpsService.instance.startTrip(activeTrip!.id);
-      await loadManifest();
+      _startFgPush(activeTrip!.id);
+      try {
+        await loadManifest();
+      } catch (_) {
+        // Manifest ka masla trip ko fail nahi karta; refresh par dobara load hoga.
+      }
       lastFlash = '🚌 Trip #${activeTrip!.id} started — tracking ON';
       return true;
     } on StateError catch (e) {
@@ -164,6 +227,14 @@ class AppState extends ChangeNotifier {
       return false;
     } on ApiException catch (e) {
       error = e.toString();
+      if (e.toString().contains('active trip')) {
+        // Server par pehle se trip chal rahi hai: use app mein le aayein taake END TRIP dikhe.
+        await restoreActiveTrip();
+        error = 'Is bus ki trip pehle se chal rahi hai. Neeche END TRIP dabayein, phir naya trip shuru karein.';
+      }
+      return false;
+    } catch (e) {
+      error = 'Trip shuru nahi ho saka: $e';
       return false;
     } finally {
       busy = false;
@@ -173,18 +244,22 @@ class AppState extends ChangeNotifier {
 
   Future<void> endTrip({bool silent = false}) async {
     final t = activeTrip;
-    activeTrip = null;
-    notifyListeners();
-    await BackgroundGpsService.instance.stopTrip();
-    if (t != null) {
-      try {
-        await _api.endTrip(t.id);
-        if (!silent) lastFlash = '🏁 Trip khatam.';
-      } on ApiException {
-        // Trip end ka failure serious nahi — server par active reh bhi gayi to next
-        // start par conflict message bata dega.
+    if (t == null) return;
+    try {
+      await _api.endTrip(t.id);
+    } on ApiException catch (e) {
+      // Pehle se band ho chuki trip: ise khatam hi samjhein.
+      if (!e.toString().contains('already')) {
+        // Band nahi hui to trip app mein rehne do, taake dobara END TRIP dabaya ja sake.
+        error = 'Trip band nahi ho saki. Internet dekh kar dobara END TRIP dabayein.';
+        notifyListeners();
+        return;
       }
     }
+    activeTrip = null;
+    _stopFgPush();
+    await BackgroundGpsService.instance.stopTrip();
+    if (!silent) lastFlash = '🏁 Trip khatam.';
     notifyListeners();
   }
 

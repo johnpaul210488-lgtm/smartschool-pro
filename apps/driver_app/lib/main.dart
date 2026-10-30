@@ -21,7 +21,7 @@ class SmartSchoolDriverApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SmartSchool Driver',
+      title: 'Queen International School Driver',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

@@ -84,6 +84,14 @@ class ApiClient {
   }
 
   // ---------- Parent dashboard ----------
+  /// Bachon ki buses par active trip ki aakhri location (map khulte hi dikhane ke liye).
+  Future<List<BusLocation>> getLiveBuses() async {
+    final env = await _send('GET', '/api/parents/me/live-buses');
+    return (env['data'] as List? ?? [])
+        .map((e) => BusLocation.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<List<ChildCard>> getChildren() async {
     final env = await _send('GET', '/api/parents/me/children');
     return (env['data'] as List? ?? [])

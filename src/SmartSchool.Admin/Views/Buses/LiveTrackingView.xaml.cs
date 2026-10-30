@@ -13,6 +13,7 @@ public partial class LiveTrackingView : UserControl
 {
     private readonly Dictionary<int, GMapMarker> _markers = new();
     private LiveTrackingViewModel? _vm;
+    private bool _autoFitDone;
 
     public LiveTrackingView()
     {
@@ -40,13 +41,21 @@ public partial class LiveTrackingView : UserControl
             _ = Services.BugReportService.SendAsync("Error", "LiveTracking map init fail", ex.Message, ex.ToString(), "LiveTrackingView");
         }
 
-        Loaded += (_, _) => _ = ProbeTilesAsync();
+        Loaded += (_, _) =>
+        {
+            _ = ProbeTilesAsync();
+            _ = _vm?.LoadSnapshotAsync(); // map khulte hi active buses dikhayein
+        };
 
         DataContextChanged += (_, _) =>
         {
             if (_vm is not null) _vm.LocationArrived -= OnLocation;
             _vm = DataContext as LiveTrackingViewModel;
-            if (_vm is not null) _vm.LocationArrived += OnLocation;
+            if (_vm is not null)
+            {
+                _vm.LocationArrived += OnLocation;
+                if (IsLoaded) _ = _vm.LoadSnapshotAsync();
+            }
         };
     }
 
@@ -146,9 +155,27 @@ public partial class LiveTrackingView : UserControl
             marker.Position = new PointLatLng(u.Latitude, u.Longitude);
             marker.Shape = newShape; // name/speed refresh ke liye hamesha fresh visual
         }
-        Map.ZoomAndCenterMarkers(null);
-        if (Map.Markers.Count == 1) Map.Position = new PointLatLng(u.Latitude, u.Longitude);
+        // Sirf pehli dafa auto-fit. Har ping par zoom reset karne se user ka zoom/drag kharab hota tha.
+        if (!_autoFitDone) FitBuses();
     }
+
+    /// <summary>Sab bus markers ko screen par laata hai (zoom aur center).</summary>
+    private void FitBuses()
+    {
+        if (Map.Markers.Count == 0) return;
+        Map.ZoomAndCenterMarkers(null);
+        if (Map.Markers.Count == 1 && _markers.Values.FirstOrDefault() is { } only)
+            Map.Position = only.Position;
+        _autoFitDone = true;
+    }
+
+    private void ZoomIn_Click(object sender, RoutedEventArgs e) =>
+        Map.Zoom = Math.Min(Map.MaxZoom, Map.Zoom + 1);
+
+    private void ZoomOut_Click(object sender, RoutedEventArgs e) =>
+        Map.Zoom = Math.Max(Map.MinZoom, Map.Zoom - 1);
+
+    private void FitBuses_Click(object sender, RoutedEventArgs e) => FitBuses();
 
     /// <summary>🚌 pill + "Bus #N" + driver-name chip — roadpe direct readable.</summary>
     private static UIElement BuildBusMarker(string busNumber, string driverName)

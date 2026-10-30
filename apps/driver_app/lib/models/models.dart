@@ -1,5 +1,7 @@
 // API models — mirror SmartSchool.API envelope + DTOs (camelCase JSON).
 
+import '../config/app_config.dart';
+
 class ApiException implements Exception {
   ApiException(this.message, {this.errors = const []});
   final String message;
@@ -105,6 +107,7 @@ class ManifestStudent {
     required this.fatherName,
     required this.fatherPhone,
     this.photoUrl,
+    this.address = '',
     PickStatus? status,
   }) : status = status ?? PickStatus.none;
 
@@ -115,7 +118,8 @@ class ManifestStudent {
         rollNo: j['rollNo'] as String,
         fatherName: j['fatherName'] as String,
         fatherPhone: j['fatherPhone'] as String,
-        photoUrl: j['photoUrl'] as String?,
+        photoUrl: _fullUrl(j['photoUrl'] as String?),
+        address: (j['address'] as String?) ?? '',
         status: switch (j['todayStatus'] as String?) {
           'PickIn' => PickStatus.picked,
           'DropOut' => PickStatus.dropped,
@@ -129,7 +133,15 @@ class ManifestStudent {
   final String rollNo;
   final String fatherName;
   final String fatherPhone;
+  /// Server relative path (/uploads/...) ko full URL banata hai, taake phone par photo load ho.
+  static String? _fullUrl(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http')) return path;
+    return '${AppConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '')}${path.startsWith('/') ? '' : '/'}$path';
+  }
+
   final String? photoUrl;
+  final String address;
   PickStatus status;
 
   bool get canPickIn => status == PickStatus.none;

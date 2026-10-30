@@ -113,13 +113,81 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
 
 ## 4. Firebase Cloud Messaging (parent + later driver app)
 
-1. Firebase Console → **Create project** (no Google Analytics needed).
-2. Add **Android app** `com.smartschool.parent` → download `google-services.json` → `android/app/`.
-3. Gradle wiring (see `apps/parent_app/README.md` → Firebase).
-4. iOS: add Apple app → `GoogleService-Info.plist` → `ios/Runner/` + enable Push/Background modes + upload **APNs key** in Firebase console (Cloud Messaging tab).
-5. **Server side:** Project settings → Service accounts → Generate new private key →
-   copy JSON to the API host → `Firebase:Enabled=true` + `Firebase:CredentialsJsonPath`.
-6. Test: run the app, watch API logs — `[FCM]` line shows the registered token; trigger a pick-in → push arrives.
+### Android APK and Firebase project
+
+1. In Firebase Console create/select the project and register the parent Android
+   app using the exact `applicationId` in the generated `android/app/build.gradle[.kts]`.
+   The release pipeline's Flutter create command generates **`com.smartschool.smartschool_parent`**, not
+   the previously documented `com.smartschool.parent`. Do not rename an already
+   installed app to match the old docs.
+2. The existing `apps/parent_app/firebase/google-services.json` is the **public
+   Android client config** for project `queen-school`, not a service-account
+   private key. The release workflow uses it by default (or the optional
+   `PARENT_GOOGLE_SERVICES_JSON` Actions secret as an override), and validates
+   both project and application ID. For a local build copy the client config to
+   `apps/parent_app/android/app/` after `flutter create`, then run from the repo root:
+   `python3 scripts/configure_parent_android.py --expected-project queen-school`.
+   The API key in client config is exposed in every APK; restrict it appropriately
+   in Google Cloud. Never put a service-account private key in an APK or public repo.
+3. iOS is separate: add the matching Apple app, put `GoogleService-Info.plist`
+   in `ios/Runner/`, enable Push/Background modes and upload an **APNs key** in
+   Firebase (Cloud Messaging). The Android script does not configure iOS.
+
+### School API configuration
+
+4. On the school PC, after installing the updated server, run **Queen School -
+   Firebase Setup** from the Start menu. Approve administrator access and select
+   the service-account JSON for `queen-school` (not the Android client file).
+   The helper validates the project, writes a copy to a restricted ProgramData
+   folder and enables Firebase in `appsettings.json` without replacing the other
+   settings; it stores a restricted backup. It grants read access to detected API
+   and console users, administrators and LocalSystem. If the API runs as a different
+   Windows account, give that account read access as well. No key is bundled in
+   the installer. For custom installations set `Firebase__Enabled=true` and
+   `Firebase__CredentialsJsonPath` yourself. Defaults are disabled and upgrading
+   preserves the school's existing config. The helper does **not** restart the API:
+   review queued WhatsApp messages first because they may be sent automatically on
+   restart. Invalid credentials, wrong project, a disabled Cloud Messaging API or
+   an offline server also prevent delivery. Never share private keys or device tokens.
+5. Install the new parent APK using the same signing key as the existing APK;
+   generated Flutter projects default to debug signing, and ephemeral CI runners
+   can produce different keys. Plan stable signing or, with the parent's consent,
+   a reinstall (which clears app data). Log in, allow notification permission in
+   Android settings, and verify Settings → App Notifications. “Device registered”
+   only means the school API stored its token; it does not prove Firebase accepted
+   or delivered a push.
+
+### Parent-child link and diagnosis
+
+6. Staff should verify the correct parent and student before linking: it grants
+   the parent access to the child's information. Use an admin token in Swagger:
+   `GET /api/parent-links/student/{studentId}` shows accounts and device counts
+   (no tokens). If the correct active account is absent, use
+   `POST /api/parent-links` with `{"parentUsername":"parent1","studentId":1}`;
+   this is idempotent. Create a login via the staff-only `POST /api/auth/register`
+   if necessary. After linking, restart the parent app to refresh SignalR groups.
+   Never infer a link merely because two records share a phone number.
+7. Check `C:\ProgramData\SmartSchool\logs\smartschool-*.log` (installer):
+   - `FCM is disabled` / `[FCM DRY-RUN]`: **no push was sent**.
+   - `FCM device registered for user ...`: token registration reached the API;
+     the token itself is deliberately not logged.
+   - `no active parent accounts are linked` / `no registered devices`: fix the link or
+     open the configured app and sign in; use the staff-only link status endpoint.
+   - `FCM target[...] failed` / initialization errors: investigate Firebase
+     credentials, project and device token. `FCM accepted X/Y` means FCM accepted
+     requests, not that the OS displayed them.
+8. Test a **new** pick-in/drop-out while the parent app is in the background,
+   then with it open. Background notifications require real FCM + permission;
+   foreground may also show a SignalR banner. Avoid repeating the same event
+   within the 30-second debounce window.
+
+**WhatsApp is a separate channel:** fixing an FCM issue does not enable Twilio.
+Upgrade safety: migration `20261030120000_DurableWhatsAppSafety` retires unfinished
+legacy `Queued`/QR rows instead of replaying old attendance alerts. Ambiguous old handoffs become
+`DeliveryUnknown`; other unfinished rows become `legacy_not_replayed`. The retired v1.1.93 preview
+session format is removed, so scan one new QR in **WhatsApp Connection** after this upgrade. A
+`DRYRUN-*` entry from an older deployment was never delivered. Review failed/held history, but
+create a fresh bus event for a new alert rather than replaying historical rows.
 
 ---
 
@@ -137,8 +205,9 @@ linked-device production layout is the Windows installer with authenticated loop
 2. Sign in to WPF as Admin → **WhatsApp** → read/accept the compliance notice → **Connect / Generate QR**.
 3. On the dedicated school phone: WhatsApp → Linked devices → Link a device → scan the current QR.
 4. Restart the API/PC and confirm the encrypted session restores without another QR.
-5. Trigger one consented parent test alert and verify exactly one message/receipt.
-6. Never expose port 5110, copy the state directory, share QR screenshots, or use this endpoint for bulk/marketing/group automation.
+5. In the same page, search the test student and record permission only after the current father/mother recipient explicitly agrees.
+6. Trigger one fresh bus event and verify exactly one message/receipt; revoke permission and confirm the next alert is held.
+7. Never expose port 5110, copy the state directory, share QR screenshots, or use this endpoint for bulk/marketing/group automation.
 
 Linked-device mode is unofficial and cannot guarantee against account restrictions. The gateway enforces randomized 6–10 second spacing, daily/per-recipient caps, a bounded lane and idempotent receipts. If WhatsApp warns, forbids or logs out the account, stop automation and use its in-app review/support process.
 

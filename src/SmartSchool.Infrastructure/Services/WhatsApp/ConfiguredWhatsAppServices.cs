@@ -98,9 +98,11 @@ public sealed class ConfiguredWhatsAppSessionManager : IWhatsAppSessionManager
         var provider = string.IsNullOrWhiteSpace(_options.Provider) ? WhatsAppProviders.DryRun : _options.Provider;
         var isDryRun = provider.Equals(WhatsAppProviders.DryRun, StringComparison.OrdinalIgnoreCase);
         var isTwilio = provider.Equals(WhatsAppProviders.Twilio, StringComparison.OrdinalIgnoreCase);
+        var twilioFrom = _configuration["Twilio:WhatsAppFrom"]
+                         ?? _configuration["Twilio:FromWhatsAppNumber"];
         var twilioReady = !string.IsNullOrWhiteSpace(_configuration["Twilio:AccountSid"])
                           && !string.IsNullOrWhiteSpace(_configuration["Twilio:AuthToken"])
-                          && !string.IsNullOrWhiteSpace(_configuration["Twilio:WhatsAppFrom"]);
+                          && !string.IsNullOrWhiteSpace(twilioFrom);
         var knownProvider = isDryRun || isTwilio;
         var isReady = isDryRun || (isTwilio && twilioReady);
         var configurationError = !knownProvider
