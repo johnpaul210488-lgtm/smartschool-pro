@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -284,13 +285,54 @@ public sealed class QrTestGatewayService : BackgroundService, IWhatsAppActivatio
         finally { _gate.Release(); }
     }
 
+    /// <summary>Node binary ko pehle local gateway folder mein dhundta hai, phir system PATH mein.</summary>
+    private string? FindNodeBinary()
+    {
+        var localNode = Path.Combine(_gatewayDir, OperatingSystem.IsWindows() ? "node.exe" : "node");
+        if (File.Exists(localNode)) return localNode;
+
+        // System PATH se node dhundne ki koshish (Windows 'where', Linux/macOS 'which')
+        var whichCmd = OperatingSystem.IsWindows() ? "where" : "which";
+        try
+        {
+            var psi = new ProcessStartInfo(whichCmd, "node")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var proc = Process.Start(psi);
+            if (proc is not null)
+            {
+                var outp = proc.StandardOutput.ReadToEnd();
+                proc.WaitForExit(5000);
+                var firstLine = outp.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+                if (firstLine is not null && File.Exists(firstLine)) return firstLine;
+            }
+        }
+        catch { /* system node nahi mila, neeche error dega */ }
+        return null;
+    }
+
     private async Task EnsureProcessAsync(CancellationToken ct)
     {
         if (_process is not null && !_process.HasExited && _baseUri is not null && _secret is not null) return;
         StopChild();
-        var node = Path.Combine(_gatewayDir, OperatingSystem.IsWindows() ? "node.exe" : "node");
+        var node = FindNodeBinary();
         var entry = Path.Combine(_gatewayDir, "src", "index.js");
-        if (!File.Exists(node) || !File.Exists(entry)) throw new InvalidOperationException("QR test components are not installed.");
+        var nodeModules = Path.Combine(_gatewayDir, "node_modules");
+
+        if (node is null)
+            throw new InvalidOperationException(
+                "QR test ke liye Node.js nahi mila. System par Node.js install karein ya installer se setup karein.");
+        if (!File.Exists(entry))
+            throw new InvalidOperationException(
+                "QR gateway source files (src/index.js) publish output mein nahi hain. API dobara publish karein.");
+        if (!Directory.Exists(nodeModules))
+            throw new InvalidOperationException(
+                "QR gateway dependencies (node_modules) missing. Server PC par whatsapp-gateway folder mein 'npm ci' chalayein ya installer se setup karein.");
+
         Directory.CreateDirectory(_stateDir);
         var secret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         var info = new ProcessStartInfo(node)

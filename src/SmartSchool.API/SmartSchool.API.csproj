@@ -26,4 +26,24 @@
     <ProjectReference Include="..\SmartSchool.Shared\SmartSchool.Shared.csproj" />
   </ItemGroup>
 
+  <!-- WhatsApp QR test gateway source (Node/Baileys) — publish output mein shamil ho taake QrTestGatewayService Node process start kar sake. -->
+  <ItemGroup>
+    <Content Include="..\..\apps\whatsapp_gateway\src\**">
+      <Link>whatsapp-gateway\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\apps\whatsapp_gateway\package.json">
+      <Link>whatsapp-gateway\package.json</Link>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\apps\whatsapp_gateway\package-lock.json">
+      <Link>whatsapp-gateway\package-lock.json</Link>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="..\..\apps\whatsapp_gateway\NODE-LICENSE">
+      <Link>whatsapp-gateway\NODE-LICENSE</Link>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
