@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +17,16 @@ public sealed class InMemoryWhatsAppQueue : IWhatsAppQueue
 {
     private readonly Channel<WhatsAppJob> _channel = Channel.CreateUnbounded<WhatsAppJob>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
-    public ValueTask EnqueueAsync(WhatsAppJob job, CancellationToken ct = default) => _channel.Writer.WriteAsync(job, ct);
+    private readonly ConcurrentDictionary<Guid, byte> _scheduled = new();
+    public ValueTask EnqueueAsync(WhatsAppJob job, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (!_scheduled.TryAdd(job.CorrelationId, 0)) return ValueTask.CompletedTask;
+        if (_channel.Writer.TryWrite(job)) return ValueTask.CompletedTask;
+        _scheduled.TryRemove(job.CorrelationId, out _);
+        throw new InvalidOperationException("WhatsApp wake-up channel is closed.");
+    }
+    public void Complete(Guid id) => _scheduled.TryRemove(id, out _);
     public IAsyncEnumerable<WhatsAppJob> ReadAllAsync(CancellationToken ct) => _channel.Reader.ReadAllAsync(ct);
 }
 
@@ -45,6 +55,7 @@ public sealed class WhatsAppQueueHostedService(
                 try { await ProcessAsync(job.CorrelationId, ct); }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
                 catch (Exception ex) { logger.LogError(ex, "WhatsApp outbox processing failed for {CorrelationId}", job.CorrelationId); }
+                finally { queue.Complete(job.CorrelationId); }
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }

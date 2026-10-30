@@ -10,7 +10,7 @@
 ; Built by CI (release.yml). To build by hand:
 ;   - dotnet publish src\SmartSchool.API -c Release -o build-artifacts\api
 ;   - copy installer\appsettings.installer.json → build-artifacts\api\appsettings.json
-;     (replace __JWT_KEY__ with a random 64-char string)
+;     (the installer replaces __JWT_KEY__ locally on each fresh installation)
 ;   - dotnet ef migrations bundle --self-contained -r win-x64 -o build-artifacts\efbundle.exe
 ;   - on Windows with Node 22.22.3, run scripts\package-whatsapp-qr.ps1
 ;     (puts the disabled-by-default test gateway inside build-artifacts\api)
@@ -37,7 +37,11 @@ OutputDir=..\dist\installer
 #ifdef PreviewOnly
 OutputBaseFilename=QueenInternationalSchool-TEST-PREVIEW-{#AppVersion}
 #else
+  #ifdef ManualServerTest
+OutputBaseFilename=QueenInternationalSchool-SERVER-TEST-{#AppVersion}
+  #else
 OutputBaseFilename=QueenInternationalSchool-Setup-{#AppVersion}
+  #endif
 #endif
 SetupIconFile=Brand\QueenInternationalSchool.ico
 UninstallDisplayIcon={localappdata}\Programs\SmartSchool Admin\SmartSchool.Admin.exe
@@ -51,7 +55,8 @@ WizardStyle=modern
 ; appsettings.json alag line se — sirf tab daalo jab file PEHLE se na ho (upgrade par school ki config
 ; kabhi overwrite NAHI hoti: GitHub/ThingWorx/token waghaira settings mehfooz rehti hain)
 Source: "..\build-artifacts\api\*"; DestDir: "{app}\api"; Flags: recursesubdirs ignoreversion; Excludes: "appsettings.json"
-Source: "..\build-artifacts\api\appsettings.json"; DestDir: "{app}\api"; Flags: onlyifdoesntexist
+Source: "Ensure-UniqueJwt.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build-artifacts\api\appsettings.json"; DestDir: "{app}\api"; Flags: onlyifdoesntexist; AfterInstall: EnsureUniqueJwt
 ; WPF Admin desktop (LocalAppData: self-updater kaam kare silently, koi UAC nahi)
 Source: "..\build-artifacts\admin\SmartSchool.Admin.exe"; DestDir: "{localappdata}\Programs\SmartSchool Admin"; Flags: ignoreversion
 ; 1-click diagnostics and private Firebase server setup (no credentials bundled)
@@ -68,6 +73,8 @@ Type: files; Name: "{app}\admin\SmartSchool.Admin.exe"
 ; CHANGED: remove the old API entry points so the new publish payload must replace them.
 Type: files; Name: "{app}\api\SmartSchool.API.exe"
 Type: files; Name: "{app}\api\SmartSchool.API.dll"
+; Remove unused retired provider binaries. Existing appsettings is preserved.
+Type: files; Name: "{app}\api\Twilio*.dll"
 ; CHANGED: old SmartSchool names (desktop + old Start Menu folder) hata kar Queen shortcut recreate karein.
 Type: files; Name: "{group}\SmartSchool Admin.lnk"
 Type: files; Name: "{group}\SmartSchool Pro.lnk"
@@ -129,7 +136,36 @@ Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden 
 
 ; CHANGED: stop a previously running API before replacing its binaries during an upgrade.
 [Code]
+procedure EnsureUniqueJwt();
+var
+  ResultCode: Integer;
+  Args: String;
+begin
+  Args := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
+    ExpandConstant('{app}\Ensure-UniqueJwt.ps1') + '" -ConfigPath "' +
+    ExpandConstant('{app}\api\appsettings.json') + '"';
+  ResultCode := 1;
+  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Args,
+    '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+    RaiseException('Fresh installation ki private JWT key nahi ban saki. API shuru nahi ki gayi.');
+end;
+
 #ifndef PreviewOnly
+#ifdef ManualServerTest
+function InitializeSetup(): Boolean;
+var
+  I: Integer;
+begin
+  // Explicit command-line acknowledgement is intended for automated fixture tests.
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/I_HAVE_VERIFIED_DB_AND_CONFIG_BACKUPS') = 0 then
+    begin
+      Result := True;
+      exit;
+    end;
+  Result := SuppressibleMsgBox('SERVER TEST: Setup API band/restart karega aur database migration chala sakta hai. Twilio hata diya gaya hai; real WhatsApp alerts QR test aur alag approval tak nahi jayenge. Kya database ka restore-verified backup aur current config ka backup bana liya hai?', mbConfirmation, MB_YESNO, IDNO) = IDYES;
+end;
+#endif
 // Stops every running copy of the API (process, old service, anything still on port 5000) and
 // waits until the port is free. Returns True only when the old API is really gone.
 function StopOldApi(): Boolean;
@@ -202,5 +238,9 @@ end;
 #ifdef PreviewOnly
 FinishedLabel=TEST PREVIEW sirf is test PC par install hua hai.%n%nAdmin app: Desktop / Start Menu «Queen International School»%nTest API: http://localhost:5000 — live server aur parent queue se alag.%nTest login: admin / Admin@12345.%n%nSirf alag test WhatsApp number aur ijazat wala test recipient istemal karein.
 #else
+#ifdef ManualServerTest
+FinishedLabel=SERVER TEST build install hua hai. Database/config backup mehfooz rakhein.%n%nTwilio use nahi hota. Sirf alag test number se QR samples check karein. Real parent routing default band hai; purane alerts auto-send nahi honge.%n%nFirebase private key installer mein nahi hai. Delivery aur server test khud verify karein.
+#else
 FinishedLabel=Queen International School install ho gaya!%n%nAdmin app: Desktop / Start Menu shortcut «Queen International School»%nAPI: http://localhost:5000 — ABHI shuru ho gayi hai aur har PC-login par background mein khud uthe gi.%nLogin: admin / Admin@12345 — pehli dafa database apne aap ban jayegi.
+#endif
 #endif
