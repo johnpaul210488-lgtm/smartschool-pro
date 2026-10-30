@@ -56,6 +56,8 @@ public sealed class WhatsAppQrTestSecurityTests
         Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Send(
             new("+923001234567", "pick", true, Guid.NewGuid()), default)).StatusCode);
         Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Unlink(new(true), default)).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Activate(new(true, true), default)).StatusCode);
+        Assert.Equal(403, Assert.IsType<ObjectResult>(await controller.Deactivate(new(true), default)).StatusCode);
     }
 
     [Fact]
@@ -77,6 +79,7 @@ public sealed class WhatsAppQrTestSecurityTests
         var controller = CreateController(IPAddress.Loopback, "http");
         Assert.IsType<BadRequestObjectResult>(await controller.Start(new(false), default));
         Assert.IsType<BadRequestObjectResult>(await controller.Unlink(new(false), default));
+        Assert.IsType<BadRequestObjectResult>(await controller.Activate(new(false, true), default));
         Assert.IsType<BadRequestObjectResult>(await controller.Send(
             new("+923001234567", "pick", false, Guid.NewGuid()), default));
         Assert.IsType<BadRequestObjectResult>(await controller.Send(

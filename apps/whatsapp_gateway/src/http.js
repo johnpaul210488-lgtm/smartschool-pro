@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 
-const MAX_BODY = 4096;
+const MAX_BODY = 12000;
 function authorized(header, secret) {
   if (typeof header !== 'string' || !header.startsWith('Bearer ')) return false;
   const supplied = Buffer.from(header.slice(7));
@@ -56,6 +56,10 @@ export function createGatewayServer({ session, secret }) {
       if (req.method === 'POST' && url.pathname === '/test/send') {
         const body = await readJson(req);
         return respond(res, 200, await session.sendTest(body));
+      }
+      if (req.method === 'POST' && url.pathname === '/outbox/send') {
+        const body = await readJson(req);
+        return respond(res, 200, await session.sendLive(body));
       }
       return respond(res, 404, { ok: false, error: 'Not found.' });
     } catch {

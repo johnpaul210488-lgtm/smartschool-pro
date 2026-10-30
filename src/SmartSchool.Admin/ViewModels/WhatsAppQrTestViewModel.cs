@@ -1,4 +1,5 @@
 using System.IO;
+using System.Collections.ObjectModel;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Media;
@@ -27,6 +28,18 @@ public partial class WhatsAppQrTestViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _isConnected;
     [ObservableProperty] private ImageSource? _qrImage;
+    [ObservableProperty] private bool _liveEnabled;
+    [ObservableProperty] private string _liveStatus = "Real parent routing band hai.";
+    [ObservableProperty] private bool _testReceivedConfirmed;
+    [ObservableProperty] private bool _liveRiskConfirmed;
+    [ObservableProperty] private string _studentSearch = "";
+    [ObservableProperty] private StudentListItem? _selectedStudent;
+    [ObservableProperty] private WhatsAppConsentContact? _selectedContact;
+    [ObservableProperty] private bool _parentPermissionConfirmed;
+    [ObservableProperty] private string _consentFeedback = "";
+    public ObservableCollection<StudentListItem> Students { get; } = new();
+    public ObservableCollection<WhatsAppConsentContact> Contacts { get; } = new();
+    public ObservableCollection<WhatsAppLogListItem> RecentLogs { get; } = new();
 
     public bool IsIdle => !IsBusy;
     public bool CanSend => IsIdle && IsConnected;
@@ -60,6 +73,10 @@ public partial class WhatsAppQrTestViewModel : ObservableObject, IDisposable
             }
             _state = r.Data.State ?? "off";
             IsConnected = _state == "connected";
+            LiveEnabled = r.Data.LiveEnabled == true;
+            LiveStatus = !LiveEnabled ? "Real parent routing band hai — sirf test." :
+                r.Data.LiveSessionMatches == true ? "Real parent routing ON: sirf naye eligible alerts." :
+                "Real routing ON hai lekin authorized account connected nahi; messages nahi bheje ja rahe.";
             StatusText = _state switch
             {
                 "disabled" or "off" => "Test mode band hai",
@@ -184,6 +201,123 @@ public partial class WhatsAppQrTestViewModel : ObservableObject, IDisposable
         }
         finally { IsBusy = false; }
         await RefreshAsync();
+    }
+
+    [RelayCommand]
+    private async Task ActivateLiveAsync()
+    {
+        if (IsBusy || !IsConnected) return;
+        if (!TestReceivedConfirmed || !LiveRiskConfirmed)
+        {
+            Feedback = "Pehle test phone par dono samples receive hone aur risk ki tasdeeq karein.";
+            return;
+        }
+        if (MessageBox.Show("Ab connected number se ijazat walay ASLI parents ko NAYE pick/drop messages ja sakte hain. " +
+            "Purane queued, held ya stale messages nahi bheje jayenge. Unofficial WhatsApp se account restrict ho sakta hai.\n\n" +
+            "Kya aap test ke baad real parent routing ON karne ki ijazat dete hain?",
+            "Real parents ke liye alag tasdeeq", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        IsBusy = true;
+        try
+        {
+            var r = await _api.PostAsync<QrTestReply>("api/whatsapp-qr-test/activate-live", new { testReceived = true, riskConfirmed = true });
+            Feedback = r.Ok && r.Data?.Ok == true ? "Real routing on hai; sirf nayi aur consented notifications." : r.Data?.Error ?? r.Error;
+        }
+        finally { IsBusy = false; }
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    private async Task DeactivateLiveAsync()
+    {
+        if (IsBusy || MessageBox.Show("Real parent routing band karein? Jo send pehle shuru ho chuka ho woh mukammal ho sakta hai.",
+            "Real routing band", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        IsBusy = true;
+        try
+        {
+            var r = await _api.PostAsync<QrTestReply>("api/whatsapp-qr-test/deactivate-live", new { confirm = true });
+            Feedback = r.Ok && r.Data?.Ok == true ? "Real routing band hai; purane alerts baad mein khud nahi jayenge." : r.Data?.Error ?? r.Error;
+        }
+        finally { IsBusy = false; }
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    private async Task SearchStudentsAsync()
+    {
+        if (IsBusy) return;
+        if (StudentSearch.Trim().Length < 2) { ConsentFeedback = "Student name ya roll number ke kam az kam 2 haroof likhein."; return; }
+        IsBusy = true;
+        try
+        {
+            var r = await _api.StudentsAsync(StudentSearch.Trim(), pageSize: 25);
+            Students.Clear(); Contacts.Clear(); SelectedStudent = null; SelectedContact = null;
+            if (r.Ok && r.Data is not null)
+            {
+                foreach (var student in r.Data.Items.Where(s => s.IsActive)) Students.Add(student);
+                ConsentFeedback = Students.Count == 0 ? "Koi active student nahi mila." : "List se student select karke numbers load karein.";
+            }
+            else ConsentFeedback = r.Error;
+        }
+        finally { IsBusy = false; }
+    }
+
+    [RelayCommand]
+    private async Task LoadContactsAsync()
+    {
+        if (IsBusy || SelectedStudent is null) return;
+        IsBusy = true;
+        try
+        {
+            var r = await _api.GetAsync<WhatsAppConsentStudent>($"api/whatsapp-consents/student/{SelectedStudent.Id}");
+            Contacts.Clear(); SelectedContact = null; ParentPermissionConfirmed = false;
+            if (r.Ok && r.Data is not null)
+            {
+                foreach (var contact in r.Data.Contacts) Contacts.Add(contact);
+                ConsentFeedback = Contacts.Count == 0 ? "Student ka valid father/mother number nahi mila." :
+                    $"{r.Data.StudentName}: number select karein; parent opt-out hamesha lagu hai.";
+            }
+            else ConsentFeedback = r.Error;
+        }
+        finally { IsBusy = false; }
+    }
+
+    [RelayCommand] private Task GrantConsentAsync() => ChangeConsentAsync(true);
+    [RelayCommand] private Task RevokeConsentAsync() => ChangeConsentAsync(false);
+    private async Task ChangeConsentAsync(bool grant)
+    {
+        if (IsBusy || SelectedStudent is null || SelectedContact is null) return;
+        if (grant && !ParentPermissionConfirmed) { ConsentFeedback = "Parent ki explicit ijazat pehle hasil aur confirm karein."; return; }
+        var phone = SelectedContact.Phone;
+        if (MessageBox.Show($"{SelectedStudent.FullName} — {phone}: " +
+            (grant ? "parent ki hasil-shuda ijazat record karein?" : "ijazat revoke karein?"),
+            "WhatsApp permission", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        IsBusy = true;
+        try
+        {
+            var r = await _api.PostAsync<object>("api/whatsapp-consents", new
+            {
+                studentId = SelectedStudent.Id, phone, granted = grant, consentConfirmed = grant && ParentPermissionConfirmed
+            });
+            ConsentFeedback = r.Ok ? r.Msg : r.Error;
+        }
+        finally { IsBusy = false; }
+        await LoadContactsAsync();
+    }
+
+    [RelayCommand]
+    private async Task LoadLogsAsync()
+    {
+        if (IsBusy) return;
+        IsBusy = true;
+        try
+        {
+            var r = await _api.GetAsync<PagedResult<WhatsAppLogListItem>>("api/whatsapp-logs?page=1&pageSize=50");
+            RecentLogs.Clear();
+            if (r.Ok && r.Data is not null)
+                foreach (var row in r.Data.Items) RecentLogs.Add(row);
+            else Feedback = r.Error;
+        }
+        finally { IsBusy = false; }
     }
 
     public void Dispose()

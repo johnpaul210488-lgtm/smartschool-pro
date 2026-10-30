@@ -71,7 +71,7 @@ public sealed class NotificationFlowTests
 
         var fcm = new CaptureFcm();
         var queue = new InMemoryWhatsAppQueue();
-        var controller = new BusAttendanceController(uow, queue, new NoopNotifications(), new FixedGeocoder(),
+        var controller = new BusAttendanceController(uow, queue, new InactiveRouting(), new NoopNotifications(), new FixedGeocoder(),
             fcm, new ConfigurationBuilder().Build(), NullLogger<BusAttendanceController>.Instance)
         {
             ControllerContext = new ControllerContext
@@ -96,7 +96,7 @@ public sealed class NotificationFlowTests
         Assert.Equal("1", send.Push.Data["studentId"]);
         Assert.Contains("baith chuka hai", send.Push.Body); // The linked parent's language.
         Assert.Single(await db.BusAttendances.ToListAsync());
-        Assert.Single(await db.WhatsAppLogs.ToListAsync());
+        Assert.Equal(WhatsAppStatus.Held, (await db.WhatsAppLogs.SingleAsync()).Status);
     }
 
     [Fact]
@@ -115,6 +115,8 @@ public sealed class NotificationFlowTests
         Assert.IsType<NotFoundObjectResult>((await links.Link(new() { ParentUsername = "parent", StudentId = 1 }, default)).Result);
         Assert.Empty(await db.ParentStudents.ToListAsync());
     }
+
+    private sealed class InactiveRouting : IWhatsAppActivation { public DateTime? ActivatedAtUtc => null; }
 
     private sealed class CaptureFcm : IFcmSender
     {

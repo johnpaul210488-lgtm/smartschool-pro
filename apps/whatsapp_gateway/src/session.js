@@ -1,7 +1,7 @@
-import { randomInt } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 
-// Only synthetic messages live here. No school queue, student data, inbound
-// messages or arbitrary text can reach this test gateway.
+// Test samples are synthetic. Real outbox text is accepted only over the
+// authenticated loopback API after the .NET service checks its activation gate.
 const samples = {
   pick: '🚌 TEST ONLY — SmartSchool\n\n✅ Sample Student (Class TEST) has BOARDED Bus #TEST.\n\nThis is a test, not a real bus event.',
   drop: '🚌 TEST ONLY — SmartSchool\n\n🏠 Sample Student (Class TEST) has been DROPPED OFF safely.\n\nThis is a test, not a real bus event.',
@@ -24,9 +24,15 @@ export function createSession({ dir, createAuth, hasSession, deleteSession, make
   let blocked = false;
   let inFlight = false;
   let recentSends = [];
+  let liveSends = [];
+  let currentAuth = null;
   const requests = new Map();
 
-  const status = () => ({ state, testOnly: true });
+  // A non-reversible account binding prevents a previously authorized outbox
+  // from silently switching to a different linked account after a re-pair.
+  const fingerprint = () => isLinked(currentAuth?.state?.creds)
+    ? createHash('sha256').update(currentAuth.state.creds.me.id).digest('hex') : null;
+  const status = () => ({ state, testOnly: true, accountFingerprint: fingerprint() });
   // For Baileys' QR pairing, `registered` can remain false even after pairing;
   // the successful QR update persists `me.id` and `account` instead.
   const isLinked = (creds) => typeof creds?.me?.id === 'string' && creds.me.id.length > 0 && !!creds.account;
@@ -38,6 +44,7 @@ export function createSession({ dir, createAuth, hasSession, deleteSession, make
   ]);
 
   function connect(auth) {
+    currentAuth = auth;
     const myGeneration = ++generation;
     state = 'connecting';
     qr = null;
@@ -165,6 +172,7 @@ export function createSession({ dir, createAuth, hasSession, deleteSession, make
     clearPairingTimer();
     const previous = socket;
     socket = null;
+    currentAuth = null;
     qr = null;
     pairingUntil = 0;
     blocked = true;
@@ -222,6 +230,39 @@ export function createSession({ dir, createAuth, hasSession, deleteSession, make
     return pending;
   }
 
+  // Only the private API supervisor calls this route. It independently checks
+  // current activation, freshness and explicit consent immediately before send.
+  async function sendLive({ phone, text, requestId, accountFingerprint }) {
+    if (typeof phone !== 'string' || !E164.test(phone) || typeof text !== 'string' ||
+        !text.trim() || text.length > 1600 || !requestIdPattern.test(requestId ?? '') ||
+        !/^[0-9a-f]{64}$/.test(accountFingerprint ?? '')) {
+      return { ok: false, result: 'not_sent', error: 'Invalid outbox request.' };
+    }
+    if (requests.has(requestId)) return requests.get(requestId);
+    if (state !== 'connected' || !socket || fingerprint() !== accountFingerprint)
+      return { ok: false, result: 'not_sent', error: 'Authorized WhatsApp session is not connected.' };
+    if (inFlight) return { ok: false, result: 'not_sent', error: 'Another message is in progress.' };
+    liveSends = liveSends.filter(t => Date.now() - t < 60000);
+    if (liveSends.length >= 20) return { ok: false, result: 'not_sent', error: 'Rate limit reached; waiting.' };
+    if (requests.size >= 1000) requests.delete(requests.keys().next().value);
+    inFlight = true;
+    liveSends.push(Date.now());
+    const pending = (async () => {
+      try {
+        const response = await Promise.race([
+          socket.sendMessage(`${phone.substring(1)}@s.whatsapp.net`, { text }),
+          new Promise((_, reject) => { const t = setTimeout(() => reject(new Error('timeout')), sendTimeoutMs); t.unref?.(); }),
+        ]);
+        const id = response?.key?.id;
+        return { ok: true, result: 'submitted', providerMessageId: typeof id === 'string' ? id.slice(0, 100) : null };
+      } catch {
+        return { ok: false, result: 'unknown', error: 'Outcome unknown; do not retry without checking.' };
+      } finally { inFlight = false; }
+    })();
+    requests.set(requestId, pending);
+    return pending;
+  }
+
   async function stop() {
     ++generation;
     clearRetry();
@@ -232,5 +273,5 @@ export function createSession({ dir, createAuth, hasSession, deleteSession, make
     if (previous) { try { await previous.end(new Error('Gateway stopping')); } catch {} }
   }
 
-  return { status, getQr: () => qr, start, restore, unlink, sendTest, stop };
+  return { status, getQr: () => qr, start, restore, unlink, sendTest, sendLive, stop };
 }

@@ -24,6 +24,7 @@ public sealed class SchoolDbContext : DbContext
     public DbSet<Trip> Trips => Set<Trip>();
     public DbSet<BusAttendance> BusAttendances => Set<BusAttendance>();
     public DbSet<WhatsAppLog> WhatsAppLogs => Set<WhatsAppLog>();
+    public DbSet<WhatsAppConsent> WhatsAppConsents => Set<WhatsAppConsent>();
     public DbSet<ParentStudent> ParentStudents => Set<ParentStudent>();
     public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
@@ -238,6 +239,15 @@ public sealed class SchoolDbContext : DbContext
              .HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.StudentId);
+        });
+
+        mb.Entity<WhatsAppConsent>(e =>
+        {
+            e.ToTable("WhatsAppConsents");
+            e.Property(x => x.PhoneE164).HasMaxLength(16).IsRequired();
+            e.HasIndex(x => new { x.StudentId, x.PhoneE164 }).IsUnique();
+            e.HasOne(x => x.Student).WithMany().HasForeignKey(x => x.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         mb.Entity<ParentStudent>(e =>

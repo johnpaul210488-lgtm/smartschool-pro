@@ -82,7 +82,7 @@ public partial class MainViewModel : ObservableObject
         NavItems.Add(new NavItem { Title = "Drivers", IconKind = "CardAccountDetails", CreateView = OpenDrivers });
         NavItems.Add(new NavItem { Title = "Reports", IconKind = "ChartBar", CreateView = OpenReports });
         if (UserRole is "Admin" or "SuperAdmin")
-            NavItems.Add(new NavItem { Title = "WhatsApp Test", IconKind = "Whatsapp", CreateView = OpenWhatsAppQrTest });
+            NavItems.Add(new NavItem { Title = "WhatsApp QR", IconKind = "Whatsapp", CreateView = OpenWhatsAppQrTest });
 
         SelectedNavItem = NavItems[0];
 

@@ -858,6 +858,20 @@ namespace SmartSchool.Infrastructure.Data.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("SmartSchool.Core.Models.WhatsAppConsent", b =>
+                {
+                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    b.Property<int>("StudentId").HasColumnType("int");
+                    b.Property<string>("PhoneE164").IsRequired().HasMaxLength(16).HasColumnType("nvarchar(16)");
+                    b.Property<bool>("Granted").HasColumnType("bit");
+                    b.Property<DateTime>("ChangedAtUtc").HasColumnType("datetime2");
+                    b.Property<int>("ChangedByUserId").HasColumnType("int");
+                    b.HasKey("Id");
+                    b.HasIndex("StudentId", "PhoneE164").IsUnique();
+                    b.ToTable("WhatsAppConsents");
+                });
+
             modelBuilder.Entity("SmartSchool.Core.Models.WhatsAppLog", b =>
                 {
                     b.Property<long>("Id")
@@ -1147,6 +1161,13 @@ namespace SmartSchool.Infrastructure.Data.Migrations
                     b.Navigation("Bus");
 
                     b.Navigation("Driver");
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.Models.WhatsAppConsent", b =>
+                {
+                    b.HasOne("SmartSchool.Core.Models.Student", "Student")
+                        .WithMany().HasForeignKey("StudentId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("SmartSchool.Core.Models.WhatsAppLog", b =>

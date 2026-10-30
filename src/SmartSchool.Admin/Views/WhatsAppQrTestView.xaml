@@ -4,14 +4,14 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="4,0,12,24">
-            <TextBlock Text="WhatsApp QR — sirf test" FontSize="26" FontWeight="Bold"/>
+            <TextBlock Text="WhatsApp QR — test aur routing" FontSize="26" FontWeight="Bold"/>
             <TextBlock Text="Admin login ke baad, sirf school server PC ya HTTPS par." FontSize="13" Margin="0,4,0,14"/>
             <Border Background="#FFFFF3D5" BorderBrush="#FFD28824" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,16">
                 <StackPanel>
                     <TextBlock Text="ALAG TEST NUMBER ISTEMAL KAREIN" FontWeight="Bold" Foreground="#FF6A3D00" FontSize="15"/>
                     <TextBlock Text="Yeh unofficial WhatsApp connection hai; account restrict ya ban ho sakta hai. Live school number link na karein."
                                Foreground="#FF5D3C14" TextWrapping="Wrap" Margin="0,5,0,0"/>
-                    <TextBlock Text="Sirf sample pick-in/drop-out bheje jayenge. Asli parents, bus events aur purani queue is test se nahi bheji jati. Twilio ka maujooda system alag hai aur apni queue process kar sakta hai."
+                    <TextBlock Text="Test mode sirf samples bhejta hai. Real parent routing alag tasdeeq se shuru hoti hai; purani queue aur stale alerts dobara nahi bheje jate."
                                Foreground="#FF5D3C14" TextWrapping="Wrap" Margin="0,5,0,0"/>
                 </StackPanel>
             </Border>
@@ -72,6 +72,59 @@
                     </StackPanel>
                 </materialDesign:Card>
             </Grid>
+            <materialDesign:Card Padding="18" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="3. Parent ki WhatsApp permission" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="Pehle parent se wazeh ijazat hasil karein; phir student aur unka number select karke record karein. Parent app ka opt-out is ijazat se bhi upar hai."
+                               TextWrapping="Wrap" Margin="0,7,0,10"/>
+                    <WrapPanel>
+                        <TextBox Width="250" Text="{Binding StudentSearch, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource MaterialDesignOutlinedTextBox}" materialDesign:HintAssist.Hint="Student name / roll number"/>
+                        <Button Content="Search" Command="{Binding SearchStudentsCommand}" IsEnabled="{Binding IsIdle}" Style="{StaticResource QisOutlineButton}" Margin="8,0,0,0"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,10,0,0">
+                        <ComboBox Width="330" ItemsSource="{Binding Students}" SelectedItem="{Binding SelectedStudent}" DisplayMemberPath="FullName" materialDesign:HintAssist.Hint="Student select karein"/>
+                        <Button Content="Numbers load karein" Command="{Binding LoadContactsCommand}" IsEnabled="{Binding IsIdle}" Style="{StaticResource QisOutlineButton}" Margin="8,0,0,0"/>
+                    </WrapPanel>
+                    <ComboBox ItemsSource="{Binding Contacts}" SelectedItem="{Binding SelectedContact}" DisplayMemberPath="Description" materialDesign:HintAssist.Hint="Father / mother number" Margin="0,10,0,0" HorizontalAlignment="Left" MinWidth="420"/>
+                    <CheckBox IsChecked="{Binding ParentPermissionConfirmed}" Margin="0,10,0,0" Content="Is parent ne is number par WhatsApp bus alerts ki wazeh ijazat di hai."/>
+                    <WrapPanel Margin="0,10,0,0">
+                        <Button Content="Ijazat record karein" Command="{Binding GrantConsentCommand}" IsEnabled="{Binding IsIdle}" Style="{StaticResource QisPrimaryButton}" Margin="0,0,8,0"/>
+                        <Button Content="Ijazat revoke karein" Command="{Binding RevokeConsentCommand}" IsEnabled="{Binding IsIdle}" Style="{StaticResource QisDangerButton}"/>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding ConsentFeedback}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                </StackPanel>
+            </materialDesign:Card>
+            <materialDesign:Card Padding="18" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="4. Real parent routing — alag ijazat zaroori" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding LiveStatus}" FontWeight="Bold" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                    <TextBlock Text="Test ke baad hi ON karein. Sirf is connected number se, permission walay parents ko naye events jayenge. Purane ya unknown messages kabhi auto-retry nahi honge."
+                               TextWrapping="Wrap" Margin="0,7,0,0"/>
+                    <CheckBox IsChecked="{Binding TestReceivedConfirmed}" Margin="0,10,0,0" Content="Maine alag test number se dono samples test phone par receive hote dekhe hain."/>
+                    <CheckBox IsChecked="{Binding LiveRiskConfirmed}" Margin="0,8,0,0" Content="Main real parents ko messages aur unofficial account restriction ka risk samajhta/samajhti hoon."/>
+                    <WrapPanel Margin="0,12,0,0">
+                        <Button Content="Real routing ON karein" Command="{Binding ActivateLiveCommand}" IsEnabled="{Binding CanSend}" Style="{StaticResource QisPrimaryButton}" Margin="0,0,8,0"/>
+                        <Button Content="Real routing band karein" Command="{Binding DeactivateLiveCommand}" IsEnabled="{Binding IsIdle}" Style="{StaticResource QisDangerButton}"/>
+                    </WrapPanel>
+                </StackPanel>
+            </materialDesign:Card>
+            <materialDesign:Card Padding="18" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="5. Recent WhatsApp status" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="Submitted: provider ko diya, delivery confirm nahi. Unknown: check karein, dobara auto-send nahi. Held / Expired aur purana Queued: nahi bheja jayega."
+                               TextWrapping="Wrap" Margin="0,7,0,10"/>
+                    <Button Content="Recent status load karein" Command="{Binding LoadLogsCommand}" IsEnabled="{Binding IsIdle}" HorizontalAlignment="Left" Style="{StaticResource QisOutlineButton}"/>
+                    <DataGrid ItemsSource="{Binding RecentLogs}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" Height="260" Margin="0,10,0,0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Time (PKT)" Binding="{Binding CreatedAtPakistan}" Width="150"/>
+                            <DataGridTextColumn Header="Student" Binding="{Binding StudentName}" Width="*"/>
+                            <DataGridTextColumn Header="Number" Binding="{Binding ParentPhone}" Width="150"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+                            <DataGridTextColumn Header="Note" Binding="{Binding Error}" Width="2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </materialDesign:Card>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

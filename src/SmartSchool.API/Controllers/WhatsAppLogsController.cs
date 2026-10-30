@@ -67,25 +67,12 @@ public sealed class WhatsAppLogsController : BaseApiController
         return OkEnvelope(PagedResult<WhatsAppLogListItem>.Create(items, page, pageSize, total));
     }
 
-    /// <summary>Reset a failed message and push it back into the queue immediately.</summary>
+    /// <summary>Historical or uncertain alerts must not be replayed from this screen.</summary>
     [HttpPost("{id:long}/retry")]
     public async Task<ActionResult> Retry(long id, CancellationToken ct)
     {
         var log = await _uow.WhatsAppLogs.FindAsync(new object[] { id }, ct);
-        if (log is null)
-            return NotFoundEnvelope($"WhatsApp log {id} was not found.");
-        if (log.Status == WhatsAppStatus.Sent)
-            return ConflictEnvelope("This message was already sent.");
-
-        log.Status = WhatsAppStatus.Queued;
-        log.RetryCount = 0;
-        log.LastAttemptAtUtc = null;
-        log.Error = null;
-        await _uow.SaveChangesAsync(ct);
-
-        await _queue.EnqueueAsync(
-            new WhatsAppJob(log.CorrelationId, null, log.StudentId, log.ParentPhone, log.Message), ct);
-
-        return OkMessage("Message re-queued for sending.");
+        if (log is null) return NotFoundEnvelope($"WhatsApp log {id} was not found.");
+        return ConflictEnvelope("Manual replay is disabled for time-sensitive or uncertain WhatsApp messages. Verify with the parent instead.");
     }
 }

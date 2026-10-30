@@ -170,13 +170,12 @@ try
     else
         Log.Warning("Test preview: the existing WhatsApp outbox worker is disabled.");
 
-    // Separate, explicitly enabled QR test gateway. It is NOT a sender for the
-    // production outbox and does not change Twilio or Firebase behavior.
+    // QR routing starts test-only; the outbox requires separate staff activation.
     builder.Services.AddSingleton<QrTestGatewayService>();
     builder.Services.AddHostedService<QrTestGatewayService>(sp => sp.GetRequiredService<QrTestGatewayService>());
 
-    // TwilioWhatsAppService uses the Twilio SDK, not a typed HttpClient.
-    builder.Services.AddWhatsAppSender();
+    builder.Services.AddSingleton<IWhatsAppActivation>(sp => sp.GetRequiredService<QrTestGatewayService>());
+    builder.Services.AddSingleton<IWhatsAppSender, QrWhatsAppSender>();
     builder.Services.AddHttpClient<IGeocodingService, OsmGeocodingService>();
 
     // Firebase Cloud Messaging: dry-run until Firebase:Enabled=true + credentials JSON path set.

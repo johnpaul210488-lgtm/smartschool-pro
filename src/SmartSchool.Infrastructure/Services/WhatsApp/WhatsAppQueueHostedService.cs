@@ -1,6 +1,5 @@
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -8,210 +7,158 @@ using SmartSchool.Core.Interfaces;
 using SmartSchool.Core.Models;
 using SmartSchool.Infrastructure.Data;
 using SmartSchool.Shared.Enums;
+using SmartSchool.Shared.Helpers;
 
 namespace SmartSchool.Infrastructure.Services.WhatsApp;
 
-/// <summary>In-memory channel the controllers publish to. Durability lives in WhatsAppLogs.</summary>
+/// <summary>Durability is in WhatsAppLogs, not this wake-up channel.</summary>
 public sealed class InMemoryWhatsAppQueue : IWhatsAppQueue
 {
     private readonly Channel<WhatsAppJob> _channel = Channel.CreateUnbounded<WhatsAppJob>(
-        new UnboundedChannelOptions { SingleReader = false, SingleWriter = false });
-
-    public ValueTask EnqueueAsync(WhatsAppJob job, CancellationToken ct = default)
-        => _channel.Writer.WriteAsync(job, ct);
-
-    public IAsyncEnumerable<WhatsAppJob> ReadAllAsync(CancellationToken ct)
-        => _channel.Reader.ReadAllAsync(ct);
+        new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+    public ValueTask EnqueueAsync(WhatsAppJob job, CancellationToken ct = default) => _channel.Writer.WriteAsync(job, ct);
+    public IAsyncEnumerable<WhatsAppJob> ReadAllAsync(CancellationToken ct) => _channel.Reader.ReadAllAsync(ct);
 }
 
 /// <summary>
-/// Background consumer for WhatsApp alerts:
-///  - Twilio down? 3 retries at 5-minute intervals, then permanent Failed + admin SignalR alert.
-///  - Restart-safe: rows sit Queued in WhatsAppLogs; a sweeper re-enqueues stuck rows.
-///  - Deduped by CorrelationId so a re-enqueued job can never double-send.
+/// Only newly-created PendingQr rows can be processed. Legacy Queued rows,
+/// Held, Submitted and Unknown rows are never retried. Claim is atomic in SQL.
+/// A crash during Sending becomes Unknown, not a duplicate send.
 /// </summary>
-public sealed class WhatsAppQueueHostedService : BackgroundService
+public sealed class WhatsAppQueueHostedService(
+    InMemoryWhatsAppQueue queue, IServiceScopeFactory scopes, IWhatsAppActivation activation,
+    ILogger<WhatsAppQueueHostedService> logger) : BackgroundService
 {
-    private readonly InMemoryWhatsAppQueue _queue;
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IConfiguration _config;
-    private readonly ILogger<WhatsAppQueueHostedService> _logger;
-    private readonly int _maxRetries;
-    private readonly TimeSpan _sweepInterval;
+    private static readonly TimeSpan SweepInterval = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan AttemptInterval = TimeSpan.FromSeconds(12);
+    private static readonly TimeSpan UnknownAfter = TimeSpan.FromMinutes(2);
 
-    public WhatsAppQueueHostedService(
-        InMemoryWhatsAppQueue queue,
-        IServiceScopeFactory scopeFactory,
-        IConfiguration config,
-        ILogger<WhatsAppQueueHostedService> logger)
-    {
-        _queue = queue;
-        _scopeFactory = scopeFactory;
-        _config = config;
-        _logger = logger;
-        _maxRetries = config.GetValue("WhatsAppQueue:MaxRetries", 3);
-        _sweepInterval = TimeSpan.FromSeconds(config.GetValue("WhatsAppQueue:SweepIntervalSeconds", 60));
-    }
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        => Task.WhenAll(ConsumeAsync(stoppingToken), SweepAsync(stoppingToken));
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        await Task.WhenAll(
-            ProcessJobsAsync(stoppingToken),
-            SweepStuckMessagesAsync(stoppingToken));
-    }
-
-    private async Task ProcessJobsAsync(CancellationToken ct)
+    private async Task ConsumeAsync(CancellationToken ct)
     {
         try
         {
-            await foreach (var job in _queue.ReadAllAsync(ct))
+            await foreach (var job in queue.ReadAllAsync(ct))
             {
-                try
-                {
-                    await HandleJobAsync(job, ct);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error processing WhatsApp job {Id}", job.CorrelationId);
-                }
+                try { await ProcessAsync(job.CorrelationId, ct); }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
+                catch (Exception ex) { logger.LogError(ex, "WhatsApp outbox processing failed for {CorrelationId}", job.CorrelationId); }
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
     }
 
-    private async Task HandleJobAsync(WhatsAppJob job, CancellationToken ct)
+    /// <summary>Internal for deterministic CI tests; input is only a wake-up ID.</summary>
+    public async Task ProcessAsync(Guid id, CancellationToken ct = default)
     {
-        using var scope = _scopeFactory.CreateScope();
+        using var scope = scopes.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
-        var sender = scope.ServiceProvider.GetRequiredService<IWhatsAppSender>();
-
-        var log = await db.WhatsAppLogs.FirstOrDefaultAsync(l => l.CorrelationId == job.CorrelationId, ct);
-        if (log is null)
+        var now = DateTime.UtcNow;
+        var claimable = db.WhatsAppLogs.Where(l => l.CorrelationId == id && l.Status == WhatsAppStatus.PendingQr &&
+            (l.LastAttemptAtUtc == null || l.LastAttemptAtUtc < now - AttemptInterval));
+        int claimed;
+        if (db.Database.IsRelational())
         {
-            log = new WhatsAppLog
-            {
-                CorrelationId = job.CorrelationId,
-                StudentId = job.StudentId,
-                ParentPhone = job.ParentPhone,
-                Message = job.Message,
-                Status = WhatsAppStatus.Queued,
-                CreatedAtUtc = DateTime.UtcNow
-            };
-            db.WhatsAppLogs.Add(log);
-            await db.SaveChangesAsync(ct);
+            claimed = await claimable.ExecuteUpdateAsync(s => s.SetProperty(l => l.Status, WhatsAppStatus.Sending)
+                .SetProperty(l => l.LastAttemptAtUtc, now), ct);
         }
-
-        // Already delivered by a previous attempt/duplicate job -> do not send twice.
-        if (log.Status == WhatsAppStatus.Sent)
-            return;
-
-        log.LastAttemptAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-
-        var result = await sender.SendAsync(job.ParentPhone, job.Message, ct);
-
-        if (result.Success)
+        else
         {
-            log.Status = WhatsAppStatus.Sent;
-            log.SentAtUtc = DateTime.UtcNow;
-            log.ProviderMessageId = result.ProviderMessageId;
-            log.Error = null;
-
-            if (job.BusAttendanceId is { } attendanceId)
-            {
-                var attendance = await db.BusAttendances.FindAsync(new object?[] { attendanceId }, ct);
-                if (attendance is not null)
-                    attendance.WhatsAppSent = true;
-            }
-
-            await db.SaveChangesAsync(ct);
-            return;
+            // InMemory exists only for isolated tests; real servers use SQL Server atomic claims.
+            var item = await claimable.FirstOrDefaultAsync(ct);
+            if (item is null) return;
+            item.Status = WhatsAppStatus.Sending;
+            item.LastAttemptAtUtc = now;
+            claimed = await db.SaveChangesAsync(ct);
+            db.ChangeTracker.Clear();
         }
-
-        log.RetryCount += 1;
-        log.Error = result.Error is { Length: > 1000 } ? result.Error[..1000] : result.Error;
-
-        if (log.RetryCount >= _maxRetries)
+        if (claimed != 1) return;
+        var log = await db.WhatsAppLogs.SingleAsync(l => l.CorrelationId == id, ct);
+        var routeSince = activation.ActivatedAtUtc;
+        if (!WhatsAppOutboxRules.IsFresh(routeSince, log.CreatedAtUtc, DateTime.UtcNow))
         {
-            log.Status = WhatsAppStatus.Failed;
-            await db.SaveChangesAsync(ct);
-            _logger.LogWarning("WhatsApp message {Id} failed permanently after {N} attempts: {Error}",
-                job.CorrelationId, log.RetryCount, result.Error);
-
-            // Alert connected admin clients so a human can call the parent manually.
-            try
-            {
-                var notify = scope.ServiceProvider.GetRequiredService<ISchoolNotificationService>();
-                await notify.SendAdminAlertAsync(new SmartSchool.Core.DTOs.AdminAlertNotification
-                {
-                    Title = "WhatsApp FAILED",
-                    Message = $"Student ({(log.StudentId?.ToString() ?? "?")}) → {log.ParentPhone}: " +
-                              $"{_maxRetries} attempts ke baad bhi message nahi gaya. Parent ko phone kar lein. " +
-                              $"Error: {result.Error}",
-                    TimePakistan = SmartSchool.Shared.Helpers.PkTime.NowPk
-                        .ToString("dd MMM yyyy hh:mm tt", System.Globalization.CultureInfo.InvariantCulture)
-                }, ct);
-            }
+            log.Status = routeSince is null || log.CreatedAtUtc < routeSince ? WhatsAppStatus.Held : WhatsAppStatus.Expired;
+            log.Error = "Routing disabled, changed, or alert expired; not sent.";
+        }
+        else if (!await IsRecipientAllowedAsync(db, log, ct))
+        {
+            log.Status = WhatsAppStatus.Held;
+            log.Error = "Explicit consent missing/revoked, parent opted out, or recipient changed.";
+        }
+        else
+        {
+            var sender = scope.ServiceProvider.GetRequiredService<IWhatsAppSender>();
+            WhatsAppSendResult result;
+            try { result = await sender.SendAsync(log, ct); }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Admin alert (SignalR) failed - DB row still marked Failed.");
+                logger.LogWarning("WhatsApp send outcome unknown ({ErrorType})", ex.GetType().Name);
+                result = new(WhatsAppSendOutcome.Unknown, Error: "Outcome unknown; do not retry automatically.");
             }
-            return;
+            log.RetryCount++;
+            log.Error = result.Error is { Length: > 1000 } ? result.Error[..1000] : result.Error;
+            switch (result.Outcome)
+            {
+                case WhatsAppSendOutcome.Submitted:
+                    log.Status = WhatsAppStatus.Submitted;
+                    log.ProviderMessageId = result.ProviderMessageId;
+                    // Neither SentAtUtc nor BusAttendance.WhatsAppSent is set: there is no delivery receipt.
+                    break;
+                case WhatsAppSendOutcome.NotSent:
+                    log.Status = WhatsAppOutboxRules.IsFresh(activation.ActivatedAtUtc, log.CreatedAtUtc, DateTime.UtcNow)
+                        ? WhatsAppStatus.PendingQr : WhatsAppStatus.Expired;
+                    break;
+                default:
+                    log.Status = WhatsAppStatus.Unknown;
+                    break;
+            }
         }
-
-        log.Status = WhatsAppStatus.Queued;
         await db.SaveChangesAsync(ct);
+    }
 
-        // Delayed re-enqueue WITHOUT blocking the reader loop.
-        var delay = Backoff(log.RetryCount);
-        _ = Task.Run(async () =>
+    public static async Task<bool> IsRecipientAllowedAsync(SchoolDbContext db, WhatsAppLog log, CancellationToken ct = default)
+    {
+        if (log.StudentId is null || PhoneNormalizer.ToE164(log.ParentPhone) is not { } phone) return false;
+        var student = await db.Students.AsNoTracking().FirstOrDefaultAsync(s => s.Id == log.StudentId && s.IsActive, ct);
+        if (student is null || (phone != PhoneNormalizer.ToE164(student.FatherPhone) &&
+                                phone != PhoneNormalizer.ToE164(student.MotherPhone))) return false;
+        if (!await db.WhatsAppConsents.AsNoTracking().AnyAsync(c => c.StudentId == student.Id && c.PhoneE164 == phone && c.Granted, ct)) return false;
+        var parents = await db.ParentStudents.AsNoTracking().Where(p => p.StudentId == student.Id)
+            .Select(p => new { p.ParentUser.Phone, p.ParentUser.ReceiveWhatsApp }).ToListAsync(ct);
+        return !parents.Any(p => PhoneNormalizer.ToE164(p.Phone) == phone && !p.ReceiveWhatsApp);
+    }
+
+    private async Task SweepAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
         {
             try
             {
-                await Task.Delay(delay);
-                await _queue.EnqueueAsync(job);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to re-enqueue WhatsApp job {Id}", job.CorrelationId);
-            }
-        });
-    }
-
-    /// <summary>Spec: 3 retries at 5-minute intervals (WhatsAppQueue:RetryMinutes, default 5).</summary>
-    private TimeSpan Backoff(int retryCount)
-    {
-        var minutes = _config.GetValue("WhatsAppQueue:RetryMinutes", 5);
-        return TimeSpan.FromMinutes(minutes);
-    }
-
-    /// <summary>Feeds messages stuck since before a restart (or manually reset) back into the channel.</summary>
-    private async Task SweepStuckMessagesAsync(CancellationToken ct)
-    {
-        using var timer = new PeriodicTimer(_sweepInterval);
-        try
-        {
-            while (await timer.WaitForNextTickAsync(ct))
-            {
-                using var scope = _scopeFactory.CreateScope();
+                using var scope = scopes.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
-
-                // 6 min idle > 5 min retry delay → genuinely stuck (missed re-enqueue), not just waiting.
-                var stuckCutoff = DateTime.UtcNow.AddMinutes(-6);
-                var stuck = await db.WhatsAppLogs
-                    .Where(l => l.Status == WhatsAppStatus.Queued
-                                && l.RetryCount < _maxRetries
-                                && (l.LastAttemptAtUtc == null || l.LastAttemptAtUtc < stuckCutoff))
-                    .OrderBy(l => l.CreatedAtUtc)
-                    .Take(50)
-                    .ToListAsync(ct);
-
-                foreach (var log in stuck)
-                    await _queue.EnqueueAsync(
-                        new WhatsAppJob(log.CorrelationId, null, log.StudentId, log.ParentPhone, log.Message), ct);
+                var deadline = DateTime.UtcNow - UnknownAfter;
+                if (db.Database.IsRelational())
+                    await db.WhatsAppLogs.Where(l => l.Status == WhatsAppStatus.Sending && l.LastAttemptAtUtc < deadline)
+                        .ExecuteUpdateAsync(s => s.SetProperty(l => l.Status, WhatsAppStatus.Unknown)
+                            .SetProperty(l => l.Error, "Interrupted attempt; outcome unknown. Do not retry automatically."), ct);
+                else
+                {
+                    var interrupted = await db.WhatsAppLogs.Where(l => l.Status == WhatsAppStatus.Sending && l.LastAttemptAtUtc < deadline).ToListAsync(ct);
+                    foreach (var l in interrupted) { l.Status = WhatsAppStatus.Unknown; l.Error = "Interrupted attempt; outcome unknown."; }
+                    await db.SaveChangesAsync(ct);
+                }
+                // Only the new status can enter the QR queue, never old Queued rows.
+                var ids = await db.WhatsAppLogs.AsNoTracking().Where(l => l.Status == WhatsAppStatus.PendingQr &&
+                    (l.LastAttemptAtUtc == null || l.LastAttemptAtUtc < DateTime.UtcNow - AttemptInterval))
+                    .OrderBy(l => l.CreatedAtUtc).Take(100).Select(l => l.CorrelationId).ToListAsync(ct);
+                foreach (var id in ids) await queue.EnqueueAsync(new WhatsAppJob(id, null, null, "", ""), ct);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
+            catch (Exception ex) { logger.LogError(ex, "WhatsApp outbox sweep failed"); }
+            try { await Task.Delay(SweepInterval, ct); }
+            catch (OperationCanceledException) { break; }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
     }
 }

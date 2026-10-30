@@ -100,7 +100,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         Cards.Add(new DashboardCard { Title = "Active Buses", Value = $"{d.ActiveTripsNow}/{d.TotalBuses}", IconKind = "Bus", Accent = "#FF9100", SubText = "on trip right now" });
         Cards.Add(new DashboardCard { Title = "Today's Pick-ins", Value = d.PickInsToday.ToString(), IconKind = "BusAlert", Accent = "#448AFF", SubText = $"{d.DropOutsToday} drop-outs" });
         Cards.Add(new DashboardCard { Title = "Pending Fees", Value = $"Rs {d.PendingFeesAmount:N0}", IconKind = "Alarm", Accent = "#FF5252", SubText = $"{d.PendingFeesCount} unpaid slips" });
-        Cards.Add(new DashboardCard { Title = "WhatsApp sent", Value = d.WhatsAppSentToday.ToString(), IconKind = "Whatsapp", Accent = "#4CAF50", SubText = $"{d.WhatsAppFailedTotal} failed total" });
+        Cards.Add(new DashboardCard { Title = "WhatsApp submitted", Value = d.WhatsAppSentToday.ToString(), IconKind = "Whatsapp", Accent = "#4CAF50", SubText = $"Delivery unconfirmed; {d.WhatsAppFailedTotal} need review" });
     }
 
     public void Dispose() => WeakReferenceMessenger.Default.UnregisterAll(this);

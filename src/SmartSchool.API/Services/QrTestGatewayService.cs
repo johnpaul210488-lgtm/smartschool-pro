@@ -3,16 +3,24 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using SmartSchool.Core.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using SmartSchool.Infrastructure.Data;
+using SmartSchool.Infrastructure.Services.WhatsApp;
+using SmartSchool.Shared.Enums;
+using SmartSchool.Shared.Helpers;
 
 namespace SmartSchool.API.Services;
 
 /// <summary>
-/// Supervises a disabled-by-default, local-only QR TEST process. This service
-/// deliberately does not implement IWhatsAppSender and never reads the outbox.
+/// Supervises the authenticated, loopback-only QR process. Test mode is the
+/// default; real routing requires a separate, explicit staff activation.
 /// </summary>
-public sealed class QrTestGatewayService : BackgroundService
+public sealed class QrTestGatewayService : BackgroundService, IWhatsAppActivation
 {
     private readonly ILogger<QrTestGatewayService> _logger;
+    private readonly IServiceScopeFactory _scopes;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly HttpClient _http = new(new HttpClientHandler { UseProxy = false })
     {
@@ -26,8 +34,25 @@ public sealed class QrTestGatewayService : BackgroundService
     private string? _secret;
     private Uri? _baseUri;
 
-    public QrTestGatewayService(ILogger<QrTestGatewayService> logger) => _logger = logger;
+    public QrTestGatewayService(ILogger<QrTestGatewayService> logger, IServiceScopeFactory scopes) { _logger = logger; _scopes = scopes; }
     private string Marker => Path.Combine(_stateDir, "enabled-test-only");
+    private string LiveMarker => Path.Combine(_stateDir, "explicit-live-activation.json");
+    private sealed record LiveActivation(DateTime ActivatedAtUtc, string AccountFingerprint);
+
+    private LiveActivation? ReadActivation()
+    {
+        if (!PreviewSafetyPolicy.WhatsAppWorkerEnabled || !File.Exists(Marker)) return null;
+        try
+        {
+            var a = JsonSerializer.Deserialize<LiveActivation>(File.ReadAllText(LiveMarker), _json);
+            if (a is null || a.ActivatedAtUtc.Kind != DateTimeKind.Utc ||
+                a.ActivatedAtUtc > DateTime.UtcNow.AddMinutes(1) || a.ActivatedAtUtc.Year < 2025 ||
+                !Regex.IsMatch(a.AccountFingerprint ?? "", "^[a-f0-9]{64}$")) return null;
+            return a;
+        }
+        catch { return null; }
+    }
+    public DateTime? ActivatedAtUtc => ReadActivation()?.ActivatedAtUtc;
 
     // Restart a previously enabled process if the API or gateway restarted.
     // The node process will reconnect only registered sessions, never request a
@@ -59,7 +84,11 @@ public sealed class QrTestGatewayService : BackgroundService
         {
             if (!File.Exists(Marker)) return new(true, State: "disabled", TestOnly: true);
             await EnsureProcessAsync(ct);
-            return await CallAsync(HttpMethod.Get, "status", null, ct);
+            var reply = await CallAsync(HttpMethod.Get, "status", null, ct);
+            var activation = ReadActivation();
+            return reply with { LiveEnabled = activation is not null,
+                LiveSessionMatches = activation is not null && reply.State == "connected" &&
+                                     activation.AccountFingerprint == reply.AccountFingerprint };
         }
         catch (Exception ex) { LogSafe(ex); return Unavailable(); }
         finally { _gate.Release(); }
@@ -85,6 +114,7 @@ public sealed class QrTestGatewayService : BackgroundService
         var wasEnabled = File.Exists(Marker);
         try
         {
+            if (!wasEnabled) File.Delete(LiveMarker);
             await EnsureProcessAsync(ct);
             Directory.CreateDirectory(_stateDir);
             // The marker contains no phone, QR, key or credentials.
@@ -97,7 +127,7 @@ public sealed class QrTestGatewayService : BackgroundService
         {
             if (!wasEnabled)
             {
-                try { File.Delete(Marker); } catch { /* reported below */ }
+                try { File.Delete(LiveMarker); File.Delete(Marker); } catch { /* reported below */ }
                 StopChild();
             }
             LogSafe(ex);
@@ -112,6 +142,18 @@ public sealed class QrTestGatewayService : BackgroundService
         try
         {
             if (!File.Exists(Marker)) return new(false, Result: "not_sent", Error: "The QR test is not enabled.");
+            // Never send even a synthetic sample to a number already recorded
+            // for a real student or parent. Tests must use a separate recipient.
+            using (var scope = _scopes.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
+                var studentPhones = await db.Students.AsNoTracking().Select(s => new { s.FatherPhone, s.MotherPhone }).ToListAsync(ct);
+                var parentPhones = await db.Users.AsNoTracking().Where(u => u.Role == UserRole.Parent)
+                    .Select(u => u.Phone).ToListAsync(ct);
+                if (studentPhones.Any(p => PhoneNormalizer.ToE164(p.FatherPhone) == phone || PhoneNormalizer.ToE164(p.MotherPhone) == phone) ||
+                    parentPhones.Any(p => PhoneNormalizer.ToE164(p) == phone))
+                    return new(false, Result: "not_sent", Error: "Choose a separate test recipient, not a recorded parent number.");
+            }
             try { await EnsureProcessAsync(ct); }
             catch (Exception ex) { LogSafe(ex); return new(false, Result: "not_sent", Error: "QR test service is unavailable."); }
             try
@@ -130,6 +172,85 @@ public sealed class QrTestGatewayService : BackgroundService
         finally { _gate.Release(); }
     }
 
+    /// <summary>Requires an operator's separate, informed confirmation after a successful test.</summary>
+    public async Task<QrGatewayReply> ActivateAsync(bool testReceived, bool riskConfirmed, CancellationToken ct)
+    {
+        if (!PreviewSafetyPolicy.WhatsAppWorkerEnabled || !testReceived || !riskConfirmed)
+            return new(false, Error: "A received test and explicit live-risk confirmation are required.");
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (ReadActivation() is not null) return new(false, Error: "Live routing is already enabled; disable first to re-authorize.");
+            if (!File.Exists(Marker)) return new(false, Error: "Link the test account first.");
+            await EnsureProcessAsync(ct);
+            var status = await CallAsync(HttpMethod.Get, "status", null, ct);
+            if (status.State != "connected" || !Regex.IsMatch(status.AccountFingerprint ?? "", "^[a-f0-9]{64}$"))
+                return new(false, Error: "The linked account must be connected before activation.");
+            var activation = new LiveActivation(DateTime.UtcNow, status.AccountFingerprint!);
+            var temporary = LiveMarker + ".tmp-" + Guid.NewGuid().ToString("N");
+            try
+            {
+                await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(activation, _json), ct);
+                File.Move(temporary, LiveMarker, overwrite: true);
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+            return new(true, LiveEnabled: true);
+        }
+        catch (Exception ex) { LogSafe(ex); return new(false, Error: "Live routing could not be enabled."); }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<QrGatewayReply> DeactivateAsync(CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct);
+        try { File.Delete(LiveMarker); return new(true, LiveEnabled: false); }
+        catch (Exception ex) { LogSafe(ex); return new(false, Error: "Could not disable live routing."); }
+        finally { _gate.Release(); }
+    }
+
+    public async Task<WhatsAppSendResult> SendOutboxAsync(Guid correlationId, CancellationToken ct)
+    {
+        if (correlationId == Guid.Empty) return new(WhatsAppSendOutcome.NotSent, Error: "Invalid outbox ID.");
+        await _gate.WaitAsync(ct);
+        try
+        {
+            var activation = ReadActivation();
+            if (activation is null) return new(WhatsAppSendOutcome.NotSent, Error: "Live routing is disabled.");
+            try { await EnsureProcessAsync(ct); }
+            catch (Exception ex) { LogSafe(ex); return new(WhatsAppSendOutcome.NotSent, Error: "Gateway unavailable."); }
+            // Re-read eligibility after acquiring the gateway lock. A reactivation,
+            // changed phone, revoked permission or parent opt-out cannot be bypassed
+            // by a job that waited behind another send.
+            using var scope = _scopes.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
+            var log = await db.WhatsAppLogs.AsNoTracking().FirstOrDefaultAsync(l => l.CorrelationId == correlationId, ct);
+            if (log is null || log.Status != WhatsAppStatus.Sending ||
+                !WhatsAppOutboxRules.IsFresh(activation.ActivatedAtUtc, log.CreatedAtUtc, DateTime.UtcNow) ||
+                !await WhatsAppQueueHostedService.IsRecipientAllowedAsync(db, log, ct) ||
+                PhoneNormalizer.ToE164(log.ParentPhone) is not { } phone ||
+                string.IsNullOrWhiteSpace(log.Message) || log.Message.Length > 1600)
+                return new(WhatsAppSendOutcome.NotSent, Error: "Outbox eligibility changed; message not sent.");
+            try
+            {
+                var r = await CallAsync(HttpMethod.Post, "outbox/send", new {
+                    phone, text = log.Message, requestId = correlationId.ToString("D"), accountFingerprint = activation.AccountFingerprint
+                }, ct);
+                return r.Result switch
+                {
+                    "submitted" => new(WhatsAppSendOutcome.Submitted, r.ProviderMessageId),
+                    "not_sent" => new(WhatsAppSendOutcome.NotSent, Error: r.Error),
+                    _ => new(WhatsAppSendOutcome.Unknown, Error: "Outcome unknown; check before any further action.")
+                };
+            }
+            catch (Exception ex)
+            {
+                LogSafe(ex);
+                return new(WhatsAppSendOutcome.Unknown, Error: "Outcome unknown; check before any further action.");
+            }
+        }
+        finally { _gate.Release(); }
+    }
+
     public async Task<QrGatewayReply> UnlinkAsync(CancellationToken ct)
     {
         await _gate.WaitAsync(ct);
@@ -137,7 +258,7 @@ public sealed class QrTestGatewayService : BackgroundService
         {
             // Disable auto-start first, even if WhatsApp is offline. The user is
             // told to remove the linked device on the phone if remote logout fails.
-            try { File.Delete(Marker); }
+            try { File.Delete(LiveMarker); File.Delete(Marker); }
             catch (Exception ex) { LogSafe(ex); return new(false, Error: "Could not disable the test session."); }
             var phoneUnlinked = false;
             try
@@ -257,4 +378,8 @@ public sealed record QrGatewayReply(
     string? QrDataUrl = null,
     string? Result = null,
     string? Error = null,
-    bool? PhoneUnlinked = null);
+    bool? PhoneUnlinked = null,
+    string? AccountFingerprint = null,
+    string? ProviderMessageId = null,
+    bool? LiveEnabled = null,
+    bool? LiveSessionMatches = null);

@@ -47,8 +47,8 @@ public sealed class DashboardController : BaseApiController
             .Where(f => f.Status == FeeStatus.Paid && f.Month == monthPrefix)
             .SumAsync(f => (decimal?)f.Amount, ct) ?? 0m;
         var waSentToday = await _uow.WhatsAppLogs.CountAsync(
-            l => l.Status == WhatsAppStatus.Sent && l.SentAtUtc >= dayStartUtc && l.SentAtUtc < dayEndUtc, ct);
-        var waFailed = await _uow.WhatsAppLogs.CountAsync(l => l.Status == WhatsAppStatus.Failed, ct);
+            l => l.Status == WhatsAppStatus.Submitted && l.LastAttemptAtUtc >= dayStartUtc && l.LastAttemptAtUtc < dayEndUtc, ct);
+        var waFailed = await _uow.WhatsAppLogs.CountAsync(l => l.Status == WhatsAppStatus.Failed || l.Status == WhatsAppStatus.Unknown || l.Status == WhatsAppStatus.Expired, ct);
 
         return OkEnvelope(new DashboardSummary(
             PkTime.NowPk.ToString("dddd, dd MMMM yyyy", CultureInfo.InvariantCulture),

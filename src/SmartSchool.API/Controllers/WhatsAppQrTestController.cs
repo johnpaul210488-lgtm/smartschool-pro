@@ -7,7 +7,7 @@ using SmartSchool.Shared.Constants;
 
 namespace SmartSchool.API.Controllers;
 
-/// <summary>Explicit opt-in and synthetic tests only; never connected to the school outbox.</summary>
+/// <summary>Staff-only QR test and separately confirmed real-message activation.</summary>
 [ApiController]
 [Route("api/whatsapp-qr-test")]
 [Authorize(Roles = AppRoles.Staff)]
@@ -59,6 +59,23 @@ public sealed class WhatsAppQrTestController(QrTestGatewayService gateway) : Bas
         return OkEnvelope(await gateway.SendAsync(request.Phone!, request.Type!, true, request.RequestId, ct));
     }
 
+    [HttpPost("activate-live")]
+    public async Task<ActionResult> Activate([FromBody] QrActivateRequest request, CancellationToken ct)
+    {
+        if (!IsSecureRequest()) return InsecureRequest();
+        if (!request.TestReceived || !request.RiskConfirmed)
+            return BadRequestEnvelope("Confirm successful receipt and the live sending risk first.");
+        return OkEnvelope(await gateway.ActivateAsync(true, true, ct));
+    }
+
+    [HttpPost("deactivate-live")]
+    public async Task<ActionResult> Deactivate([FromBody] QrUnlinkRequest request, CancellationToken ct)
+    {
+        if (!IsSecureRequest()) return InsecureRequest();
+        if (!request.Confirm) return BadRequestEnvelope("Confirm first.");
+        return OkEnvelope(await gateway.DeactivateAsync(ct));
+    }
+
     [HttpPost("unlink")]
     public async Task<ActionResult> Unlink([FromBody] QrUnlinkRequest request, CancellationToken ct)
     {
@@ -71,3 +88,5 @@ public sealed class WhatsAppQrTestController(QrTestGatewayService gateway) : Bas
 public sealed record QrStartRequest(bool RiskConfirmed);
 public sealed record QrSendRequest(string? Phone, string? Type, bool ConsentConfirmed, Guid RequestId);
 public sealed record QrUnlinkRequest(bool Confirm);
+
+public sealed record QrActivateRequest(bool TestReceived, bool RiskConfirmed);

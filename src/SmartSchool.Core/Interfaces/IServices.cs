@@ -8,15 +8,20 @@ public interface IJwtTokenService
     string CreateToken(User user, out DateTime expiresAtUtc);
 }
 
-public sealed record WhatsAppSendResult(bool Success, string? ProviderMessageId, string? Error)
-{
-    public static WhatsAppSendResult Ok(string providerId) => new(true, providerId, null);
-    public static WhatsAppSendResult Fail(string error) => new(false, null, error);
-}
+// Submitted means handed to the provider, NOT confirmed delivered. Unknown
+// must never be retried automatically because the first attempt may have sent.
+public enum WhatsAppSendOutcome { NotSent, Submitted, Unknown }
+public sealed record WhatsAppSendResult(WhatsAppSendOutcome Outcome, string? ProviderMessageId = null, string? Error = null);
 
 public interface IWhatsAppSender
 {
-    Task<WhatsAppSendResult> SendAsync(string toPhone, string body, CancellationToken ct = default);
+    Task<WhatsAppSendResult> SendAsync(WhatsAppLog log, CancellationToken ct = default);
+}
+
+/// <summary>Null until a staff member explicitly authorizes the linked QR account.</summary>
+public interface IWhatsAppActivation
+{
+    DateTime? ActivatedAtUtc { get; }
 }
 
 public sealed record WhatsAppJob(

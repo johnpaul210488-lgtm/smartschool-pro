@@ -114,3 +114,28 @@ test('only a registered session auto-restores, reconnects transiently and requir
   assert.equal(f.deletes, 1);
   assert.equal(f.session.status().state, 'off');
 });
+
+test('outbox requires the connected account binding, deduplicates, and treats exceptions as unknown', async () => {
+  const f = fixture({ registered: true, send: () => ({ key: { id: 'opaque-id' } }) });
+  f.session.start();
+  f.sockets[0].ev.emit('connection.update', { connection: 'open' });
+  const binding = f.session.status().accountFingerprint;
+  assert.match(binding, /^[a-f0-9]{64}$/);
+  const request = { phone: '+923001234567', text: 'Live pick-in', requestId: randomUUID(), accountFingerprint: binding };
+  assert.equal((await f.session.sendLive({ ...request, accountFingerprint: 'a'.repeat(64) })).result, 'not_sent');
+  assert.equal((await f.session.sendLive({ ...request, text: '' })).result, 'not_sent');
+  assert.equal((await f.session.sendLive(request)).result, 'submitted');
+  assert.equal((await f.session.sendLive(request)).providerMessageId, 'opaque-id');
+  assert.equal(f.sent.length, 1);
+  await f.session.unlink();
+  assert.equal((await f.session.sendLive({ ...request, requestId: randomUUID() })).result, 'not_sent');
+
+  const bad = fixture({ registered: true, send: () => { throw new Error('possibly already sent'); } });
+  bad.session.start();
+  bad.sockets[0].ev.emit('connection.update', { connection: 'open' });
+  const attempt = { ...request, requestId: randomUUID(), accountFingerprint: bad.session.status().accountFingerprint };
+  assert.equal((await bad.session.sendLive(attempt)).result, 'unknown');
+  assert.equal((await bad.session.sendLive(attempt)).result, 'unknown');
+  assert.equal(bad.sent.length, 1);
+  await bad.session.stop();
+});

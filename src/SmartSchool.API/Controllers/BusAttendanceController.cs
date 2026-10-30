@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SmartSchool.Core.DTOs;
 using SmartSchool.Core.Interfaces;
 using SmartSchool.Core.Models;
+using SmartSchool.Infrastructure.Services.WhatsApp;
 using SmartSchool.Shared.Common;
 using SmartSchool.Shared.Constants;
 using SmartSchool.Shared.Enums;
@@ -15,7 +16,7 @@ namespace SmartSchool.API.Controllers;
 /// <summary>
 /// THE critical endpoints of the whole system. Driver taps PICK-IN / DROP-OUT ->
 /// (1) event persisted, (2) SignalR alert to AdminGroup + ParentGroup_{studentId},
-/// (3) father's WhatsApp message queued (durable outbox, retries if Twilio is down).
+/// (3) eligible new WhatsApp messages go to the consent-gated QR outbox.
 /// </summary>
 [ApiController]
 [Route("api/bus-attendance")]
@@ -23,6 +24,7 @@ public sealed class BusAttendanceController : BaseApiController
 {
     private readonly IUnitOfWork _uow;
     private readonly IWhatsAppQueue _whatsAppQueue;
+    private readonly IWhatsAppActivation _whatsAppActivation;
     private readonly ISchoolNotificationService _notify;
     private readonly IGeocodingService _geocoding;
     private readonly IFcmSender _fcm;
@@ -32,6 +34,7 @@ public sealed class BusAttendanceController : BaseApiController
     public BusAttendanceController(
         IUnitOfWork uow,
         IWhatsAppQueue whatsAppQueue,
+        IWhatsAppActivation whatsAppActivation,
         ISchoolNotificationService notify,
         IGeocodingService geocoding,
         IFcmSender fcm,
@@ -40,6 +43,7 @@ public sealed class BusAttendanceController : BaseApiController
     {
         _uow = uow;
         _whatsAppQueue = whatsAppQueue;
+        _whatsAppActivation = whatsAppActivation;
         _notify = notify;
         _geocoding = geocoding;
         _fcm = fcm;
@@ -159,8 +163,8 @@ public sealed class BusAttendanceController : BaseApiController
         var stampText = timePk.ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture);
 
         // Official EN / Roman-Urdu templates. Per-parent language preference overrides
-        // the school-wide default (Twilio:Language) — the parent app setting toggles it.
-        var defaultLanguage = _config["Twilio:Language"]?.Trim().ToLowerInvariant() ?? "en";
+        // the school-wide default (WhatsApp:Language) — the parent app setting toggles it.
+        var defaultLanguage = _config["WhatsApp:Language"]?.Trim().ToLowerInvariant() ?? "en";
         var templateVars = new WhatsAppTemplates.TemplateVars(
             StudentName: student.FullName,
             ClassName: student.Class.DisplayName,
@@ -260,20 +264,17 @@ public sealed class BusAttendanceController : BaseApiController
 
         // (2b) WhatsApp to parents - durable log row first, then enqueue.
         var recipients = new List<string> { student.FatherPhone };
-        if (_config.GetValue("Twilio:NotifyMother", false) && !string.IsNullOrWhiteSpace(student.MotherPhone))
+        if (_config.GetValue("WhatsApp:NotifyMother", false) && !string.IsNullOrWhiteSpace(student.MotherPhone))
             recipients.Add(student.MotherPhone!);
 
         var queued = 0;
         foreach (var phone in recipients)
         {
-            // Parent-app toggle: that parent disabled WhatsApp alerts → respect it.
-            var owner = parents.FirstOrDefault(p => PhoneMatches(p.Phone, phone));
-            if (owner is { ReceiveWhatsApp: false })
-            {
-                _logger.LogInformation("WhatsApp skipped for {Phone} — parent disabled alerts in app settings.", phone);
-                continue;
-            }
-
+            // Any matching parent's explicit opt-out overrides an office grant.
+            var matchingParents = parents.Where(p => PhoneMatches(p.Phone, phone)).ToArray();
+            if (matchingParents.Any(p => !p.ReceiveWhatsApp)) continue;
+            var owner = matchingParents.FirstOrDefault();
+            var fresh = WhatsAppOutboxRules.IsFresh(_whatsAppActivation.ActivatedAtUtc, timestampUtc, DateTime.UtcNow);
             var message = MessageFor(owner?.PreferredLanguage == "ur" ? "ur" : defaultLanguage);
             var correlationId = Guid.NewGuid();
             await _uow.WhatsAppLogs.AddAsync(new WhatsAppLog
@@ -283,14 +284,18 @@ public sealed class BusAttendanceController : BaseApiController
                 EventType = type.ToString(), // "PickIn" | "DropOut" — used by rate-limit/debounce views
                 ParentPhone = phone,
                 Message = message,
-                Status = WhatsAppStatus.Queued,
+                Status = fresh ? WhatsAppStatus.PendingQr : WhatsAppStatus.Held,
+                Error = fresh ? null : "Live QR routing not enabled, or event is historical/stale; not sent.",
                 CreatedAtUtc = DateTime.UtcNow
             }, ct);
             await _uow.SaveChangesAsync(ct);
 
-            await _whatsAppQueue.EnqueueAsync(
-                new WhatsAppJob(correlationId, busEvent.Id, student.Id, phone, message), ct);
-            queued++;
+            if (fresh)
+            {
+                await _whatsAppQueue.EnqueueAsync(
+                    new WhatsAppJob(correlationId, busEvent.Id, student.Id, phone, message), ct);
+                queued++;
+            }
         }
 
         return OkEnvelope(new BusEventResponse(
@@ -305,15 +310,8 @@ public sealed class BusAttendanceController : BaseApiController
                 : $"{student.FullName} marked as dropped.");
     }
 
-    /// <summary>Loose phone comparison: last 10 digits (covers 0300… vs +92300… formats).</summary>
     private static bool PhoneMatches(string? userPhone, string recipientPhone)
-    {
-        if (string.IsNullOrWhiteSpace(userPhone)) return false;
-        var a = new string(userPhone.Where(char.IsDigit).ToArray());
-        var b = new string(recipientPhone.Where(char.IsDigit).ToArray());
-        return a.Length >= 10 && b.Length >= 10
-               && a[^10..] == b[^10..];
-    }
+        => PhoneNormalizer.ToE164(userPhone) is { } normalized && normalized == PhoneNormalizer.ToE164(recipientPhone);
 
     /// <summary>Event feed for one student. Staff/teachers, or the student's own parent.</summary>
     [HttpGet("student/{studentId:int}")]

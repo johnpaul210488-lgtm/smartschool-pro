@@ -4,8 +4,7 @@ namespace SmartSchool.Core.Models;
 
 /// <summary>
 /// Durable outbox row for every WhatsApp message: written BEFORE the first
-/// send attempt so a crash or Twilio outage never loses a message - the
-/// background queue retries Queued rows with backoff.
+/// send attempt. Legacy Queued rows are not sent by the QR worker.
 /// </summary>
 public sealed class WhatsAppLog
 {
@@ -31,7 +30,7 @@ public sealed class WhatsAppLog
 
     public string? Error { get; set; }
 
-    /// <summary>Twilio SID (or DRYRUN-* in dev mode).</summary>
+    /// <summary>Provider identifier, if known; submission is not proof of delivery.</summary>
     public string? ProviderMessageId { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

@@ -1,7 +1,7 @@
 namespace SmartSchool.Shared.Helpers;
 
 /// <summary>
-/// Normalizes Pakistani phone numbers to E.164 for Twilio.
+/// Normalizes Pakistani phone numbers to E.164.
 /// Accepts: 03001234567, 3001234567, +923001234567, 923001234567.
 /// Returns null when the number can't be salvaged.
 /// </summary>
@@ -12,7 +12,7 @@ public static class PhoneNormalizer
         if (string.IsNullOrWhiteSpace(raw))
             return null;
 
-        var digits = new string(raw.Where(char.IsDigit).ToArray());
+        var digits = new string(raw.Where(c => c is >= '0' and <= '9').ToArray());
 
         if (digits.StartsWith("00"))
             digits = digits[2..];

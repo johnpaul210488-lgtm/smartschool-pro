@@ -28,7 +28,14 @@ public enum WhatsAppStatus
 {
     Queued = 0,
     Sent = 1,
-    Failed = 2
+    Failed = 2,
+    // Historical Queued rows belong to the retired provider and are never swept.
+    PendingQr = 3,
+    Sending = 4,
+    Submitted = 5,
+    Unknown = 6,
+    Held = 7,
+    Expired = 8
 }
 
 public enum TripType

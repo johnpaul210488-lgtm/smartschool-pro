@@ -88,6 +88,11 @@ jobs:
       - name: QR test API security smoke test (no WhatsApp connection)
         run: bash scripts/ci/whatsapp-qr-api-smoke.sh
 
+      - name: SQL outbox atomic-claim regression test
+        env:
+          SQL_WHATSAPP_TEST_CONNECTION: 'Server=127.0.0.1,1433;Database=SmartSchoolPro;User Id=sa;Password=Your_strong!Passw0rd;TrustServerCertificate=True;MultipleActiveResultSets=true'
+        run: dotnet test tests/SmartSchool.Tests/SmartSchool.Tests.csproj --configuration Release --filter FullyQualifiedName~SqlAtomicClaimPreventsConcurrentDuplicateSubmission
+
       - name: Fee plan + partial payment smoke test
         run: bash scripts/fees-api-smoke-test.sh
 
