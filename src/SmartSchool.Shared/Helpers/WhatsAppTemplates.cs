@@ -1,9 +1,9 @@
 namespace SmartSchool.Shared.Helpers;
 
 /// <summary>
-/// Official WhatsApp message templates (English + Roman-Urdu).
-/// Language is chosen per-school: appsettings.json → Twilio:Language ("en" | "ur").
-/// Twilio renders *bold* text natively in WhatsApp.
+/// Provider-neutral WhatsApp alert templates (English + Roman-Urdu).
+/// Language is chosen per school with WhatsApp:Language ("en" | "ur").
+/// WhatsApp clients render *bold* text natively.
 /// </summary>
 public static class WhatsAppTemplates
 {

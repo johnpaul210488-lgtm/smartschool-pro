@@ -11,12 +11,14 @@ using SmartSchool.Admin.ViewModels.Drivers;
 using SmartSchool.Admin.ViewModels.Fees;
 using SmartSchool.Admin.ViewModels.Reports;
 using SmartSchool.Admin.ViewModels.Students;
+using SmartSchool.Admin.ViewModels.WhatsApp;
 using SmartSchool.Admin.Views;
 using SmartSchool.Admin.Views.Buses;
 using SmartSchool.Admin.Views.Drivers;
 using SmartSchool.Admin.Views.Fees;
 using SmartSchool.Admin.Views.Reports;
 using SmartSchool.Admin.Views.Students;
+using SmartSchool.Admin.Views.WhatsApp;
 
 namespace SmartSchool.Admin.ViewModels;
 
@@ -79,6 +81,8 @@ public partial class MainViewModel : ObservableObject
         NavItems.Add(new NavItem { Title = "Live Tracking", IconKind = "MapMarkerRadius", CreateView = OpenLiveTracking });
         NavItems.Add(new NavItem { Title = "Bus Attendance", IconKind = "ClipboardList", CreateView = OpenAttendance });
         NavItems.Add(new NavItem { Title = "Drivers", IconKind = "CardAccountDetails", CreateView = OpenDrivers });
+        if (UserRole is "SuperAdmin" or "Admin")
+            NavItems.Add(new NavItem { Title = "WhatsApp", IconKind = "Whatsapp", CreateView = OpenWhatsApp });
         NavItems.Add(new NavItem { Title = "Reports", IconKind = "ChartBar", CreateView = OpenReports });
 
         SelectedNavItem = NavItems[0];
@@ -320,6 +324,8 @@ public partial class MainViewModel : ObservableObject
         => new() { DataContext = new BusAttendanceLogViewModel() };
     private DriverManagementView OpenDrivers()
         => new() { DataContext = new DriverManagementViewModel() };
+    private WhatsAppConnectionView OpenWhatsApp()
+        => new() { DataContext = new WhatsAppConnectionViewModel() };
     private ReportView OpenReports()
         => new() { DataContext = new ReportViewModel() };
 

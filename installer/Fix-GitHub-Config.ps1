@@ -53,22 +53,34 @@ $KNOWN_GOOD = @'
     "Key": "zhOj5oRrK46FdNaUc7fS9Y3gvGy8eMPnubCs1Ttiw0D2JLpIqQVHmxZXAlEBWk",
     "ExpiresMinutes": 720
   },
+  "WhatsApp": {
+    "Provider": "LinkedDevice",
+    "Language": "en",
+    "NotifyMother": false,
+    "LinkedDevice": {
+      "BaseUrl": "http://127.0.0.1:5110",
+      "SecretsFile": "%LOCALAPPDATA%/SmartSchool/WhatsAppGateway/client-secret.json",
+      "RequestTimeoutSeconds": 90,
+      "AutoStart": true,
+      "NodeExecutable": "../whatsapp-gateway/SmartSchool.WhatsAppGateway.exe",
+      "EntryPoint": "../whatsapp-gateway/src/index.js"
+    },
+    "Queue": {
+      "Capacity": 10000,
+      "MaxAttempts": 3,
+      "RetryWindowSeconds": 120,
+      "InitialRetryDelaySeconds": 15,
+      "SweepIntervalSeconds": 5
+    }
+  },
   "Twilio": {
-    "Enabled": false,
     "AccountSid": "",
     "AuthToken": "",
-    "WhatsAppFrom": "whatsapp:+14155238886",
-    "Language": "en",
-    "NotifyMother": false
+    "WhatsAppFrom": "whatsapp:+14155238886"
   },
   "BusAttendance": { "DebounceSeconds": 30 },
   "GoogleMaps": { "ApiKey": "" },
   "Firebase": { "Enabled": false, "CredentialsJsonPath": "" },
-  "WhatsAppQueue": {
-    "MaxRetries": 3,
-    "RetryMinutes": 5,
-    "SweepIntervalSeconds": 60
-  },
   "Updates": {
     "Repo": "johnpaul210488-lgtm/smartschool-pro",
     "GitHubToken": "",

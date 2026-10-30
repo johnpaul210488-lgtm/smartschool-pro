@@ -38,5 +38,20 @@ public sealed class WhatsAppLog
 
     public DateTime? LastAttemptAtUtc { get; set; }
 
+    /// <summary>
+    /// Start of the current short retry window. Null uses CreatedAtUtc; a human
+    /// retry sets a new window without rewriting the immutable audit creation time.
+    /// </summary>
+    public DateTime? RetryWindowStartedAtUtc { get; set; }
+
+    /// <summary>
+    /// Durable retry schedule. Null means the row is ready now; a future value
+    /// survives process restarts without an in-memory delay task.
+    /// </summary>
+    public DateTime? NextAttemptAtUtc { get; set; }
+
+    /// <summary>Stable machine-readable failure category (never credentials/provider payloads).</summary>
+    public string? FailureCode { get; set; }
+
     public DateTime? SentAtUtc { get; set; }
 }

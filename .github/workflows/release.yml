@@ -119,6 +119,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with: { dotnet-version: '8.0.x' }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: src/SmartSchool.WhatsAppGateway/package-lock.json
 
       - uses: actions/download-artifact@v4
         with:
@@ -134,6 +139,21 @@ jobs:
           Copy-Item installer/appsettings.installer.json build-artifacts/api/appsettings.json -Force
           $key = -join ((48..57)+(65..90)+(97..122) | Get-Random -Count 64 | % {[char]$_})
           (Get-Content build-artifacts/api/appsettings.json) -replace '__JWT_KEY__', $key | Set-Content build-artifacts/api/appsettings.json
+
+      - name: Stage portable linked-device gateway
+        shell: pwsh
+        run: |
+          Push-Location src/SmartSchool.WhatsAppGateway
+          npm ci --omit=dev
+          npm test
+          Pop-Location
+          $dest = "build-artifacts/whatsapp-gateway"
+          New-Item -ItemType Directory -Force "$dest/src" | Out-Null
+          Copy-Item src/SmartSchool.WhatsAppGateway/src/* "$dest/src" -Recurse -Force
+          Copy-Item src/SmartSchool.WhatsAppGateway/package.json,src/SmartSchool.WhatsAppGateway/package-lock.json $dest -Force
+          Copy-Item src/SmartSchool.WhatsAppGateway/node_modules "$dest/node_modules" -Recurse -Force
+          # A private filename lets the installer stop only our portable Node process.
+          Copy-Item (Get-Command node).Source "$dest/SmartSchool.WhatsAppGateway.exe" -Force
 
       - name: Download SQL Server LocalDB installer (2022) + VERIFY it is a real MSI
         shell: pwsh

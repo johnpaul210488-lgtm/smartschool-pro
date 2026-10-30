@@ -1,0 +1,159 @@
+<UserControl x:Class="SmartSchool.Admin.Views.WhatsApp.WhatsAppConnectionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="2">
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="WhatsApp Connection" FontSize="27" FontWeight="Bold"/>
+                    <TextBlock Text="QR linking, encrypted session restore, durable outbox and safety controls"
+                               Opacity="0.68" FontSize="13" Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" Command="{Binding RefreshCommand}" ToolTip="Refresh status"
+                        Style="{StaticResource QisIconButton}" VerticalAlignment="Center">
+                    <materialDesign:PackIcon Kind="Refresh"/>
+                </Button>
+            </Grid>
+
+            <ProgressBar IsIndeterminate="True" Height="3" Margin="0,0,0,10"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="3*"/>
+                    <ColumnDefinition Width="2*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <materialDesign:Card Padding="20" Margin="0,0,0,12">
+                        <StackPanel>
+                            <DockPanel LastChildFill="True">
+                                <Border DockPanel.Dock="Left" Width="48" Height="48" CornerRadius="24"
+                                        Background="#E8F5E9" Margin="0,0,14,0">
+                                    <materialDesign:PackIcon Kind="Whatsapp" Width="28" Height="28"
+                                        Foreground="#168C4B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding StatusTitle}" FontSize="20" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding StatusDetail}" TextWrapping="Wrap" Opacity="0.72"
+                                               Margin="0,4,0,0" MaxWidth="720"/>
+                                </StackPanel>
+                            </DockPanel>
+
+                            <Separator Margin="0,16,0,12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Provider" FontWeight="SemiBold" Opacity="0.65"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Provider}" Margin="10,0,20,0"/>
+                                <TextBlock Grid.Column="2" Text="Linked number" FontWeight="SemiBold" Opacity="0.65"/>
+                                <TextBlock Grid.Column="3" Text="{Binding ConnectedPhone}" Margin="10,0,0,0"/>
+                            </Grid>
+                            <TextBlock Text="{Binding SafetySummary}" TextWrapping="Wrap" FontSize="12.5"
+                                       Margin="0,12,0,0" Foreground="#4A5964"/>
+                            <TextBlock Text="{Binding LastUpdated}" FontSize="11" Opacity="0.55" Margin="0,7,0,0"/>
+                        </StackPanel>
+                    </materialDesign:Card>
+
+                    <materialDesign:Card Padding="20" Margin="0,0,0,12"
+                                         Visibility="{Binding IsLinkedDeviceProvider, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <TextBlock Text="Administrator confirmation" FontSize="17" FontWeight="SemiBold"/>
+                            <Border Background="#FFF8E1" BorderBrush="#F0C36A" BorderThickness="1"
+                                    CornerRadius="7" Padding="12" Margin="0,10,0,10">
+                                <TextBlock Text="{Binding ComplianceNotice}" TextWrapping="Wrap"
+                                           Foreground="#6B4E00" LineHeight="19"/>
+                            </Border>
+                            <CheckBox IsChecked="{Binding TermsAccepted}" Margin="2,2,0,12">
+                                <TextBlock TextWrapping="Wrap" MaxWidth="760">
+                                    I understand the risk and will use this number only for consented,
+                                    transactional parent alerts in accordance with WhatsApp terms.
+                                </TextBlock>
+                            </CheckBox>
+                            <WrapPanel>
+                                <Button Command="{Binding ConnectCommand}" IsEnabled="{Binding TermsAccepted}"
+                                        Style="{StaticResource QisPrimaryButton}" Margin="0,0,8,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="QrcodeScan" Width="18" Height="18" Margin="0,0,7,0"/>
+                                        <TextBlock Text="Connect / Generate QR"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding UnlinkCommand}"
+                                        Visibility="{Binding HasSavedSession, Converter={StaticResource BoolToVis}}"
+                                        Style="{StaticResource QisOutlineButton}" Margin="0,0,8,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="LinkOff" Width="18" Height="18" Margin="0,0,7,0"/>
+                                        <TextBlock Text="Unlink and erase session"/>
+                                    </StackPanel>
+                                </Button>
+                            </WrapPanel>
+                        </StackPanel>
+                    </materialDesign:Card>
+
+                    <materialDesign:Card Padding="20">
+                        <StackPanel>
+                            <TextBlock Text="Safe operating rules" FontSize="17" FontWeight="SemiBold"/>
+                            <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" LineHeight="21">
+                                • Send only expected school alerts to parents who opted in.&#10;
+                                • Never import/scrape contacts, send unsolicited marketing, automate groups or blast large batches.&#10;
+                                • Keep the linked phone active, updated and connected to the internet.&#10;
+                                • If WhatsApp logs out, blocks or warns the account, stop sending—do not repeatedly reconnect.&#10;
+                                • Use WhatsApp’s in-app review/support process if the owner believes a restriction is a mistake.&#10;
+                                • Safety limits reduce risk; they do not guarantee that WhatsApp will never restrict a number.
+                            </TextBlock>
+                        </StackPanel>
+                    </materialDesign:Card>
+                </StackPanel>
+
+                <materialDesign:Card Grid.Column="1" Padding="18" VerticalAlignment="Top"
+                                     Visibility="{Binding IsLinkedDeviceProvider, Converter={StaticResource BoolToVis}}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="Link from your phone" FontSize="18" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="WhatsApp → Linked devices → Link a device"
+                                   HorizontalAlignment="Center" Opacity="0.68" Margin="0,5,0,14"/>
+
+                        <Border Width="370" Height="370" Background="White" BorderBrush="#D8D8D8"
+                                BorderThickness="1" CornerRadius="8" Padding="8">
+                            <Grid>
+                                <Image Source="{Binding QrImage}" Stretch="Uniform"
+                                       Visibility="{Binding HasQr, Converter={StaticResource BoolToVis}}"/>
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Visibility="{Binding HasQr, Converter={StaticResource InverseBoolToVis}}">
+                                    <materialDesign:PackIcon Kind="Qrcode" Width="74" Height="74"
+                                        Foreground="#B0BEC5" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Accept the notice and click&#10;Connect / Generate QR"
+                                               TextAlignment="Center" Foreground="#78909C" Margin="0,12,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <TextBlock Text="QR codes expire quickly and refresh automatically. Never share a QR screenshot."
+                                   TextWrapping="Wrap" TextAlignment="Center" FontSize="12" Opacity="0.65"
+                                   Margin="8,12,8,0" MaxWidth="360"/>
+                    </StackPanel>
+                </materialDesign:Card>
+
+                <materialDesign:Card Grid.Column="1" Padding="24" VerticalAlignment="Top"
+                                     Visibility="{Binding IsLinkedDeviceProvider, Converter={StaticResource InverseBoolToVis}}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <materialDesign:PackIcon Kind="CloudCheckOutline" Width="72" Height="72"
+                                                 Foreground="#78909C" HorizontalAlignment="Center"/>
+                        <TextBlock Text="QR linking is not active" FontSize="18" FontWeight="SemiBold"
+                                   TextAlignment="Center" Margin="0,14,0,5"/>
+                        <TextBlock Text="The current DryRun/Twilio provider does not use a local linked-device session. Change server configuration deliberately; do not store provider secrets in this desktop app."
+                                   TextWrapping="Wrap" TextAlignment="Center" Opacity="0.7" MaxWidth="360"/>
+                    </StackPanel>
+                </materialDesign:Card>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

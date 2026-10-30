@@ -13,7 +13,7 @@ driver app logged in as `driver1` (Bus #7), parent app as `parent1`, all on the 
 | A2 | Tap **PICK-IN** on a student | Green confirmation; event appears in driver history |
 | A3 | WPF admin | Toast + beep "PICK-IN …"; bus attendance grid gets the row; live map pin |
 | A4 | API console/log | `[WhatsApp DRY-RUN]` block (or real WhatsApp if enabled) with the formatted template |
-| A5 | `GET /api/whatsapp-logs` | Row **Sent** with provider id `DRYRUN-*` (or Twilio SID) |
+| A5 | `GET /api/whatsapp-logs` | Row **Sent** with `DRYRUN-*`, Twilio SID, or linked-device message ID |
 | A6 | Parent app (same Wi-Fi, push registered) | Push + in-app banner "{name} has BOARDED Bus #7"; dashboard chip flips to **On Bus****; live bus marker moves on the map |
 | A7 | Repeat same tap within 30 s | Response says *duplicate tap ignored*; NO new attendance row, NO second WhatsApp |
 
@@ -23,7 +23,7 @@ driver app logged in as `driver1` (Bus #7), parent app as `parent1`, all on the 
 |---|------|----------|
 | B1 | After several pick-ins, tap **DROP-OUT** | Same chain; parent chip → **At School** (morning trip) |
 | B2 | Afternoon trip (To School=ToHome) drop-out | Chip → **Dropped Home** |
-| B3 | WhatsApp template | DROPPED OFF wording (EN) or Urdu if `Twilio:Language=ur` / parent's app language is Urdu |
+| B3 | WhatsApp template | DROPPED OFF wording (EN) or Urdu if `WhatsApp:Language=ur` / parent's app language is Urdu |
 
 ## C. Offline → online sync (driver app)
 
@@ -62,9 +62,9 @@ driver app logged in as `driver1` (Bus #7), parent app as `parent1`, all on the 
 
 | # | Step | Expected |
 |---|------|----------|
-| G1 | `Twilio:Enabled=true` with a **wrong** AuthToken → pick-in | Log rows stay Queued; API console shows retry attempts |
-| G2 | Fast-path verify: set `WhatsAppQueue:RetryMinutes=1` temporarily | After 3 failed minutes → row **Failed** + WPF red toast "**WhatsApp FAILED**" |
-| G3 | Restore correct token | `POST /api/whatsapp-logs/{id}/retry` (or next sweeper pass) → Sent |
+| G1 | LinkedDevice: stop gateway (or Twilio: use a wrong AuthToken) → pick-in | Durable row stays Queued while safe retries remain; `FailureCode` identifies the provider/session problem |
+| G2 | Leave provider unavailable for the 120-second window | After at most 3 total attempts → row **Failed** + WPF admin alert; no late endless retry |
+| G3 | Restore provider/session | `POST /api/whatsapp-logs/{id}/retry` → Sent, except `DeliveryUnknown` (blocked to prevent a duplicate) |
 
 ## H. Load test — 50 concurrent students
 
@@ -77,7 +77,7 @@ driver app logged in as `driver1` (Bus #7), parent app as `parent1`, all on the 
 |---|----------|
 | H1 | All 50 requests return success within seconds |
 | H2 | `GET /api/api/bus-attendance/today` shows 50 events |
-| H3 | `GET /api/whatsapp-logs?status=Sent` count = 50 (+ mothers if enabled) — zero failures |
+| H3 | With `DryRun`, `GET /api/whatsapp-logs?status=Sent` count = 50 (+ mothers if enabled). Do **not** burst-load a real linked number; its enforced 6–10 s lane must remain enabled. |
 | H4 | WPF stays responsive; SignalR reconnects automatically if any blip |
 
 ## I. Sign-off
@@ -88,4 +88,4 @@ driver app logged in as `driver1` (Bus #7), parent app as `parent1`, all on the 
 | Offline sync verified in the bus (real route drive) | | |
 | Receipt printing on the school printer | | |
 | 50-student load test passed | | |
-| Backups scheduled (DB + firebase-sa.json + Twilio creds in vault) | | |
+| Backups scheduled (DB + Firebase/Twilio secrets in vault); linked-device state is not casually copied—relink on a replacement PC | | |

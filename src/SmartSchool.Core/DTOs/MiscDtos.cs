@@ -8,9 +8,11 @@ public sealed record WhatsAppLogListItem(
     string Message,
     string Status,
     int RetryCount,
+    string? FailureCode,
     string? Error,
     string CreatedAtPakistan,
-    string? SentAtPakistan);
+    string? SentAtPakistan,
+    string? NextAttemptPakistan);
 
 /// <summary>Everything the WPF admin dashboard home screen needs in one call.</summary>
 public sealed record DashboardSummary(

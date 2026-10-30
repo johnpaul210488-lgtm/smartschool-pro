@@ -51,7 +51,7 @@ public sealed class WhatsAppLogsController : BaseApiController
             .Select(l => new
             {
                 l.Id, l.StudentId, l.ParentPhone, l.Message, l.Status,
-                l.RetryCount, l.Error, l.CreatedAtUtc, l.SentAtUtc,
+                l.RetryCount, l.FailureCode, l.Error, l.CreatedAtUtc, l.SentAtUtc, l.NextAttemptAtUtc,
                 StudentName = l.Student != null ? l.Student.FullName : null
             })
             .ToListAsync(ct);
@@ -61,8 +61,10 @@ public sealed class WhatsAppLogsController : BaseApiController
 
         var items = rows.Select(l => new WhatsAppLogListItem(
             l.Id, l.StudentId, l.StudentName, l.ParentPhone, l.Message,
-            l.Status.ToString(), l.RetryCount, l.Error,
-            Fmt(l.CreatedAtUtc), l.SentAtUtc is { } sent ? Fmt(sent) : null)).ToList();
+            l.Status.ToString(), l.RetryCount, l.FailureCode, l.Error,
+            Fmt(l.CreatedAtUtc),
+            l.SentAtUtc is { } sent ? Fmt(sent) : null,
+            l.NextAttemptAtUtc is { } next ? Fmt(next) : null)).ToList();
 
         return OkEnvelope(PagedResult<WhatsAppLogListItem>.Create(items, page, pageSize, total));
     }
@@ -76,11 +78,21 @@ public sealed class WhatsAppLogsController : BaseApiController
             return NotFoundEnvelope($"WhatsApp log {id} was not found.");
         if (log.Status == WhatsAppStatus.Sent)
             return ConflictEnvelope("This message was already sent.");
+        if (log.Status != WhatsAppStatus.Failed)
+            return ConflictEnvelope("This message is already queued or being handed to the provider.");
+        if (log.FailureCode == WhatsAppFailureKind.DeliveryUnknown.ToString())
+            return ConflictEnvelope(
+                "WhatsApp may already have accepted this message. Automatic/manual resend is blocked to avoid a duplicate; verify in the selected provider or linked phone first.");
 
         log.Status = WhatsAppStatus.Queued;
         log.RetryCount = 0;
         log.LastAttemptAtUtc = null;
+        log.NextAttemptAtUtc = null;
+        log.FailureCode = null;
         log.Error = null;
+        // A human retry opens a new short window without rewriting CreatedAtUtc;
+        // CorrelationId also stays stable so the provider can reconcile duplicates.
+        log.RetryWindowStartedAtUtc = DateTime.UtcNow;
         await _uow.SaveChangesAsync(ct);
 
         await _queue.EnqueueAsync(

@@ -18,10 +18,10 @@
                                                                          (driver screen shows "Boarded ✓")
 
 (5) WPF Admin Desktop (Phase 2)                                        (6/7) WhatsAppQueueHostedService
- HubConnection: /hubs/notifications?access_token=...                      channel -> Twilio (or dry-run)
+ HubConnection: /hubs/notifications?access_token=...                      durable DB outbox -> selected provider
  .withAutomaticReconnect()                                                success: Status=Sent, WhatsAppSent=true
- .on("SendPickInAlert", ...)  -> toast popup + SoundPlayer                failure: 3 retries at 5-min intervals,
- .on("SendDropOutAlert", ...) -> toast + sound                            Failed after N; sweeper recovers
+ .on("SendPickInAlert", ...)  -> toast popup + SoundPlayer                failure: max 3 total attempts / 120 sec,
+ .on("SendDropOutAlert", ...) -> toast + sound                            then Failed + admin alert; sweeper recovers due rows
  .on("UpdateBusLocation", ...) -> live map                                stuck rows after restart
 ```
 
@@ -30,7 +30,7 @@
 - **Pick-In:** `Your child {Name} has boarded Bus #{X} at {time} from {location}. — SmartSchool Pro`
 - **Drop-Out:** `Your child {Name} has been safely dropped at {location} at {time}. — SmartSchool Pro`
 
-`"Twilio:NotifyMother": true` also sends to the mother. All times are Pakistan time.
+`"WhatsApp:NotifyMother": true` also sends to the mother. All times are Pakistan time. `WhatsApp:Provider` selects `DryRun`, `Twilio`, or the isolated QR-based `LinkedDevice` gateway.
 
 ## Offline behaviour
 

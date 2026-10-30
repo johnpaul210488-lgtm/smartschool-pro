@@ -4,8 +4,9 @@
 ; What it does, silently, in order:
 ;   1. Installs SQL Server 2022 LocalDB (bundled MSI)
 ;   2. Lays down the API (Kestrel exe — khud migrations+seed startup par)
-;   3. Auto-starts API now + at every login (interactive user's own LocalDB)
-;   4. Installs the WPF Admin app + Desktop shortcut + Diagnostics shortcut
+;   3. Installs the isolated portable WhatsApp linked-device gateway (Node/Baileys)
+;   4. Auto-starts API now + at every login; API supervises the local gateway
+;   5. Installs the WPF Admin app + Desktop shortcut + Diagnostics shortcut
 ;
 ; Built by CI (release.yml). To build by hand:
 ;   - dotnet publish src\SmartSchool.API -c Release -o build-artifacts\api
@@ -42,6 +43,8 @@ WizardStyle=modern
 ; kabhi overwrite NAHI hoti: GitHub/ThingWorx/token waghaira settings mehfooz rehti hain)
 Source: "..\build-artifacts\api\*"; DestDir: "{app}\api"; Flags: recursesubdirs ignoreversion; Excludes: "appsettings.json"
 Source: "..\build-artifacts\api\appsettings.json"; DestDir: "{app}\api"; Flags: onlyifdoesntexist
+; Portable loopback-only WhatsApp gateway. Session/auth state is generated separately in LocalAppData.
+Source: "..\build-artifacts\whatsapp-gateway\*"; DestDir: "{app}\whatsapp-gateway"; Flags: recursesubdirs ignoreversion
 ; WPF Admin desktop (LocalAppData: self-updater kaam kare silently, koi UAC nahi)
 Source: "..\build-artifacts\admin\SmartSchool.Admin.exe"; DestDir: "{localappdata}\Programs\SmartSchool Admin"; Flags: ignoreversion
 ; 1-click diagnostics
@@ -55,6 +58,8 @@ Type: files; Name: "{app}\admin\SmartSchool.Admin.exe"
 ; CHANGED: remove the old API entry points so the new publish payload must replace them.
 Type: files; Name: "{app}\api\SmartSchool.API.exe"
 Type: files; Name: "{app}\api\SmartSchool.API.dll"
+; Gateway has no mutable state here (state is in LocalAppData), so remove stale npm files on upgrade.
+Type: filesandordirs; Name: "{app}\whatsapp-gateway"
 ; CHANGED: old SmartSchool names (desktop + old Start Menu folder) hata kar Queen shortcut recreate karein.
 Type: files; Name: "{group}\SmartSchool Admin.lnk"
 Type: files; Name: "{group}\SmartSchool Pro.lnk"
@@ -92,8 +97,13 @@ Filename: "{app}\api\SmartSchool.API.exe"; Parameters: "--urls http://0.0.0.0:50
     WorkingDir: "{app}\api"; Flags: runhidden nowait postinstall skipifsilent; \
     StatusMsg: "SmartSchool API shuru ho rahi hai…"
 
+[UninstallDelete]
+; Remove encrypted linked-device credentials/receipts for the uninstalling Windows user.
+Type: filesandordirs; Name: "{localappdata}\SmartSchool\WhatsAppGateway"
+
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/f /im SmartSchool.API.exe"; Flags: runhidden waituntilterminated
+Filename: "{sys}\taskkill.exe"; Parameters: "/f /im SmartSchool.WhatsAppGateway.exe"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "stop SmartSchoolApi"; Flags: runhidden waituntilterminated
 Filename: "{sys}\sc.exe"; Parameters: "delete SmartSchoolApi"; Flags: runhidden waituntilterminated
 
@@ -104,9 +114,16 @@ var
   ResultCode: Integer;
 begin
   if not Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM SmartSchool.API.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-    Result := 'Could not stop the existing SmartSchool API process. Close it and run setup again.'
-  else
-    Result := '';
+  begin
+    Result := 'Could not stop the existing SmartSchool API process. Close it and run setup again.';
+    exit;
+  end;
+  if not Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM SmartSchool.WhatsAppGateway.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    Result := 'Could not stop the existing WhatsApp gateway process. Close it and run setup again.';
+    exit;
+  end;
+  Result := '';
 end;
 
 [Messages]

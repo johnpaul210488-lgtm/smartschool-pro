@@ -163,11 +163,55 @@ try
     builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
     builder.Services.AddSingleton<ISchoolNotificationService, SchoolNotificationService>();
 
+    // Provider-neutral WhatsApp boundary. Existing installations that only have
+    // Twilio:* keep working; fresh configurations use the explicit WhatsApp:Provider.
+    builder.Services.AddOptions<WhatsAppOptions>()
+        .Bind(builder.Configuration.GetSection("WhatsApp"))
+        .PostConfigure(options =>
+        {
+            if (string.IsNullOrWhiteSpace(builder.Configuration["WhatsApp:Provider"]))
+            {
+                // Upgrade path: old school-server configs contain only Twilio:Enabled.
+                // Keep an enabled official account; otherwise activate the newly bundled QR gateway.
+                options.Provider = builder.Configuration.GetValue("Twilio:Enabled", false)
+                    ? WhatsAppProviders.Twilio
+                    : WhatsAppProviders.LinkedDevice;
+                options.LinkedDevice.AutoStart = options.Provider == WhatsAppProviders.LinkedDevice;
+            }
+            options.Language = builder.Configuration["WhatsApp:Language"]
+                               ?? builder.Configuration["Twilio:Language"]
+                               ?? options.Language;
+            options.NotifyMother = builder.Configuration.GetValue("WhatsApp:NotifyMother",
+                builder.Configuration.GetValue("Twilio:NotifyMother", options.NotifyMother));
+
+            // Compatibility with the old flat WhatsAppQueue section.
+            options.Queue.MaxAttempts = builder.Configuration.GetValue(
+                "WhatsApp:Queue:MaxAttempts",
+                builder.Configuration.GetValue("WhatsAppQueue:MaxRetries", options.Queue.MaxAttempts));
+            options.Queue.SweepIntervalSeconds = builder.Configuration.GetValue(
+                "WhatsApp:Queue:SweepIntervalSeconds",
+                builder.Configuration.GetValue("WhatsAppQueue:SweepIntervalSeconds", options.Queue.SweepIntervalSeconds));
+        });
+    builder.Services.AddTransient<DryRunWhatsAppSender>();
+    builder.Services.AddTransient<TwilioWhatsAppSender>();
+    builder.Services.AddHttpClient<LinkedDeviceWhatsAppClient>((sp, client) =>
+    {
+        var linked = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<WhatsAppOptions>>()
+            .Value.LinkedDevice;
+        var gatewayUri = new Uri(linked.BaseUrl.TrimEnd('/') + "/");
+        if (!gatewayUri.IsLoopback)
+            throw new InvalidOperationException("WhatsApp linked-device BaseUrl must be loopback-only.");
+        client.BaseAddress = gatewayUri;
+        client.Timeout = TimeSpan.FromSeconds(Math.Clamp(linked.RequestTimeoutSeconds, 15, 300));
+    });
+    builder.Services.AddTransient<IWhatsAppSender, ConfiguredWhatsAppSender>();
+    builder.Services.AddTransient<IWhatsAppSessionManager, ConfiguredWhatsAppSessionManager>();
+
     builder.Services.AddSingleton<InMemoryWhatsAppQueue>();
     builder.Services.AddSingleton<IWhatsAppQueue>(sp => sp.GetRequiredService<InMemoryWhatsAppQueue>());
+    builder.Services.AddHostedService<LinkedDeviceGatewaySupervisor>();
     builder.Services.AddHostedService<WhatsAppQueueHostedService>();
 
-    builder.Services.AddHttpClient<IWhatsAppSender, TwilioWhatsAppService>();
     builder.Services.AddHttpClient<IGeocodingService, GoogleMapsGeocodingService>();
 
     // Firebase Cloud Messaging: dry-run until Firebase:Enabled=true + credentials JSON path set.

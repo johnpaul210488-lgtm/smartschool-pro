@@ -8,15 +8,85 @@ public interface IJwtTokenService
     string CreateToken(User user, out DateTime expiresAtUtc);
 }
 
-public sealed record WhatsAppSendResult(bool Success, string? ProviderMessageId, string? Error)
+public enum WhatsAppFailureKind
 {
-    public static WhatsAppSendResult Ok(string providerId) => new(true, providerId, null);
-    public static WhatsAppSendResult Fail(string error) => new(false, null, error);
+    None = 0,
+    Transient = 1,
+    Permanent = 2,
+    ProviderUnavailable = 3,
+    SessionDisconnected = 4,
+    RateLimited = 5,
+    DeliveryUnknown = 6,
+    Configuration = 7
+}
+
+public sealed record WhatsAppSendResult(
+    bool Success,
+    string? ProviderMessageId,
+    string? Error,
+    WhatsAppFailureKind FailureKind,
+    bool Retryable,
+    int? RetryAfterSeconds)
+{
+    public static WhatsAppSendResult Ok(string providerId)
+        => new(true, providerId, null, WhatsAppFailureKind.None, false, null);
+
+    public static WhatsAppSendResult Fail(
+        string error,
+        WhatsAppFailureKind kind = WhatsAppFailureKind.Transient,
+        bool retryable = true,
+        int? retryAfterSeconds = null)
+        => new(false, null, error, kind, retryable, retryAfterSeconds);
 }
 
 public interface IWhatsAppSender
 {
-    Task<WhatsAppSendResult> SendAsync(string toPhone, string body, CancellationToken ct = default);
+    /// <summary>
+    /// CorrelationId is the provider idempotency key. A timeout may be retried with
+    /// the same value, but never with a newly generated key.
+    /// </summary>
+    Task<WhatsAppSendResult> SendAsync(
+        Guid correlationId,
+        string toPhone,
+        string body,
+        CancellationToken ct = default);
+}
+
+public sealed record WhatsAppSafetyStatus(
+    int MinSendIntervalMs,
+    int MaxSendIntervalMs,
+    int MaxMessagesPerDay,
+    int MaxMessagesPerRecipientHour,
+    int PendingRequests,
+    string? Day,
+    int AttemptedToday,
+    int SentToday,
+    int UnknownToday);
+
+public sealed record WhatsAppSessionInfo(
+    string Provider,
+    string Status,
+    bool IsAvailable,
+    bool IsConnected,
+    bool HasSavedSession,
+    string? ConnectedPhone,
+    string? QrDataUrl,
+    DateTime? QrExpiresAtUtc,
+    string? LastError,
+    int ReconnectAttempt,
+    WhatsAppSafetyStatus? Safety,
+    string ComplianceNotice);
+
+public sealed record WhatsAppSessionCommandResult(
+    bool Success,
+    WhatsAppSessionInfo Session,
+    string? Error);
+
+public interface IWhatsAppSessionManager
+{
+    Task<WhatsAppSessionInfo> GetStatusAsync(CancellationToken ct = default);
+    Task<WhatsAppSessionCommandResult> ConnectAsync(bool acceptTermsAndRisk, CancellationToken ct = default);
+    Task<WhatsAppSessionCommandResult> LogoutAsync(bool confirmUnlink, CancellationToken ct = default);
 }
 
 public sealed record WhatsAppJob(

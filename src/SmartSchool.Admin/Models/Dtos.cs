@@ -61,6 +61,36 @@ public sealed class DashboardSummary
     [JsonPropertyName("whatsAppFailedTotal")] public int WhatsAppFailedTotal { get; set; }
 }
 
+// ============ WhatsApp linked-device session ============
+public sealed class WhatsAppSafetyStatusDto
+{
+    [JsonPropertyName("minSendIntervalMs")] public int MinSendIntervalMs { get; set; }
+    [JsonPropertyName("maxSendIntervalMs")] public int MaxSendIntervalMs { get; set; }
+    [JsonPropertyName("maxMessagesPerDay")] public int MaxMessagesPerDay { get; set; }
+    [JsonPropertyName("maxMessagesPerRecipientHour")] public int MaxMessagesPerRecipientHour { get; set; }
+    [JsonPropertyName("pendingRequests")] public int PendingRequests { get; set; }
+    [JsonPropertyName("day")] public string? Day { get; set; }
+    [JsonPropertyName("attemptedToday")] public int AttemptedToday { get; set; }
+    [JsonPropertyName("sentToday")] public int SentToday { get; set; }
+    [JsonPropertyName("unknownToday")] public int UnknownToday { get; set; }
+}
+
+public sealed class WhatsAppSessionInfoDto
+{
+    [JsonPropertyName("provider")] public string Provider { get; set; } = string.Empty;
+    [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
+    [JsonPropertyName("isAvailable")] public bool IsAvailable { get; set; }
+    [JsonPropertyName("isConnected")] public bool IsConnected { get; set; }
+    [JsonPropertyName("hasSavedSession")] public bool HasSavedSession { get; set; }
+    [JsonPropertyName("connectedPhone")] public string? ConnectedPhone { get; set; }
+    [JsonPropertyName("qrDataUrl")] public string? QrDataUrl { get; set; }
+    [JsonPropertyName("qrExpiresAtUtc")] public DateTime? QrExpiresAtUtc { get; set; }
+    [JsonPropertyName("lastError")] public string? LastError { get; set; }
+    [JsonPropertyName("reconnectAttempt")] public int ReconnectAttempt { get; set; }
+    [JsonPropertyName("safety")] public WhatsAppSafetyStatusDto? Safety { get; set; }
+    [JsonPropertyName("complianceNotice")] public string ComplianceNotice { get; set; } = string.Empty;
+}
+
 // ============ Students ============
 public class StudentListItem
 {
@@ -368,7 +398,7 @@ public sealed class TripNotification
     [JsonPropertyName("timePakistan")] public string TimePakistan { get; set; } = string.Empty;
 }
 
-/// <summary>Server-side red flag pushed on SendAdminAlert (e.g. WhatsApp permanently failed after 3 retries).</summary>
+/// <summary>Server-side red flag pushed on SendAdminAlert (e.g. WhatsApp stopped after its bounded attempt window).</summary>
 public sealed class AdminAlertNotification
 {
     [JsonPropertyName("title")] public string Title { get; set; } = string.Empty;

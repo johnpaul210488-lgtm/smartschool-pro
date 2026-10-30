@@ -193,21 +193,25 @@ CREATE TABLE dbo.WhatsAppLogs
     Id                BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_WhatsAppLogs PRIMARY KEY,
     CorrelationId     UNIQUEIDENTIFIER NOT NULL,
     StudentId         INT              NULL,         -- survives student deletion
+    EventType         NVARCHAR(20)     NULL,
     ParentPhone       NVARCHAR(25)     NOT NULL,
     [Message]         NVARCHAR(1600)   NOT NULL,
     [Status]          NVARCHAR(20)     NOT NULL CONSTRAINT DF_WaLogs_Status DEFAULT ('Queued'),
     RetryCount        INT              NOT NULL CONSTRAINT DF_WaLogs_Retry DEFAULT (0),
+    FailureCode       NVARCHAR(40)     NULL,
     Error             NVARCHAR(1000)   NULL,
-    ProviderMessageId NVARCHAR(100)    NULL,         -- Twilio SID (or DRYRUN-*)
+    ProviderMessageId NVARCHAR(100)    NULL,         -- provider receipt / DRYRUN-*
     CreatedAtUtc      DATETIME2        NOT NULL CONSTRAINT DF_WaLogs_Created DEFAULT (SYSUTCDATETIME()),
-    LastAttemptAtUtc  DATETIME2        NULL,
-    SentAtUtc         DATETIME2        NULL,
+    LastAttemptAtUtc       DATETIME2        NULL,
+    RetryWindowStartedAtUtc DATETIME2       NULL,
+    NextAttemptAtUtc       DATETIME2        NULL,
+    SentAtUtc              DATETIME2        NULL,
     CONSTRAINT UQ_WaLogs_CorrelationId UNIQUE (CorrelationId),
     CONSTRAINT FK_WaLogs_Students FOREIGN KEY (StudentId) REFERENCES dbo.Students (Id) ON DELETE SET NULL,
     CONSTRAINT CK_WaLogs_Status CHECK ([Status] IN ('Queued','Sent','Failed'))
 );
-CREATE INDEX IX_WaLogs_Status    ON dbo.WhatsAppLogs ([Status]);
-CREATE INDEX IX_WaLogs_StudentId ON dbo.WhatsAppLogs (StudentId);
+CREATE INDEX IX_WaLogs_Status_NextAttempt ON dbo.WhatsAppLogs ([Status], NextAttemptAtUtc);
+CREATE INDEX IX_WaLogs_StudentId          ON dbo.WhatsAppLogs (StudentId);
 
 -- ---------- parent app links & push tokens ----------
 CREATE TABLE dbo.ParentStudents

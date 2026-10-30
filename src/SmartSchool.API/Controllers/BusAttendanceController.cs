@@ -158,9 +158,10 @@ public sealed class BusAttendanceController : BaseApiController
         var timePk = PkTime.ToPk(timestampUtc);
         var stampText = timePk.ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture);
 
-        // Official EN / Roman-Urdu templates. Per-parent language preference overrides
-        // the school-wide default (Twilio:Language) — the parent app setting toggles it.
-        var defaultLanguage = _config["Twilio:Language"]?.Trim().ToLowerInvariant() ?? "en";
+        // EN / Roman-Urdu templates are provider-neutral. Per-parent language
+        // preference overrides the school-wide WhatsApp default.
+        var defaultLanguage = (_config["WhatsApp:Language"] ?? _config["Twilio:Language"])
+            ?.Trim().ToLowerInvariant() ?? "en";
         var templateVars = new WhatsAppTemplates.TemplateVars(
             StudentName: student.FullName,
             ClassName: student.Class.DisplayName,
@@ -249,7 +250,9 @@ public sealed class BusAttendanceController : BaseApiController
 
         // (2b) WhatsApp to parents - durable log row first, then enqueue.
         var recipients = new List<string> { student.FatherPhone };
-        if (_config.GetValue("Twilio:NotifyMother", false) && !string.IsNullOrWhiteSpace(student.MotherPhone))
+        var notifyMother = _config.GetValue("WhatsApp:NotifyMother",
+            _config.GetValue("Twilio:NotifyMother", false));
+        if (notifyMother && !string.IsNullOrWhiteSpace(student.MotherPhone))
             recipients.Add(student.MotherPhone!);
 
         var queued = 0;

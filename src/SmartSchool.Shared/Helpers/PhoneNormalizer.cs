@@ -1,7 +1,7 @@
 namespace SmartSchool.Shared.Helpers;
 
 /// <summary>
-/// Normalizes Pakistani phone numbers to E.164 for Twilio.
+/// Normalizes Pakistani phone numbers to provider-neutral E.164.
 /// Accepts: 03001234567, 3001234567, +923001234567, 923001234567.
 /// Returns null when the number can't be salvaged.
 /// </summary>

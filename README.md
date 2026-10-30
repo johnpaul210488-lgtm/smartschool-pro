@@ -4,7 +4,7 @@
 
 Complete school management system: **WPF admin desktop app** (no browser, pure Windows .exe),
 **Flutter driver & parent apps**, **ASP.NET Core 8 Web API**, **SignalR real-time alerts** and
-**Twilio WhatsApp notifications** — all timestamps in **Pakistan Standard Time (UTC+5)**.
+**provider-neutral WhatsApp alerts** (dry-run, official Twilio, or encrypted QR-linked device) — all timestamps in **Pakistan Standard Time (UTC+5)**.
 
 | Layer | Tech | Status |
 |---|---|---|
@@ -30,7 +30,8 @@ SmartSchool.sln
 │
 ├── src/SmartSchool.Core             # Models (entities), DTOs, Interfaces (no dependencies)
 ├── src/SmartSchool.Infrastructure   # EF Core DbContext, Migrations, Repositories/UoW,
-│                                    # Services: JWT, Twilio WhatsApp + durable queue, Google geocoding
+│                                    # Services: JWT, WhatsApp providers + durable queue, Google geocoding
+├── src/SmartSchool.WhatsAppGateway   # Loopback-only Baileys sidecar: QR, encrypted auth, pacing/idempotency
 ├── src/SmartSchool.Shared           # Enums, Constants (roles/groups/events), Helpers
 │                                    # (PkTime, PasswordHasher, PhoneNormalizer), ApiResponse envelope
 ├── src/SmartSchool.Admin            # ✅ Phase 2 — native WPF desktop: sidebar shell, dashboard cards,
@@ -129,7 +130,7 @@ current-month fee challans for every sample student.
 | Drivers | `GET/POST /drivers` · `PUT/DELETE /drivers/{id}` |
 | **Bus attendance** | **`POST /bus-attendance/pick-in`** · **`POST /bus-attendance/drop-out`** · `GET /bus-attendance/student/{id}` · `GET /bus-attendance/bus/{id}` · **`GET /bus-attendance/today** |
 | Trips | `POST /trips/start` · `POST /trips/{id}/end` · `GET /trips/active` · `GET /trips` |
-| WhatsApp | `GET /whatsapp-logs` · `POST /whatsapp-logs/{id}/retry` |
+| WhatsApp | `GET /whatsapp-logs` · `POST /whatsapp-logs/{id}/retry` · `GET /whatsapp/session` · `POST /whatsapp/session/connect` · `POST /whatsapp/session/logout` |
 | Dashboard | `GET /dashboard/summary` |
 | **Parent app** | **`GET /parents/me/children`** (cards: photo/class/bus/today status) · `GET/PATCH /parents/me/settings` (language, WhatsApp opt-out, phone) · `GET /fees/my` · `GET /fees/my/{id}/receipt` |
 | Devices (FCM) | `POST /devices/register` · `POST /devices/unregister` |
@@ -181,27 +182,34 @@ parents auto-join **ParentGroup_{studentId}** per child; staff can also `WatchBu
 
 Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (driver GPS streaming).
 
-## WhatsApp (Twilio) — config in `src/SmartSchool.API/appsettings.json`
+## WhatsApp — durable provider-neutral alerts
 
 ```json
-"Twilio": { "Enabled": false, "AccountSid": "", "AuthToken": "", "WhatsAppFrom": "whatsapp:+14155238886", "Language": "en", "NotifyMother": false },
+"WhatsApp": {
+  "Provider": "DryRun",
+  "Language": "en",
+  "NotifyMother": false,
+  "LinkedDevice": { "BaseUrl": "http://127.0.0.1:5110", "AutoStart": false },
+  "Queue": { "Capacity": 10000, "MaxAttempts": 3, "RetryWindowSeconds": 120 }
+},
+"Twilio": { "AccountSid": "", "AuthToken": "", "WhatsAppFrom": "whatsapp:+14155238886" },
 "BusAttendance": { "DebounceSeconds": 30 }
 ```
 
-- `Enabled:false` = **dry-run** (messages logged, marked Sent — the whole pipeline testable for free).
-- Official Twilio SDK (`Twilio.AspNet.Core`); legacy key `FromWhatsAppNumber` still accepted as fallback.
-- **Templates** (`src/SmartSchool.Shared/Helpers/WhatsAppTemplates.cs`), per-school via `Twilio:Language`:
-  - **en** — “Your child *{Name}* (Class {Class}) has BOARDED Bus #{Bus} / has been DROPPED OFF safely …”
-  - **ur** (Roman-Urdu) — “Aap ka bacha … Bus #… mai baith chuka hai / se mehfooz utar chuka hai …”
-- Messages are **persisted before sending** (`WhatsAppLogs`, dedupe key `CorrelationId`) and retried by a
-  hosted background queue: **3 attempts at 5-minute intervals** (`WhatsAppQueue:RetryMinutes`),
-  a sweeper that recovers anything stuck after a restart, then permanent **Failed** + a
-  `SendAdminAlert` SignalR push so every connected admin desktop shows an error toast.
-- **Rate limiting / debounce:** the same event type for the same student within
-  `BusAttendance:DebounceSeconds` (default 30 s — covers double-taps and offline-sync re-posts)
-  returns the original event: no duplicate attendance row, no second WhatsApp (idempotent).
-- Per-parent overrides: the **parent app's language setting** picks that parent's template, and the
-  **WhatsApp toggle** (`User.ReceiveWhatsApp`) skips that parent's number entirely.
+- **DryRun** logs a redacted test receipt and marks the row Sent without making a provider call.
+- **Twilio** retains the official managed provider; set credentials and `WhatsApp:Provider=Twilio`.
+- **LinkedDevice** supplies the requested admin QR flow through an isolated, authenticated loopback gateway.
+  The release installer bundles/supervises it; local development uses `npm start` in
+  `src/SmartSchool.WhatsAppGateway`.
+- Linked-device auth and send receipts are AES-256-GCM encrypted. The gateway allows only individual,
+  consented transactional text alerts: no group/broadcast/marketing/contact-scraping API.
+- Its strict lane uses real randomized 6–10 second spacing, a 300/day cap, 12/recipient/hour cap and
+  durable correlation-key receipts. Ambiguous outcomes fail closed rather than automatically duplicating.
+- Every provider uses the DB-first outbox (`WhatsAppLogs`), a bounded 10,000-item wake-up channel,
+  restart sweep and persisted `NextAttemptAtUtc`: at most three total attempts inside 120 seconds.
+- The 30-second bus-event debounce, parent language preference and `ReceiveWhatsApp` opt-out remain enforced.
+- **Linked-device mode is unofficial and cannot guarantee against account restrictions.** Read the complete
+  audit, exact reference behavior and operating rules in **`docs/whatsapp-reference-audit.md`**.
 
 ## Push notifications (Firebase Cloud Messaging) — Phase 5
 
@@ -209,7 +217,7 @@ Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (dr
 "Firebase": { "Enabled": false, "CredentialsJsonPath": "" }
 ```
 
-`Enabled:false` = **dry-run** (pushes logged, like the Twilio switch). Every pick-in/drop-out also
+`Enabled:false` = **dry-run** (pushes logged, like the WhatsApp DryRun provider). Every pick-in/drop-out also
 sends an FCM multicast to the child's parents' registered devices (FirebaseAdmin SDK, dry-run safe);
 announcements broadcast to all parent devices. Apps register tokens via `POST /api/devices/register`
 (+ re-register on FCM token refresh). Setup: **docs/deployment-guide.md → section 4**.
@@ -226,7 +234,7 @@ announcements broadcast to all parent devices. Apps register tokens via `POST /a
 ## Security checklist before production
 
 - Override `Jwt:Key` (≥ 32 chars) via user-secrets / env var `Jwt__Key`.
-- Change seeded passwords; rotate Twilio credentials; serve HTTPS behind IIS/reverse proxy.
+- Change seeded passwords; rotate provider credentials; keep the linked-device gateway loopback-only; serve the API via HTTPS behind IIS/reverse proxy.
 - Restrict the CORS policy if you ever expose a browser client.
 
 ## Conventions

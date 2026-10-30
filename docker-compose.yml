@@ -1,6 +1,8 @@
-# Optional convenience: a local SQL Server for development.
-#   docker compose up -d
-# matches the default connection string in appsettings.json.
+# SQL-only convenience stack for local development (`docker compose up -d`).
+# It intentionally does NOT containerize the API or linked-device gateway: the API
+# development profile stays on DryRun, while production linked-device deployments use
+# the Windows installer so API <-> gateway traffic remains on one loopback-only host.
+# The SQL port matches the repository's development connection string.
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest

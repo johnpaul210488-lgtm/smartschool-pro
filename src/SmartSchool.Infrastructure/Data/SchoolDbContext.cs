@@ -231,10 +231,11 @@ public sealed class SchoolDbContext : DbContext
             e.Property(x => x.EventType).HasMaxLength(20);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Error).HasMaxLength(1000);
+            e.Property(x => x.FailureCode).HasMaxLength(40);
             e.Property(x => x.ProviderMessageId).HasMaxLength(100);
             e.HasOne(x => x.Student).WithMany()
              .HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.SetNull);
-            e.HasIndex(x => x.Status);
+            e.HasIndex(x => new { x.Status, x.NextAttemptAtUtc });
             e.HasIndex(x => x.StudentId);
         });
 

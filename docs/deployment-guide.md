@@ -1,6 +1,6 @@
 # SmartSchool Pro — Deployment Guide
 
-Complete go-live checklist. Order: **Database → API → WPF → Driver app → Parent app → Twilio/Firebase → Smoke tests.**
+Complete go-live checklist. Order: **Database → API/gateway → WPF → Driver app → Parent app → WhatsApp/Firebase → Smoke tests.**
 
 ---
 
@@ -44,11 +44,26 @@ sc.exe start SmartSchoolApi
 {
   "ConnectionStrings": { "DefaultConnection": "Server=…;Database=SmartSchoolPro;User Id=…;Password=…;Encrypt=True" },
   "Jwt": { "Key": "<64+ random chars — generate once, keep secret>", "ExpiresMinutes": 720 },
-  "Twilio": {
-    "Enabled": true, "AccountSid": "AC…", "AuthToken": "…",
-    "WhatsAppFrom": "whatsapp:+1XXXXXXXXXX", "Language": "ur", "NotifyMother": true
+  "WhatsApp": {
+    "Provider": "LinkedDevice",
+    "Language": "ur",
+    "NotifyMother": true,
+    "LinkedDevice": {
+      "BaseUrl": "http://127.0.0.1:5110",
+      "SecretsFile": "%LOCALAPPDATA%/SmartSchool/WhatsAppGateway/client-secret.json",
+      "AutoStart": true,
+      "NodeExecutable": "../whatsapp-gateway/SmartSchool.WhatsAppGateway.exe",
+      "EntryPoint": "../whatsapp-gateway/src/index.js"
+    },
+    "Queue": {
+      "Capacity": 10000, "MaxAttempts": 3, "RetryWindowSeconds": 120,
+      "InitialRetryDelaySeconds": 15, "SweepIntervalSeconds": 5
+    }
   },
-  "WhatsAppQueue": { "MaxRetries": 3, "RetryMinutes": 5, "SweepIntervalSeconds": 60 },
+  "Twilio": {
+    "AccountSid": "AC…", "AuthToken": "…",
+    "WhatsAppFrom": "whatsapp:+1XXXXXXXXXX"
+  },
   "BusAttendance": { "DebounceSeconds": 30 },
   "GoogleMaps": { "ApiKey": "…" },
   "Firebase": { "Enabled": true, "CredentialsJsonPath": "C:\\secrets\\firebase-sa.json" },
@@ -108,12 +123,33 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
 
 ---
 
-## 5. Twilio WhatsApp go-live
+## 5. WhatsApp go-live
 
-1. Twilio Console → Messaging → WhatsApp: complete sender approval (school name/logo + 2 message templates matching `WhatsAppTemplates.cs` exactly — the EN/UR texts are in that file).
-2. Set `AccountSid`, `AuthToken`, `WhatsAppFrom` (approved number), `Enabled=true`.
-3. Verify one live send (parent phone must join the sandbox *or* sender must be approved).
-4. Ops: failed messages auto-retry 3× at 5-min → admins get a red `WhatsApp FAILED` toast in WPF; check `GET /api/whatsapp-logs?status=Failed`.
+Read **`docs/whatsapp-reference-audit.md`** before selecting a provider.
+
+`docker-compose.yml` is deliberately a SQL-only development helper. It does not expose the
+API/gateway over a container network: development stays on `DryRun`, while the supported
+linked-device production layout is the Windows installer with authenticated loopback traffic.
+
+### Option A — linked device / QR (bundled school installer)
+
+1. Confirm the gateway is healthy: `GET http://127.0.0.1:5110/health` on the school PC.
+2. Sign in to WPF as Admin → **WhatsApp** → read/accept the compliance notice → **Connect / Generate QR**.
+3. On the dedicated school phone: WhatsApp → Linked devices → Link a device → scan the current QR.
+4. Restart the API/PC and confirm the encrypted session restores without another QR.
+5. Trigger one consented parent test alert and verify exactly one message/receipt.
+6. Never expose port 5110, copy the state directory, share QR screenshots, or use this endpoint for bulk/marketing/group automation.
+
+Linked-device mode is unofficial and cannot guarantee against account restrictions. The gateway enforces randomized 6–10 second spacing, daily/per-recipient caps, a bounded lane and idempotent receipts. If WhatsApp warns, forbids or logs out the account, stop automation and use its in-app review/support process.
+
+### Option B — official managed Twilio
+
+1. Set `WhatsApp:Provider` to `Twilio`.
+2. In Twilio Console → Messaging → WhatsApp, complete sender/template approval.
+3. Set `Twilio:AccountSid`, `Twilio:AuthToken` and approved `Twilio:WhatsAppFrom`.
+4. Verify one live send. Check failures with `GET /api/whatsapp-logs?status=Failed`.
+
+For either provider, SmartSchool makes three total attempts inside 120 seconds. Permanent or ambiguous outcomes stop automatically and raise an admin alert.
 
 ---
 

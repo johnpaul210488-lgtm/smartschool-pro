@@ -22,6 +22,11 @@ secrets.json
 Thumbs.db
 .DS_Store
 
+# Node linked-device gateway
+node_modules/
+npm-debug.log*
+.whatsapp-state/
+
 # Flutter / Dart (for the mobile apps when we scaffold them)
 **/flutter/.dart_tool/
 **/flutter/.flutter-plugins

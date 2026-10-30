@@ -12,6 +12,24 @@ permissions:
   contents: read
 
 jobs:
+  whatsapp-gateway:
+    name: Linked-device gateway tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/SmartSchool.WhatsAppGateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: src/SmartSchool.WhatsAppGateway/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm audit --omit=dev
+
   build:
     name: Build + EF migration check
     runs-on: ubuntu-latest
