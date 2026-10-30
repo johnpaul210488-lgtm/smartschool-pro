@@ -146,6 +146,38 @@
                         </StackPanel>
                     </materialDesign:Card>
 
+                    <materialDesign:Card Padding="20" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Parent app notifications" FontSize="17" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding PushReadinessTitle}" FontWeight="SemiBold" Margin="0,8,0,2"/>
+                            <TextBlock Text="{Binding PushReadinessDetail}" TextWrapping="Wrap" Opacity="0.72"/>
+                            <TextBlock Text="Select and load a student above, then link the parent’s existing app username. A registered phone count above zero means that account can receive Firebase alerts while the app is minimized or closed."
+                                       TextWrapping="Wrap" Margin="0,10,0,10" Opacity="0.72"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Text="{Binding ParentUsername, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                         materialDesign:HintAssist.Hint="Existing parent app username"
+                                         Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="Link to selected student"
+                                        Command="{Binding LinkParentCommand}" IsEnabled="{Binding IsIdle}"
+                                        Style="{StaticResource QisPrimaryButton}"/>
+                            </Grid>
+                            <DataGrid ItemsSource="{Binding ParentLinks}" AutoGenerateColumns="False"
+                                      IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column"
+                                      Height="125" Margin="0,10,0,0" RowHeaderWidth="0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Parent" Binding="{Binding FullName}" Width="2*"/>
+                                    <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="*"/>
+                                    <DataGridTextColumn Header="Push phone" Binding="{Binding DeviceStatus}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </StackPanel>
+                    </materialDesign:Card>
+
                     <materialDesign:Card Padding="20">
                         <StackPanel>
                             <TextBlock Text="Safe operating rules" FontSize="17" FontWeight="SemiBold"/>
@@ -201,6 +233,39 @@
                     </StackPanel>
                 </materialDesign:Card>
             </Grid>
+
+            <materialDesign:Card Padding="16" Margin="0,14,0,0">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="WhatsApp send activity" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding DeliverySummary}" Opacity="0.68" Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Command="{Binding RefreshDeliveryLogsCommand}"
+                                Style="{StaticResource QisIconButton}" ToolTip="Refresh WhatsApp activity">
+                            <materialDesign:PackIcon Kind="Refresh"/>
+                        </Button>
+                    </Grid>
+                    <DataGrid ItemsSource="{Binding DeliveryLogs}" AutoGenerateColumns="False"
+                              IsReadOnly="True" CanUserAddRows="False" RowHeaderWidth="0"
+                              Height="340" GridLinesVisibility="Horizontal">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Time (PKT)" Binding="{Binding TimeLabel}" Width="145"/>
+                            <DataGridTextColumn Header="Student" Binding="{Binding StudentName}" Width="1.3*"/>
+                            <DataGridTextColumn Header="Event" Binding="{Binding EventLabel}" Width="85"/>
+                            <DataGridTextColumn Header="Father / recipient" Binding="{Binding ParentPhone}" Width="130"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
+                            <DataGridTextColumn Header="Details" Binding="{Binding Detail}" Width="2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Text="Sent means the selected provider accepted the message. Open the linked phone’s WhatsApp chat to inspect WhatsApp delivery/read ticks."
+                               TextWrapping="Wrap" FontSize="11.5" Opacity="0.62" Margin="0,8,0,0"/>
+                </StackPanel>
+            </materialDesign:Card>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

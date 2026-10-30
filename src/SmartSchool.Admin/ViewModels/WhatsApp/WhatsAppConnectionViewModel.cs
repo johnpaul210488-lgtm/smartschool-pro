@@ -15,7 +15,9 @@ public partial class WhatsAppConnectionViewModel : ObservableObject, IDisposable
     private readonly ApiClient _api = ApiClient.Instance;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private readonly SemaphoreSlim _deliveryGate = new(1, 1);
     private bool _disposed;
+    private int _pollCount;
 
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _termsAccepted;
@@ -38,21 +40,36 @@ public partial class WhatsAppConnectionViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _parentPermissionConfirmed;
     [ObservableProperty] private string _consentFeedback =
         "Search a student, load the current father/mother numbers, then record permission received from that recipient.";
+    [ObservableProperty] private string _parentUsername = string.Empty;
+    [ObservableProperty] private string _pushReadinessTitle = "Checking Firebase push…";
+    [ObservableProperty] private string _pushReadinessDetail =
+        "The server credential, parent link and registered phone are all required for closed-app alerts.";
+    [ObservableProperty] private string _deliverySummary = "Loading recent WhatsApp activity…";
 
     public ObservableCollection<StudentListItem> Students { get; } = new();
     public ObservableCollection<WhatsAppConsentContact> Contacts { get; } = new();
+    public ObservableCollection<ParentLinkStatusDto> ParentLinks { get; } = new();
+    public ObservableCollection<WhatsAppLogListItemDto> DeliveryLogs { get; } = new();
     public bool IsIdle => !IsBusy;
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsIdle));
 
     public WhatsAppConnectionViewModel()
     {
-        _ = RefreshCoreAsync(showError: false);
+        _ = RefreshAllAsync(showError: false);
         _ = PollAsync();
     }
 
     [RelayCommand]
-    private Task RefreshAsync() => RefreshCoreAsync(showError: true);
+    private Task RefreshAsync() => RefreshAllAsync(showError: true);
+
+    private async Task RefreshAllAsync(bool showError)
+    {
+        await RefreshCoreAsync(showError);
+        await Task.WhenAll(LoadDeliveryLogsAsync(showError), LoadPushReadinessAsync(showError));
+        if (SelectedStudent is not null)
+            await LoadParentLinksAsync(showError);
+    }
 
     [RelayCommand]
     private async Task ConnectAsync()
@@ -131,6 +148,10 @@ public partial class WhatsAppConnectionViewModel : ObservableObject, IDisposable
             {
                 await Task.Delay(TimeSpan.FromSeconds(2), token);
                 await RefreshCoreAsync(showError: false);
+                if (++_pollCount % 5 == 0)
+                    await Task.WhenAll(
+                        LoadDeliveryLogsAsync(showError: false),
+                        LoadPushReadinessAsync(showError: false));
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
@@ -199,6 +220,119 @@ public partial class WhatsAppConnectionViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private Task RefreshDeliveryLogsAsync() => LoadDeliveryLogsAsync(showError: true);
+
+    private async Task LoadDeliveryLogsAsync(bool showError)
+    {
+        if (_disposed || !await _deliveryGate.WaitAsync(0)) return;
+        try
+        {
+            var result = await _api.GetAsync<PagedResult<WhatsAppLogListItemDto>>(
+                "api/whatsapp-logs?page=1&pageSize=100");
+            if (result.Ok && result.Data is not null)
+            {
+                DeliveryLogs.Clear();
+                foreach (var row in result.Data.Items)
+                    DeliveryLogs.Add(row);
+                var sent = result.Data.Items.Count(x => x.Status == "Sent");
+                var waiting = result.Data.Items.Count(x => x.Status is "Queued" or "Sending");
+                var held = result.Data.Items.Count(x => x.Status is "Held" or "Expired" or "Failed");
+                DeliverySummary = $"Latest {result.Data.Items.Count} of {result.Data.TotalCount}: " +
+                                  $"{sent} sent • {waiting} pending • {held} held/failed.";
+            }
+            else if (showError)
+            {
+                ToastService.Current.Error("WhatsApp activity", result.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (showError) ToastService.Current.Error("WhatsApp activity", ex.Message);
+        }
+        finally
+        {
+            _deliveryGate.Release();
+        }
+    }
+
+    private async Task LoadPushReadinessAsync(bool showError)
+    {
+        try
+        {
+            var result = await _api.GetAsync<PushServiceStatusDto>("api/devices/push-status");
+            if (result.Ok && result.Data is not null)
+            {
+                var status = result.Data;
+                PushReadinessTitle = status.Ready
+                    ? "Firebase server ready"
+                    : "Firebase server setup required";
+                PushReadinessDetail = $"{status.Detail} Linked parent accounts: {status.LinkedParentAccounts}; " +
+                                      $"registered parent phones: {status.RegisteredParentDevices}.";
+            }
+            else if (showError)
+            {
+                ToastService.Current.Error("Parent push status", result.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (showError) ToastService.Current.Error("Parent push status", ex.Message);
+        }
+    }
+
+    private async Task LoadParentLinksAsync(bool showError)
+    {
+        var student = SelectedStudent;
+        if (student is null) return;
+        try
+        {
+            var result = await _api.GetAsync<List<ParentLinkStatusDto>>(
+                $"api/parent-links/student/{student.Id}");
+            if (result.Ok && result.Data is not null)
+            {
+                ParentLinks.Clear();
+                foreach (var link in result.Data)
+                    ParentLinks.Add(link);
+            }
+            else if (showError)
+            {
+                ToastService.Current.Error("Parent app link", result.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (showError) ToastService.Current.Error("Parent app link", ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private async Task LinkParentAsync()
+    {
+        if (IsBusy || SelectedStudent is null || string.IsNullOrWhiteSpace(ParentUsername)) return;
+        IsBusy = true;
+        try
+        {
+            var result = await _api.PostAsync<object>("api/parent-links", new
+            {
+                parentUsername = ParentUsername.Trim(),
+                studentId = SelectedStudent.Id
+            });
+            if (!result.Ok)
+            {
+                ToastService.Current.Error("Parent app link", result.Error);
+                return;
+            }
+            ToastService.Current.Info("Parent app link", result.Msg);
+            await LoadParentLinksAsync(showError: true);
+            await LoadPushReadinessAsync(showError: false);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
     private async Task SearchStudentsAsync()
     {
         if (IsBusy) return;
@@ -214,6 +348,7 @@ public partial class WhatsAppConnectionViewModel : ObservableObject, IDisposable
             var result = await _api.StudentsAsync(StudentSearch.Trim(), pageSize: 25);
             Students.Clear();
             Contacts.Clear();
+            ParentLinks.Clear();
             SelectedStudent = null;
             SelectedContact = null;
             if (result.Ok && result.Data is not null)
@@ -264,6 +399,7 @@ public partial class WhatsAppConnectionViewModel : ObservableObject, IDisposable
         {
             IsBusy = false;
         }
+        await LoadParentLinksAsync(showError: false);
     }
 
     [RelayCommand]

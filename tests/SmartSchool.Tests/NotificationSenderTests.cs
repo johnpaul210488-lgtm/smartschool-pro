@@ -21,7 +21,9 @@ public sealed class NotificationSenderTests
     public void FirebaseUsesRegistrationTokensNotInstallationIdsAndBatchesAt500()
     {
         var tokens = Enumerable.Range(0, 1001).Select(i => $"registration-token-{i}").ToArray();
-        var push = new FcmPush("Title", "Body", new Dictionary<string, string> { ["eventId"] = "42" });
+        var push = new FcmPush(
+            "Title", "Body", new Dictionary<string, string> { ["eventId"] = "42" },
+            TimeSpan.FromMinutes(10));
         var batches = FirebaseFcmSender.CreateMessages(tokens, push).ToArray();
 
 #pragma warning disable CS0618 // Registration tokens are deprecated in the SDK, but are what FlutterFire supplies.
@@ -41,6 +43,7 @@ public sealed class NotificationSenderTests
             Assert.Equal("Title", b.Notification.Title);
             Assert.Equal("42", b.Data["eventId"]);
             Assert.Equal("smartschool_alerts", b.Android.Notification.ChannelId);
+            Assert.Equal(TimeSpan.FromMinutes(10), b.Android.TimeToLive);
         });
     }
 

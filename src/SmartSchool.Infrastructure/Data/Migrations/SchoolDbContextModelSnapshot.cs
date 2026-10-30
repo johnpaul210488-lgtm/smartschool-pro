@@ -880,6 +880,9 @@ namespace SmartSchool.Infrastructure.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("BusAttendanceId")
+                        .HasColumnType("bigint");
+
                     b.Property<Guid>("CorrelationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -936,6 +939,8 @@ namespace SmartSchool.Infrastructure.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BusAttendanceId");
 
                     b.HasIndex("CorrelationId")
                         .IsUnique();
@@ -1182,10 +1187,17 @@ namespace SmartSchool.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("SmartSchool.Core.Models.WhatsAppLog", b =>
                 {
+                    b.HasOne("SmartSchool.Core.Models.BusAttendance", "BusAttendance")
+                        .WithMany()
+                        .HasForeignKey("BusAttendanceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("SmartSchool.Core.Models.Student", "Student")
                         .WithMany()
                         .HasForeignKey("StudentId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("BusAttendance");
 
                     b.Navigation("Student");
                 });

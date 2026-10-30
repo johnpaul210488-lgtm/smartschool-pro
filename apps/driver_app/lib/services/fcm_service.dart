@@ -21,8 +21,9 @@ class FcmService {
 
   @pragma('vm:entry-point')
   static Future<void> _backgroundHandler(RemoteMessage message) async {
-    // Nothing to render in background — Android/iOS shows the system
-    // notification automatically because the server sets "notification".
+    if (Firebase.apps.isEmpty) await Firebase.initializeApp();
+    // Android/iOS shows the system notification automatically because the
+    // server includes a notification payload.
   }
 
   Future<void> init(ApiClient api) async {

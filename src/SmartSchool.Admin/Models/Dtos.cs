@@ -91,6 +91,63 @@ public sealed class WhatsAppSessionInfoDto
     [JsonPropertyName("complianceNotice")] public string ComplianceNotice { get; set; } = string.Empty;
 }
 
+public sealed class WhatsAppLogListItemDto
+{
+    [JsonPropertyName("id")] public long Id { get; set; }
+    [JsonPropertyName("studentId")] public int? StudentId { get; set; }
+    [JsonPropertyName("studentName")] public string? StudentName { get; set; }
+    [JsonPropertyName("busAttendanceId")] public long? BusAttendanceId { get; set; }
+    [JsonPropertyName("eventType")] public string? EventType { get; set; }
+    [JsonPropertyName("parentPhone")] public string ParentPhone { get; set; } = string.Empty;
+    [JsonPropertyName("message")] public string Message { get; set; } = string.Empty;
+    [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
+    [JsonPropertyName("providerMessageId")] public string? ProviderMessageId { get; set; }
+    [JsonPropertyName("retryCount")] public int RetryCount { get; set; }
+    [JsonPropertyName("failureCode")] public string? FailureCode { get; set; }
+    [JsonPropertyName("error")] public string? Error { get; set; }
+    [JsonPropertyName("createdAtPakistan")] public string CreatedAtPakistan { get; set; } = string.Empty;
+    [JsonPropertyName("sentAtPakistan")] public string? SentAtPakistan { get; set; }
+    [JsonPropertyName("nextAttemptPakistan")] public string? NextAttemptPakistan { get; set; }
+
+    [JsonIgnore] public string EventLabel => EventType switch
+    {
+        "PickIn" => "Pick-In",
+        "DropOut" => "Drop-Out",
+        _ => EventType ?? "—"
+    };
+    [JsonIgnore] public string TimeLabel => SentAtPakistan ?? CreatedAtPakistan;
+    [JsonIgnore] public string Detail => !string.IsNullOrWhiteSpace(Error)
+        ? Error!
+        : Status == "Sent"
+            ? string.IsNullOrWhiteSpace(ProviderMessageId)
+                ? "Provider accepted the message."
+                : $"Provider accepted · {ProviderMessageId}"
+            : FailureCode ?? string.Empty;
+}
+
+public sealed class PushServiceStatusDto
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    [JsonPropertyName("credentialsPresent")] public bool CredentialsPresent { get; set; }
+    [JsonPropertyName("credentialsValid")] public bool CredentialsValid { get; set; }
+    [JsonPropertyName("ready")] public bool Ready { get; set; }
+    [JsonPropertyName("linkedParentAccounts")] public int LinkedParentAccounts { get; set; }
+    [JsonPropertyName("registeredParentDevices")] public int RegisteredParentDevices { get; set; }
+    [JsonPropertyName("detail")] public string Detail { get; set; } = string.Empty;
+}
+
+public sealed class ParentLinkStatusDto
+{
+    [JsonPropertyName("parentUserId")] public int ParentUserId { get; set; }
+    [JsonPropertyName("username")] public string Username { get; set; } = string.Empty;
+    [JsonPropertyName("fullName")] public string FullName { get; set; } = string.Empty;
+    [JsonPropertyName("isActive")] public bool IsActive { get; set; }
+    [JsonPropertyName("registeredDevices")] public int RegisteredDevices { get; set; }
+    [JsonIgnore] public string DeviceStatus => RegisteredDevices > 0
+        ? $"{RegisteredDevices} phone(s) ready"
+        : "No phone registered";
+}
+
 // ============ Students ============
 public class StudentListItem
 {

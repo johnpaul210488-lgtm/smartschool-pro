@@ -121,6 +121,9 @@ public sealed class FirebaseFcmSender : IFcmSender
                 Android = new AndroidConfig
                 {
                     Priority = Priority.High,
+                    // Time-sensitive pick/drop alerts must not appear hours later
+                    // after a phone comes back online.
+                    TimeToLive = push.TimeToLive,
                     Notification = new AndroidNotification { ChannelId = "smartschool_alerts", Sound = "default" }
                 },
                 Apns = new ApnsConfig { Aps = new Aps { Sound = "default" } }

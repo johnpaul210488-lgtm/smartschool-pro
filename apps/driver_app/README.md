@@ -46,9 +46,12 @@ Demo login: **driver1 / Driver@123** (Bus #7) • **driver2 / Driver@123** (Bus 
    - ✅ success → voice bole "Ali picked up" (flutter_tts, toggleable)
    - 📥 fail/offline → **SQLite outbox** mein queue; net wapas aye to auto-sync (attempts counter,
      duplicate-conflict ko gracefully drop karta hai)
-6. Background service har **15 sec** `POST /api/trips/{id}/location` (REST uplink) —
-   foreground notification: *"SmartSchool: Trip in progress — tracking active"*
-7. **END TRIP** → GPS service stop → `POST /api/trips/{id}/end`
+6. Android location foreground service har **1 second** latest high-accuracy fix
+   `POST /api/trips/{id}/location` par bhejti hai. App minimize/screen lock ho tab bhi persistent
+   *Trip in progress* notification + wake-protected service chalti rehti hai. Active trip id disk par
+   save hai, is liye Android service isolate ko recreate kare to woh khud resume karti hai.
+7. **END TRIP** → pehle durable active-trip marker clear, phir GPS service stop aur
+   `POST /api/trips/{id}/end`. Server se trip already band ho to service bhi khud ruk jati hai.
 
 ## Offline-first design decisions
 
@@ -69,7 +72,7 @@ lib/
 │   ├── api_client.dart            # envelope-aware HTTP + JWT restore
 │   ├── session_service.dart       # shared_preferences token store
 │   ├── gps_service.dart           # geolocator wrapper (permissions)
-│   ├── background_gps_service.dart# flutter_background_service (15s uplink)
+│   ├── background_gps_service.dart# persistent foreground service (1s uplink)
 │   ├── offline_outbox.dart        # sqflite FIFO queue
 │   └── tts_service.dart           # voice confirmations
 ├── providers/app_state.dart       # sab state (ChangeNotifier)
@@ -79,6 +82,15 @@ lib/
     ├── trip_screen.dart           # student cards: big PICK/DROP buttons
     └── widgets/status_banner.dart # offline bar + outbox + flash text
 ```
+
+## Android background checklist
+
+- Location permission dein; trip ko app foreground mein **START** karein.
+- Phone ki Battery/App settings mein Driver app ko **Unrestricted / Don't optimize** rakhein,
+  khaas taur par Xiaomi/Oppo/Vivo/Samsung power-saving modes par.
+- Normal minimize, screen-lock aur app-task se bahar jane par service chalti hai. Android ka
+  explicit **Force stop** har app ki service ko OS level par rokta hai; app dobara kholna zaroori hai.
+- Persistent *Trip in progress* notification tab tak visible rehni chahiye jab tak **END TRIP** na ho.
 
 ## iOS note
 

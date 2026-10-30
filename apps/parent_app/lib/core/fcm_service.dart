@@ -15,7 +15,10 @@ enum PushStatus { checking, registered, permissionDenied, registrationFailed, un
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // FCM displays notification payloads in the background itself.
+  // Required when Android starts a fresh Dart isolate for a terminated app.
+  // The notification payload itself is rendered by FCM; initialization keeps
+  // data/background handling valid across FlutterFire versions.
+  if (Firebase.apps.isEmpty) await Firebase.initializeApp();
 }
 
 /// Platform seam so the registration lifecycle can be tested without Firebase.

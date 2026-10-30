@@ -255,6 +255,6 @@ FinishedLabel=TEST PREVIEW sirf is test PC par install hua hai.%n%nAdmin app: De
 #ifdef ManualServerTest
 FinishedLabel=SERVER TEST build install hua hai. Database/config backup mehfooz rakhein.%n%nWhatsApp Connection mein dedicated number link karein aur sirf permission walay current recipients test karein. Purane alerts auto-send nahi honge.%n%nFirebase private key installer mein nahi hai. Delivery aur server test khud verify karein.
 #else
-FinishedLabel=Queen International School install ho gaya!%n%nAdmin app: Desktop / Start Menu shortcut «Queen International School»%nAPI: http://localhost:5000 — ABHI shuru ho gayi hai aur har PC-login par background mein khud uthe gi.%nLogin: admin / Admin@12345 — pehli dafa database apne aap ban jayegi.
+FinishedLabel=Queen International School install ho gaya!%n%nAdmin app: Desktop / Start Menu shortcut «Queen International School»%nAPI: http://localhost:5000 — ABHI shuru ho gayi hai aur har PC-login par background mein khud uthe gi.%nLogin: admin / Admin@12345 — pehli dafa database apne aap ban jayegi.%n%nParent app ke closed/background alerts ke liye Start Menu se «Queen School - Firebase Setup» chala kar Admin SDK service-account JSON select karein, phir API restart karein.
 #endif
 #endif

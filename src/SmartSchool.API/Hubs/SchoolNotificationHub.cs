@@ -91,7 +91,7 @@ public sealed class SchoolNotificationHub : Hub
             Latitude = latitude,
             Longitude = longitude,
             SpeedKmh = speedKmh,
-            TimePakistan = PkTime.NowPk.ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture)
+            TimePakistan = PkTime.NowPk.ToString("dd MMM yyyy hh:mm:ss tt", CultureInfo.InvariantCulture)
         };
 
         await Clients.Groups(HubGroups.AdminGroup, HubGroups.BusGroup(busId))

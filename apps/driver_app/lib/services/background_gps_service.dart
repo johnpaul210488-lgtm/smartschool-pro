@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
@@ -8,20 +9,23 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 import '../config/app_config.dart';
 import '../services/session_service.dart';
 
-/// Foreground service that pushes the bus GPS every
-/// [AppConfig.gpsPushInterval] while a trip is active.
+/// Android foreground service that keeps a one-second live-location heartbeat
+/// running while a trip is active, including when the Flutter UI is minimized.
 ///
-/// Protocol with the main isolate:
-/// - main → service:  'start' {tripId} | 'stop'
-/// - service → main:  (none — fire & forget into the API)
+/// The active trip id is persisted before the service starts. If Android
+/// recreates the foreground-service isolate, it resumes the same trip without
+/// waiting for the minimized app to send another message.
 class BackgroundGpsService {
   BackgroundGpsService._();
   static final BackgroundGpsService instance = BackgroundGpsService._();
+
+  static const _activeTripKey = 'background_gps_active_trip_id';
+  static const _gpsStatusKey = 'gps_status';
+  static final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
 
   bool _initialized = false;
 
@@ -44,7 +48,11 @@ class BackgroundGpsService {
       androidConfiguration: AndroidConfiguration(
         onStart: _onStart,
         autoStart: false,
+        // If the phone/service process is recreated, _onStart reads the durable
+        // trip id. With no active trip it immediately stops itself.
+        autoStartOnBoot: true,
         isForegroundMode: true,
+        foregroundServiceTypes: const [AndroidForegroundType.location],
         notificationChannelId: AppConfig.notificationChannelId,
         initialNotificationTitle: AppConfig.notificationTitle,
         initialNotificationContent: AppConfig.notificationBody,
@@ -58,34 +66,35 @@ class BackgroundGpsService {
     );
   }
 
+  Future<bool> isRunning() => FlutterBackgroundService().isRunning();
+
   Future<void> startTrip(int tripId) async {
     await initialize();
+    // Persist first: the service can recover even if its start event races with
+    // isolate startup or Android recreates it after the app is minimized.
+    await _preferences.setInt(_activeTripKey, tripId);
     final service = FlutterBackgroundService();
     if (!(await service.isRunning())) await service.startService();
-    // Service ka isolate turant tayyar nahi hota: 'start' event kho sakta hai.
-    // Handler idempotent hai (pehle timer cancel karta hai), is liye kuch baar bhejna safe hai.
     service.invoke('start', {'tripId': tripId});
-    // Dobara bhejna: pehle wali 'start' kho gayi ho to bhi GPS loop chal jaye.
+    // The handler is idempotent; repeat the signal while the isolate comes up.
     unawaited(_resendStart(service, tripId));
     unawaited(_verifyRunning(service));
   }
 
-  /// Trip start ke 8 second baad check: service sach mein chal rahi hai ya nahi.
   static Future<void> _verifyRunning(FlutterBackgroundService service) async {
     await Future.delayed(const Duration(seconds: 8));
     final running = await service.isRunning();
-    if (!running) {
+    if (!running && await _preferences.getInt(_activeTripKey) != null) {
       await writeGpsStatus(
-          'ERR: background service start nahi hui. Phone ki battery settings mein app ko Unrestricted karein.');
+          'ERR: background service start nahi hui. Battery settings mein app ko Unrestricted karein.');
     }
   }
 
   /// Status line ke liye (main isolate aur service dono use kar sakte hain).
   static Future<void> writeGpsStatus(String text) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-          'gps_status', '$text ${DateFormat('HH:mm:ss').format(DateTime.now())}');
+      await _preferences.setString(
+          _gpsStatusKey, '$text ${DateFormat('HH:mm:ss').format(DateTime.now())}');
     } catch (_) {}
   }
 
@@ -95,14 +104,15 @@ class BackgroundGpsService {
     final myToken = ++_startToken;
     for (final wait in const [2, 3, 5]) {
       await Future.delayed(Duration(seconds: wait));
-      // Trip band ho gayi ya naya start hua to purani resend rok do.
-      if (myToken != _startToken) return;
+      if (myToken != _startToken || await _preferences.getInt(_activeTripKey) != tripId) return;
       service.invoke('start', {'tripId': tripId});
     }
   }
 
   Future<void> stopTrip() async {
     _startToken++;
+    // Clear first so a simultaneous Android restart cannot revive an ended trip.
+    await _preferences.remove(_activeTripKey);
     FlutterBackgroundService().invoke('stop');
   }
 
@@ -115,37 +125,44 @@ class BackgroundGpsService {
   static void _onStart(ServiceInstance service) async {
     DartPluginRegistrant.ensureInitialized();
 
-    Timer? timer;
-    StreamSubscription<Position>? posSub;
+    Timer? heartbeat;
+    StreamSubscription<Position>? positionSubscription;
+    Position? latestPosition;
     int? activeTripId;
+    bool loadedOverride = false;
+    bool pushing = false;
+    var transition = Future<void>.value();
 
-    Future<void> writeStatus(String text) async {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(
-            'gps_status', '$text ${DateFormat('HH:mm:ss').format(DateTime.now())}');
-      } catch (_) {}
+    Future<void> writeStatus(String text) => writeGpsStatus(text);
+
+    Future<void> stopTracking({required bool stopService}) async {
+      heartbeat?.cancel();
+      heartbeat = null;
+      await positionSubscription?.cancel();
+      positionSubscription = null;
+      latestPosition = null;
+      activeTripId = null;
+      await _preferences.remove(_activeTripKey);
+      if (stopService) service.stopSelf();
     }
 
-    bool loadedOverride = false;
-
-    bool pushing = false;
-
     Future<void> pushGps([Position? fixed]) async {
-      if (activeTripId == null) return;
-      // Pichla push abhi chal raha ho to skip: taaza position agle tick par bhi aayegi.
-      if (pushing) return;
+      final tripId = activeTripId;
+      if (tripId == null || pushing) return;
       pushing = true;
       try {
-        // Background isolate ko bhi saved server address chahiye.
         if (!loadedOverride) {
           await AppConfig.loadServerOverride();
           loadedOverride = true;
         }
-        final pos = fixed ??
+        final pos = fixed ?? latestPosition ??
             await Geolocator.getCurrentPosition(
-              locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.high,
+                timeLimit: Duration(seconds: 8),
+              ),
             );
+        latestPosition = pos;
         final login = await SessionService().load();
         if (login == null) {
           await writeStatus('ERR: login session nahi mila');
@@ -154,7 +171,7 @@ class BackgroundGpsService {
 
         final res = await http
             .post(
-              Uri.parse('${AppConfig.apiBaseUrl}/api/trips/$activeTripId/location'),
+              Uri.parse('${AppConfig.apiBaseUrl}/api/trips/$tripId/location'),
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ${login.token}',
@@ -166,52 +183,79 @@ class BackgroundGpsService {
               }),
             )
             .timeout(const Duration(seconds: 8));
+
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          await writeStatus('OK: server ko bheja');
+          await writeStatus('OK: background se server ko bheja');
+        } else if (res.statusCode == 404 || res.statusCode == 409) {
+          // The server says this trip no longer exists/is active. Do not leave a
+          // silent foreground tracker running forever after an office-side end.
+          await writeStatus('Trip server par band hai; tracking stop');
+          await stopTracking(stopService: true);
         } else {
           await writeStatus('ERR: server ${res.statusCode}');
         }
       } catch (e) {
-        // Background GPS push must be silent; error sirf status line mein dikhta hai.
+        // Keep the service alive through temporary GPS/network failures.
         await writeStatus('ERR: ${e.toString().split('\n').first}');
       } finally {
         pushing = false;
       }
     }
 
-    // Tracing: service isolate tayyar hone par pehla status (agar ye na dikhe to isolate hi nahi chala).
-    await writeStatus('Service chal gayi, trip signal ka intezar');
+    Future<void> beginTracking(int tripId) async {
+      if (tripId <= 0) return;
+      if (activeTripId == tripId && heartbeat?.isActive == true && positionSubscription != null) {
+        await _preferences.setInt(_activeTripKey, tripId);
+        return;
+      }
+      heartbeat?.cancel();
+      await positionSubscription?.cancel();
+      activeTripId = tripId;
+      latestPosition = null;
+      await _preferences.setInt(_activeTripKey, tripId);
+      await writeStatus('Trip #$tripId active, 1-second background tracking ON');
 
-    service.on('start').listen((data) {
-      activeTripId = (data?['tripId'] as num?)?.toInt();
-      writeStatus('Trip #$activeTripId signal mila, GPS stream shuru');
-      timer?.cancel();
-      posSub?.cancel();
-      pushGps(); // immediate first ping
-      // Continuous GPS stream (Android): minimize/Doze mein bhi location aati rehti hai.
-      // Timer.periodic minimize par ruk jata tha, isliye stream use ki hai.
-      posSub = Geolocator.getPositionStream(
+      // The stream keeps the latest high-accuracy fix warm. A separate one-second
+      // heartbeat sends that latest fix even while the vehicle is stationary.
+      positionSubscription = Geolocator.getPositionStream(
         locationSettings: AndroidSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 0,
           intervalDuration: AppConfig.gpsPushInterval,
-          foregroundNotificationConfig: const ForegroundNotificationConfig(
-            notificationTitle: 'Queen International School: Trip in progress',
-            notificationText: 'Bus ki location server ko ja rahi hai',
-            enableWakeLock: true,
-          ),
         ),
       ).listen(
-        (pos) => pushGps(pos),
-        onError: (e) => writeStatus('ERR: GPS stream: ${e.toString().split('\n').first}'),
+        (position) => latestPosition = position,
+        onError: (Object e) => unawaited(
+            writeStatus('ERR: GPS stream: ${e.toString().split('\n').first}')),
       );
+
+      unawaited(pushGps()); // immediate first fix/uplink
+      heartbeat = Timer.periodic(AppConfig.gpsPushInterval, (_) {
+        unawaited(pushGps(latestPosition));
+      });
+    }
+
+    void queueStart(int tripId) {
+      transition = transition.then((_) => beginTracking(tripId)).catchError((Object e) async {
+        await writeStatus('ERR: tracking start: ${e.toString().split('\n').first}');
+      });
+    }
+
+    service.on('start').listen((data) {
+      final tripId = (data?['tripId'] as num?)?.toInt();
+      if (tripId != null) queueStart(tripId);
     });
 
     service.on('stop').listen((_) {
-      timer?.cancel();
-      posSub?.cancel();
-      activeTripId = null;
-      service.stopSelf();
+      transition = transition.then((_) => stopTracking(stopService: true));
     });
+
+    final savedTripId = await _preferences.getInt(_activeTripKey);
+    if (savedTripId == null) {
+      await writeStatus('Koi active trip nahi; background service stop');
+      service.stopSelf();
+      return;
+    }
+    queueStart(savedTripId);
   }
 }

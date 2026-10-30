@@ -96,8 +96,47 @@ public sealed class NotificationFlowTests
         Assert.Equal("bus_event", send.Push.Data!["type"]);
         Assert.Equal("1", send.Push.Data["studentId"]);
         Assert.Contains("baith chuka hai", send.Push.Body); // The linked parent's language.
-        Assert.Single(await db.BusAttendances.ToListAsync());
-        Assert.Equal(WhatsAppStatus.Held, (await db.WhatsAppLogs.SingleAsync()).Status);
+        Assert.Equal(TimeSpan.FromMinutes(10), send.Push.TimeToLive); // Never arrive hours late.
+        var attendance = Assert.Single(await db.BusAttendances.ToListAsync());
+        var whatsApp = await db.WhatsAppLogs.SingleAsync();
+        Assert.Equal(WhatsAppStatus.Held, whatsApp.Status);
+        Assert.Equal(attendance.Id, whatsApp.BusAttendanceId);
+
+        // An offline event remains in history but must not produce a dangerously
+        // late closed-app notification when it finally reaches the server.
+        busEvent.TimestampUtc = DateTime.UtcNow.AddMinutes(-10);
+        Assert.IsType<OkObjectResult>((await controller.DropOut(busEvent, default)).Result);
+        Assert.Single(fcm.Sends);
+        Assert.Equal(2, await db.BusAttendances.CountAsync());
+        Assert.Contains(await db.WhatsAppLogs.ToListAsync(), row => row.Status == WhatsAppStatus.Expired);
+    }
+
+    [Fact]
+    public async Task AndroidClientJsonIsNotReportedAsAnAdminSdkServerCredential()
+    {
+        await using var db = CreateDb();
+        var path = Path.Combine(Path.GetTempPath(), $"firebase-client-{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(path,
+            "{\"project_info\":{\"project_id\":\"queen-school\"},\"client\":[]}");
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Firebase:Enabled"] = "true",
+                ["Firebase:CredentialsJsonPath"] = path
+            }).Build();
+            var controller = new DevicesController(
+                new UnitOfWork(db), configuration, NullLogger<DevicesController>.Instance);
+            var result = Assert.IsType<OkObjectResult>((await controller.PushStatus(default)).Result);
+            var envelope = Assert.IsType<ApiResponse<PushServiceStatus>>(result.Value);
+            Assert.True(envelope.Data!.CredentialsPresent);
+            Assert.False(envelope.Data.CredentialsValid);
+            Assert.False(envelope.Data.Ready);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [Fact]

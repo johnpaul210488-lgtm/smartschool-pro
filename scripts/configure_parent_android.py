@@ -101,15 +101,32 @@ def configure(app_dir: Path, expected_project: str | None = None) -> str:
         else:
             new_app += ('\n' + marker + '\nandroid { compileOptions { coreLibraryDesugaringEnabled true } }\n'
                         "dependencies { coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4' }\n")
-    if "android.permission.POST_NOTIFICATIONS" not in manifest:
-        manifest_tag = re.search(r"<manifest\b[^>]*>", manifest)
+    new_manifest = manifest
+    if "android.permission.POST_NOTIFICATIONS" not in new_manifest:
+        manifest_tag = re.search(r"<manifest\b[^>]*>", new_manifest)
         if not manifest_tag:
             raise ValueError("AndroidManifest.xml has no manifest tag.")
-        new_manifest = (manifest[:manifest_tag.end()] +
+        new_manifest = (new_manifest[:manifest_tag.end()] +
                         '\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' +
-                        manifest[manifest_tag.end():])
-    else:
-        new_manifest = manifest
+                        new_manifest[manifest_tag.end():])
+
+    # FCM can receive while the Flutter UI is terminated. Declare the same
+    # high-importance channel the app creates after login as Android's fallback.
+    channel_name = "com.google.firebase.messaging.default_notification_channel_id"
+    if channel_name not in new_manifest:
+        metadata = ('<meta-data android:name="' + channel_name + '" '
+                    'android:value="smartschool_alerts" />')
+        self_closing = re.search(r"<application\b([^>]*)/>", new_manifest)
+        if self_closing:
+            replacement = '<application' + self_closing.group(1) + '>\n        ' + metadata + '\n    </application>'
+            new_manifest = (new_manifest[:self_closing.start()] + replacement +
+                            new_manifest[self_closing.end():])
+        else:
+            application = re.search(r"<application\b[^>]*>", new_manifest)
+            if not application:
+                raise ValueError("AndroidManifest.xml has no application tag.")
+            new_manifest = (new_manifest[:application.end()] + '\n        ' + metadata +
+                            new_manifest[application.end():])
 
     settings_file.write_text(new_settings, encoding="utf-8")
     app_file.write_text(new_app, encoding="utf-8")

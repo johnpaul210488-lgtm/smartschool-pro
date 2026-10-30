@@ -194,6 +194,7 @@ CREATE TABLE dbo.WhatsAppLogs
     Id                BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_WhatsAppLogs PRIMARY KEY,
     CorrelationId     UNIQUEIDENTIFIER NOT NULL,
     StudentId         INT              NULL,         -- survives student deletion
+    BusAttendanceId   BIGINT           NULL,         -- exact pick/drop source event
     EventType         NVARCHAR(20)     NULL,
     ParentPhone       NVARCHAR(25)     NOT NULL,
     [Message]         NVARCHAR(1600)   NOT NULL,
@@ -209,10 +210,12 @@ CREATE TABLE dbo.WhatsAppLogs
     SentAtUtc              DATETIME2        NULL,
     CONSTRAINT UQ_WaLogs_CorrelationId UNIQUE (CorrelationId),
     CONSTRAINT FK_WaLogs_Students FOREIGN KEY (StudentId) REFERENCES dbo.Students (Id) ON DELETE SET NULL,
+    CONSTRAINT FK_WaLogs_BusAttendance FOREIGN KEY (BusAttendanceId) REFERENCES dbo.BusAttendance (Id) ON DELETE SET NULL,
     CONSTRAINT CK_WaLogs_Status CHECK ([Status] IN ('Queued','Sent','Failed','PendingQr','Sending','Submitted','Unknown','Held','Expired'))
 );
 CREATE INDEX IX_WaLogs_Status_NextAttempt ON dbo.WhatsAppLogs ([Status], NextAttemptAtUtc);
 CREATE INDEX IX_WaLogs_StudentId          ON dbo.WhatsAppLogs (StudentId);
+CREATE INDEX IX_WaLogs_BusAttendanceId    ON dbo.WhatsAppLogs (BusAttendanceId);
 
 -- Explicit recipient permission; a parent-app opt-out still takes precedence.
 CREATE TABLE dbo.WhatsAppConsents

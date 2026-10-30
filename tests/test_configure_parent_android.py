@@ -59,6 +59,8 @@ class ConfigureParentAndroidTests(unittest.TestCase):
         self.assertLess(self.gradle.read_text().index('id("com.android.application")'),
                         self.gradle.read_text().index('id("com.google.gms.google-services")'))
         self.assertIn("android.permission.POST_NOTIFICATIONS", self.manifest.read_text())
+        self.assertIn("com.google.firebase.messaging.default_notification_channel_id", self.manifest.read_text())
+        self.assertIn("smartschool_alerts", self.manifest.read_text())
         self.assertIn('isCoreLibraryDesugaringEnabled = true', self.gradle.read_text())
         self.assertIn('coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")', self.gradle.read_text())
         before = [p.read_text() for p in (self.settings, self.gradle, self.manifest)]

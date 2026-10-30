@@ -158,6 +158,7 @@ public sealed class BusAttendanceController : BaseApiController
 
         var timePk = PkTime.ToPk(timestampUtc);
         var stampText = timePk.ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture);
+        var freshLiveAlert = WhatsAppOutboxRules.IsFresh(timestampUtc, DateTime.UtcNow);
 
         // EN / Roman-Urdu templates are provider-neutral. Per-parent language
         // preference overrides the school-wide WhatsApp default.
@@ -216,42 +217,51 @@ public sealed class BusAttendanceController : BaseApiController
         // (2a) FCM push to active linked parents only (best-effort, grouped by language).
         try
         {
-            var pushParents = parents.Where(p => p.IsActive && p.Role == UserRole.Parent).ToArray();
-            var parentIds = pushParents.Select(p => p.Id).ToArray();
-            if (parentIds.Length == 0)
-                _logger.LogWarning("FCM skipped for bus event {EventId}, student {StudentId}: no active parent accounts are linked.",
+            if (!freshLiveAlert)
+            {
+                _logger.LogWarning(
+                    "FCM skipped for stale offline bus event {EventId}, student {StudentId}; history remains available in the app.",
                     busEvent.Id, student.Id);
+            }
             else
             {
-                var devices = await _uow.DeviceTokens.Query()
-                    .Where(d => parentIds.Contains(d.UserId))
-                    .Select(d => new { d.UserId, d.Token })
-                    .ToListAsync(ct);
-                var parentsWithoutDevices = parentIds.Except(devices.Select(d => d.UserId)).Count();
-                if (parentsWithoutDevices > 0)
-                    _logger.LogWarning("FCM for bus event {EventId}, student {StudentId}: {Count} linked parent account(s) have no registered devices.",
-                        busEvent.Id, student.Id, parentsWithoutDevices);
-
-                foreach (var grp in devices.GroupBy(d =>
-                             pushParents.First(p => p.Id == d.UserId).PreferredLanguage == "ur" ? "ur" : "en"))
+                var pushParents = parents.Where(p => p.IsActive && p.Role == UserRole.Parent).ToArray();
+                var parentIds = pushParents.Select(p => p.Id).ToArray();
+                if (parentIds.Length == 0)
+                    _logger.LogWarning("FCM skipped for bus event {EventId}, student {StudentId}: no active parent accounts are linked.",
+                        busEvent.Id, student.Id);
+                else
                 {
-                    var picked = type == BusAttendanceType.PickIn;
-                    var (title, body) = grp.Key == "ur"
-                        ? ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
-                           picked ? $"{student.FullName} Bus #{bus.BusNumber} mai baith chuka hai — waqt: {stampText}"
-                                  : $"{student.FullName} Bus #{bus.BusNumber} se mehfooz utar chuka hai — waqt: {stampText}")
-                        : ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
-                           picked ? $"{student.FullName} has BOARDED Bus #{bus.BusNumber} at {stampText}."
-                                  : $"{student.FullName} has been DROPPED OFF safely at {stampText}.");
+                    var devices = await _uow.DeviceTokens.Query()
+                        .Where(d => parentIds.Contains(d.UserId))
+                        .Select(d => new { d.UserId, d.Token })
+                        .ToListAsync(ct);
+                    var parentsWithoutDevices = parentIds.Except(devices.Select(d => d.UserId)).Count();
+                    if (parentsWithoutDevices > 0)
+                        _logger.LogWarning("FCM for bus event {EventId}, student {StudentId}: {Count} linked parent account(s) have no registered devices.",
+                            busEvent.Id, student.Id, parentsWithoutDevices);
 
-                    await _fcm.SendToDevicesAsync(grp.Select(d => d.Token).ToArray(),
-                        new FcmPush(title, body, new Dictionary<string, string>
-                        {
-                            ["type"] = "bus_event",
-                            ["studentId"] = student.Id.ToString(),
-                            ["eventType"] = type.ToString(),
-                            ["eventId"] = busEvent.Id.ToString()
-                        }), ct);
+                    foreach (var grp in devices.GroupBy(d =>
+                                 pushParents.First(p => p.Id == d.UserId).PreferredLanguage == "ur" ? "ur" : "en"))
+                    {
+                        var picked = type == BusAttendanceType.PickIn;
+                        var (title, body) = grp.Key == "ur"
+                            ? ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
+                               picked ? $"{student.FullName} Bus #{bus.BusNumber} mai baith chuka hai — waqt: {stampText}"
+                                      : $"{student.FullName} Bus #{bus.BusNumber} se mehfooz utar chuka hai — waqt: {stampText}")
+                            : ($"🚌 {(picked ? "Pick-In" : "Drop-Out")}: {student.FullName}",
+                               picked ? $"{student.FullName} has BOARDED Bus #{bus.BusNumber} at {stampText}."
+                                      : $"{student.FullName} has been DROPPED OFF safely at {stampText}.");
+
+                        await _fcm.SendToDevicesAsync(grp.Select(d => d.Token).ToArray(),
+                            new FcmPush(title, body, new Dictionary<string, string>
+                            {
+                                ["type"] = "bus_event",
+                                ["studentId"] = student.Id.ToString(),
+                                ["eventType"] = type.ToString(),
+                                ["eventId"] = busEvent.Id.ToString()
+                            }, TimeSpan.FromMinutes(10)), ct);
+                    }
                 }
             }
         }
@@ -276,7 +286,7 @@ public sealed class BusAttendanceController : BaseApiController
             var consentGranted = normalizedPhone is not null
                 && await _uow.WhatsAppConsents.AnyAsync(
                     c => c.StudentId == student.Id && c.PhoneE164 == normalizedPhone && c.Granted, ct);
-            var fresh = WhatsAppOutboxRules.IsFresh(timestampUtc, DateTime.UtcNow);
+            var fresh = freshLiveAlert;
             var eligible = normalizedPhone is not null && consentGranted && !parentOptedOut && fresh;
             var owner = matchingParents.FirstOrDefault();
             var message = MessageFor(owner?.PreferredLanguage == "ur" ? "ur" : defaultLanguage);
@@ -285,6 +295,7 @@ public sealed class BusAttendanceController : BaseApiController
             {
                 CorrelationId = correlationId,
                 StudentId = student.Id,
+                BusAttendanceId = busEvent.Id,
                 EventType = type.ToString(),
                 ParentPhone = normalizedPhone ?? phone,
                 Message = message,

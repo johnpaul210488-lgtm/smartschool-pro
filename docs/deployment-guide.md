@@ -111,7 +111,7 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
 
 ---
 
-## 4. Firebase Cloud Messaging (parent + later driver app)
+## 4. Firebase Cloud Messaging (parent and driver apps)
 
 ### Android APK and Firebase project
 
@@ -160,14 +160,17 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
 ### Parent-child link and diagnosis
 
 6. Staff should verify the correct parent and student before linking: it grants
-   the parent access to the child's information. Use an admin token in Swagger:
-   `GET /api/parent-links/student/{studentId}` shows accounts and device counts
-   (no tokens). If the correct active account is absent, use
-   `POST /api/parent-links` with `{"parentUsername":"parent1","studentId":1}`;
-   this is idempotent. Create a login via the staff-only `POST /api/auth/register`
-   if necessary. After linking, restart the parent app to refresh SignalR groups.
-   Never infer a link merely because two records share a phone number.
-7. Check `C:\ProgramData\SmartSchool\logs\smartschool-*.log` (installer):
+   the parent access to the child's information. In **Admin → WhatsApp Connection →
+   Parent app notifications**, select the student and link the existing parent username;
+   the grid shows the registered phone count. The equivalent safe endpoints are
+   `GET /api/parent-links/student/{studentId}` and `POST /api/parent-links` with
+   `{"parentUsername":"parent1","studentId":1}`. Create a login via the staff-only
+   `POST /api/auth/register` if necessary. After linking, restart the parent app to
+   refresh SignalR groups. Never infer a link merely because two records share a phone number.
+7. First check the Admin page or staff-only `GET /api/devices/push-status`; it reports
+   enabled/credential readiness and aggregate linked-account/device counts without
+   exposing a key path or token. Then check
+   `C:\ProgramData\SmartSchool\logs\smartschool-*.log` (installer):
    - `FCM is disabled` / `[FCM DRY-RUN]`: **no push was sent**.
    - `FCM device registered for user ...`: token registration reached the API;
      the token itself is deliberately not logged.
@@ -178,8 +181,10 @@ Set the API URL in `%APPDATA%\SmartSchoolAdmin\settings.json` after first run (o
      requests, not that the OS displayed them.
 8. Test a **new** pick-in/drop-out while the parent app is in the background,
    then with it open. Background notifications require real FCM + permission;
-   foreground may also show a SignalR banner. Avoid repeating the same event
-   within the 30-second debounce window.
+   foreground may also show a SignalR banner. Android does not deliver to an app
+   the user explicitly **Force stopped** until that app is opened again. Time-sensitive
+   pick/drop pushes expire after ten minutes so an offline phone cannot show a dangerously
+   late alert. Avoid repeating the same event within the 30-second debounce window.
 
 **WhatsApp is a separate channel:** fixing an FCM issue does not enable Twilio.
 Upgrade safety: migration `20261030120000_DurableWhatsAppSafety` retires unfinished

@@ -238,8 +238,11 @@ public sealed class SchoolDbContext : DbContext
             e.Property(x => x.ProviderMessageId).HasMaxLength(100);
             e.HasOne(x => x.Student).WithMany()
              .HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.BusAttendance).WithMany()
+             .HasForeignKey(x => x.BusAttendanceId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(x => new { x.Status, x.NextAttemptAtUtc });
             e.HasIndex(x => x.StudentId);
+            e.HasIndex(x => x.BusAttendanceId);
         });
 
         mb.Entity<WhatsAppConsent>(e =>

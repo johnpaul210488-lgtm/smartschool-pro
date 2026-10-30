@@ -143,6 +143,79 @@ public sealed class WhatsAppOutboxTests
             .WhatsAppLogs.AsNoTracking().SingleAsync(l => l.CorrelationId == id);
     }
 
+    private static async Task<(Guid CorrelationId, long AttendanceId)> SeedLinkedAttendance(
+        ServiceProvider provider)
+    {
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
+        var driverUser = new User
+        {
+            Username = Guid.NewGuid().ToString("N"),
+            FullName = "Driver",
+            PasswordHash = "test",
+            Role = UserRole.Driver
+        };
+        var driver = new Driver { FullName = "Driver", User = driverUser };
+        var bus = new Bus { BusNumber = Guid.NewGuid().ToString("N")[..8], Driver = driver };
+        var student = new Student
+        {
+            FullName = "Durable audit",
+            Class = new SchoolClass { Name = "1", Section = "A" },
+            Bus = bus,
+            FatherPhone = "03001234567",
+            FatherName = "Parent",
+            RollNo = Guid.NewGuid().ToString("N")[..8],
+            Address = "Test"
+        };
+        var attendance = new BusAttendance
+        {
+            Student = student,
+            Bus = bus,
+            Driver = driver,
+            Type = BusAttendanceType.PickIn,
+            TimestampUtc = DateTime.UtcNow,
+            Latitude = 33,
+            Longitude = 71
+        };
+        var correlationId = Guid.NewGuid();
+        db.WhatsAppConsents.Add(new WhatsAppConsent
+        {
+            Student = student,
+            PhoneE164 = "+923001234567",
+            Granted = true
+        });
+        db.WhatsAppLogs.Add(new WhatsAppLog
+        {
+            CorrelationId = correlationId,
+            Student = student,
+            BusAttendance = attendance,
+            EventType = "PickIn",
+            ParentPhone = "+923001234567",
+            Message = "Test",
+            Status = WhatsAppStatus.Queued
+        });
+        await db.SaveChangesAsync();
+        return (correlationId, attendance.Id);
+    }
+
+    [Fact]
+    public async Task RestartStyleProcessingUpdatesExactAttendanceAudit()
+    {
+        var (provider, worker, _) = Create();
+        using (provider)
+        using (worker)
+        {
+            var seeded = await SeedLinkedAttendance(provider);
+            // ProcessAsync intentionally carries only the correlation id, like a
+            // durable sweep after the API has restarted.
+            await worker.ProcessAsync(seeded.CorrelationId);
+            using var scope = provider.CreateScope();
+            var attendance = await scope.ServiceProvider.GetRequiredService<SchoolDbContext>()
+                .BusAttendances.AsNoTracking().SingleAsync(a => a.Id == seeded.AttendanceId);
+            Assert.True(attendance.WhatsAppSent);
+        }
+    }
+
     [Fact]
     public async Task FreshConsentedMessageIsSentOnce()
     {

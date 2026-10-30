@@ -32,8 +32,9 @@ accounts explicitly linked to that child. Firebase is separate from Twilio:
 `Firebase:Enabled=false` is a dry-run and **does not send a push**. A connected
 foreground app can show a SignalR banner, but background alerts require a
 Firebase-configured APK, server credentials, a registered device, the correct
-parent-child link and notification permission. Setup and diagnosis are in
-[the deployment guide](deployment-guide.md#4-firebase-cloud-messaging-parent--later-driver-app).
+parent-child link and notification permission. The notification payload is Android
+high-priority and pick/drop alerts expire after ten minutes. Setup and diagnosis are in
+[the deployment guide](deployment-guide.md#4-firebase-cloud-messaging-parent-and-driver-app).
 
 ## Messages sent to the father (templates in `BusAttendanceController`)
 
@@ -42,9 +43,13 @@ parent-child link and notification permission. Setup and diagnosis are in
 
 `"WhatsApp:NotifyMother": true` also sends to the mother. All times are Pakistan time. `WhatsApp:Provider` selects `DryRun`, `Twilio`, or the isolated QR-based `LinkedDevice` gateway.
 
-## Offline behaviour
+## Tracking and offline behaviour
 
-- The driver app (Phase 3) holds taps in a local SQLite outbox and replays them when the
+- START TRIP persists the active trip id before launching an Android location foreground service.
+  A high-accuracy stream keeps the latest fix warm and a one-second heartbeat posts it through
+  `POST /api/trips/{id}/location`; this continues while minimized/screen-locked and resumes if
+  Android recreates the service isolate. END TRIP clears the marker before stopping the service.
+- The driver app holds pick/drop taps in a local SQLite outbox and replays them when the
   network returns; the API trusts the **device timestamp** (`TimestampUtc`), so the actual
   boarding moment is what's stored, messaged and reported — clamps only impossible future clocks.
 

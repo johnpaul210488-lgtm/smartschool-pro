@@ -17,6 +17,13 @@ public sealed class WhatsAppLog
     public int? StudentId { get; set; }
     public Student? Student { get; set; }
 
+    /// <summary>
+    /// Durable link to the exact driver tap that produced this alert. Keeping it
+    /// in the outbox means restart/retry sends can still update attendance audit state.
+    /// </summary>
+    public long? BusAttendanceId { get; set; }
+    public BusAttendance? BusAttendance { get; set; }
+
     /// <summary>"PickIn" | "DropOut" — used by the 30s debounce / rate limiter.</summary>
     public string? EventType { get; set; }
 

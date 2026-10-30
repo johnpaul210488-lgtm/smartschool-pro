@@ -121,7 +121,11 @@ public interface ISchoolNotificationService
 
 // ============ Push notifications (FCM) ============
 
-public sealed record FcmPush(string Title, string Body, IReadOnlyDictionary<string, string>? Data = null);
+public sealed record FcmPush(
+    string Title,
+    string Body,
+    IReadOnlyDictionary<string, string>? Data = null,
+    TimeSpan? TimeToLive = null);
 
 /// <summary>
 /// Firebase Cloud Messaging sender. Firebase:Enabled=false = dry-run (logged only),

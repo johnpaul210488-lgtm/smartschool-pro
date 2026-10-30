@@ -9,12 +9,12 @@ driver app logged in as `driver1` (Bus #7), parent app as `parent1`, all on the 
 
 | # | Step | Expected |
 |---|------|----------|
-| A1 | Driver app → trip start (To School) | Maps screen shows live GPS; top bar "ONLINE" |
+| A1 | Driver app → trip start (To School), then minimize and lock screen for 60 s | Persistent Trip notification remains; Admin/Parent live pin receives roughly one fresh point/second until END TRIP |
 | A2 | Tap **PICK-IN** on a student | Green confirmation; event appears in driver history |
 | A3 | WPF admin | Toast + beep "PICK-IN …"; bus attendance grid gets the row; live map pin |
 | A4 | API console/log | `[WhatsApp DRY-RUN]` block (or real WhatsApp if enabled) with the formatted template |
-| A5 | `GET /api/whatsapp-logs` | With explicit recipient permission: row **Sent** with `DRYRUN-*`, Twilio SID, or linked-device message ID; without permission: **Held** |
-| A6 | Parent app (Firebase APK configured, parent linked, permission allowed; server Firebase enabled) | In background: OS notification. In foreground: one in-app banner (SignalR/FCM deduplicated); dashboard chip flips to **On Bus**; live bus marker moves |
+| A5 | Admin → WhatsApp Connection → send activity (or `GET /api/whatsapp-logs`) | Exact student/event/father number row becomes **Sent** with provider ID; without permission it is **Held** and explains why |
+| A6 | Parent app (Firebase APK configured, parent linked, permission allowed; Admin Firebase status ready) | In background/closed normally: OS notification. In foreground: one in-app banner (SignalR/FCM deduplicated); dashboard chip flips to **On Bus**; live bus marker moves. Explicit Android Force stop is not a valid background test |
 | A7 | Repeat same tap within 30 s | Response says *duplicate tap ignored*; NO new attendance row, NO second WhatsApp |
 
 ## B. Drop-Out chain
@@ -29,9 +29,10 @@ driver app logged in as `driver1` (Bus #7), parent app as `parent1`, all on the 
 
 | # | Step | Expected |
 |---|------|----------|
-| C1 | Phone → airplane mode, trip stays open | GPS points queue in sqflite; top bar shows **OFFLINE** chip with pending count |
-| C2 | Tap pick-in on 2 students while offline | Outbox count increases; events queued |
-| C3 | Airplane mode OFF | Within seconds outbox drains, chip clears; WPF/parent apps receive both alerts; each arrives once |
+| C1 | Phone → airplane mode, trip stays open | Foreground tracker remains active and reports network errors; transient GPS pings are not backfilled |
+| C2 | Tap pick-in on 2 students while offline | Attendance outbox count increases; events are stored with their original timestamps |
+| C3 | Airplane mode OFF within five minutes | Within seconds outbox drains, chip clears; WPF/parent apps receive fresh alerts once |
+| C4 | Keep an offline event for more than five minutes, then reconnect | Event appears in history, but stale WhatsApp/FCM alerts are not sent |
 
 ## D. Fees + receipts
 

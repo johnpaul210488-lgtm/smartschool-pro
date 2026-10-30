@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../config/app_config.dart';
 import '../models/models.dart';
@@ -17,9 +17,10 @@ enum AuthStatus { unknown, loggedOut, loggedIn }
 
 /// Root app state: auth + bus + trip + manifest + sync. One ChangeNotifier —
 /// small app, keeps everything straightforward for junior maintenance.
-class AppState extends ChangeNotifier {
-  AppState()
-      : _api = ApiClient(SessionService());
+class AppState extends ChangeNotifier with WidgetsBindingObserver {
+  AppState() : _api = ApiClient(SessionService()) {
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   final ApiClient _api;
   final GpsService _gps = GpsService();
@@ -40,6 +41,14 @@ class AppState extends ChangeNotifier {
   Timer? _syncTimer;
 
   ApiClient get api => _api;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || authStatus != AuthStatus.loggedIn) return;
+    // Reconcile an office-ended trip and re-signal the foreground service if
+    // Android recreated/killed it while the UI was minimized.
+    unawaited(refreshBusAndManifest());
+  }
 
   // =============== boot ===============
 
@@ -122,9 +131,18 @@ class AppState extends ChangeNotifier {
       final trips = await _api.myActiveTrips();
       final previousId = activeTrip?.id;
       activeTrip = trips.isEmpty ? null : trips.first;
-      if (activeTrip != null && activeTrip!.id != previousId) {
+      if (activeTrip != null) {
+        // Always re-signal: startTrip is idempotent and also revives an Android
+        // service that was reclaimed while this app was minimized.
         await BackgroundGpsService.instance.startTrip(activeTrip!.id);
-        _startFgPush(activeTrip!.id);
+        if (activeTrip!.id != previousId || _fgTimer == null) {
+          _startFgPush(activeTrip!.id);
+        }
+      } else {
+        // A successful empty server response is authoritative, including after
+        // an app/process restart where the in-memory previousId is null.
+        _stopFgPush();
+        await BackgroundGpsService.instance.stopTrip();
       }
     } catch (_) {
       // Offline: jo state hai wahi rehne do.
@@ -171,6 +189,9 @@ class AppState extends ChangeNotifier {
       if (_fgBusy) return; // pichla tick abhi chal raha ho to skip
       _fgBusy = true;
       try {
+        // Normal path is the Android foreground service. Avoid duplicate REST
+        // pings while it is healthy; this timer is only an in-app fallback.
+        if (await BackgroundGpsService.instance.isRunning()) return;
         final pos = await _gps.currentFix();
         await _api.pushLocation(tripId, pos.latitude, pos.longitude,
             pos.speed < 0 ? 0 : pos.speed * 3.6);
@@ -355,8 +376,10 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connSub?.cancel();
     _syncTimer?.cancel();
+    _fgTimer?.cancel();
     super.dispose();
   }
 }

@@ -51,8 +51,8 @@ public sealed class WhatsAppLogsController : BaseApiController
             .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(l => new
             {
-                l.Id, l.StudentId, l.ParentPhone, l.Message, l.Status,
-                l.RetryCount, l.FailureCode, l.Error, l.CreatedAtUtc, l.SentAtUtc, l.NextAttemptAtUtc,
+                l.Id, l.StudentId, l.BusAttendanceId, l.EventType, l.ParentPhone, l.Message, l.Status,
+                l.ProviderMessageId, l.RetryCount, l.FailureCode, l.Error, l.CreatedAtUtc, l.SentAtUtc, l.NextAttemptAtUtc,
                 StudentName = l.Student != null ? l.Student.FullName : null
             })
             .ToListAsync(ct);
@@ -61,8 +61,8 @@ public sealed class WhatsAppLogsController : BaseApiController
             => PkTime.ToPk(utc).ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture);
 
         var items = rows.Select(l => new WhatsAppLogListItem(
-            l.Id, l.StudentId, l.StudentName, l.ParentPhone, l.Message,
-            l.Status.ToString(), l.RetryCount, l.FailureCode, l.Error,
+            l.Id, l.StudentId, l.StudentName, l.BusAttendanceId, l.EventType, l.ParentPhone, l.Message,
+            l.Status.ToString(), l.ProviderMessageId, l.RetryCount, l.FailureCode, l.Error,
             Fmt(l.CreatedAtUtc),
             l.SentAtUtc is { } sent ? Fmt(sent) : null,
             l.NextAttemptAtUtc is { } next ? Fmt(next) : null)).ToList();
@@ -102,7 +102,7 @@ public sealed class WhatsAppLogsController : BaseApiController
         await _uow.SaveChangesAsync(ct);
 
         await _queue.EnqueueAsync(
-            new WhatsAppJob(log.CorrelationId, null, log.StudentId, log.ParentPhone, log.Message), ct);
+            new WhatsAppJob(log.CorrelationId, log.BusAttendanceId, log.StudentId, log.ParentPhone, log.Message), ct);
 
         return OkMessage("Message re-queued for sending.");
     }

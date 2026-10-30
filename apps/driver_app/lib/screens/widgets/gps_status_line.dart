@@ -13,6 +13,7 @@ class GpsStatusLine extends StatefulWidget {
 }
 
 class _GpsStatusLineState extends State<GpsStatusLine> {
+  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
   String _status = 'GPS: background service ka status abhi nahi aaya. Trip band karke dobara START karein.';
   Timer? _timer;
 
@@ -24,9 +25,7 @@ class _GpsStatusLineState extends State<GpsStatusLine> {
   }
 
   Future<void> _read() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.reload();
-    final s = prefs.getString('gps_status');
+    final s = await _preferences.getString('gps_status');
     if (!mounted || s == null) return;
     setState(() => _status = 'GPS: $s');
   }

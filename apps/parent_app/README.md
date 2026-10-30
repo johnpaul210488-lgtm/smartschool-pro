@@ -51,7 +51,8 @@ iOS: `GMSApiClient.provideAPIKey("YOUR_KEY")` in `AppDelegate.swift` (plus
    For a local build, copy it to `android/app/google-services.json` and run
    `python3 scripts/configure_parent_android.py --expected-project queen-school`
    from the repository root. It validates the project and package, adds the
-   Gradle plugin, Android notification permission and required desugaring.
+   Gradle plugin, Android notification permission, high-priority default alert
+   channel and required desugaring.
 3. GitHub Releases use the checked-in client config by default; the optional
    `PARENT_GOOGLE_SERVICES_JSON` Actions secret can override it with another
    **Android app config from the same project**. A missing, malformed or
@@ -71,14 +72,17 @@ iOS: `GMSApiClient.provideAPIKey("YOUR_KEY")` in `AppDelegate.swift` (plus
    ephemeral CI runner's debug key may differ, so plan a stable signing key or a
    consented reinstall (which clears app data). In Settings → App Notifications,
    “device registered” confirms registration with the school API only, **not**
-   actual Firebase delivery. Check server logs and test a real pick/drop in background.
+   actual Firebase delivery. Admin → WhatsApp Connection shows Firebase readiness,
+   the child link and registered phone count. Test a real pick/drop in background.
+   Android cannot notify an explicitly **Force stopped** app until it is opened again;
+   pick/drop pushes expire after ten minutes to prevent dangerously late alerts.
 6. For iOS, separately add the matching Apple app, place `GoogleService-Info.plist`
    in `ios/Runner/`, enable Push Notifications + Background Modes, and configure
    APNs in Firebase. The Android setup script does not configure iOS.
 
 Without Firebase, a connected foreground app can still show a SignalR banner,
 but it cannot receive background push notifications. See
-[`docs/deployment-guide.md`](../../docs/deployment-guide.md#4-firebase-cloud-messaging-parent--later-driver-app)
+[`docs/deployment-guide.md`](../../docs/deployment-guide.md#4-firebase-cloud-messaging-parent-and-driver-app)
 for parent linking, diagnostics, and a live test.
 
 ## Login
@@ -88,8 +92,8 @@ link it to a child via `POST /api/parent-links`; verify both identities before
 linking, because the parent receives access to that child's data. Check links
 and registered device counts via `GET /api/parent-links/student/{studentId}`.
 After a new link, restart the parent app to reconnect its live subscriptions.
-These are staff-only endpoints; the current WPF student screen does not create
-parent accounts/links. Demo seed (if `SeedDemoData`):
+These are staff-only endpoints; the WPF WhatsApp Connection page can link an
+existing parent username and display registered-device readiness. Demo seed (if `SeedDemoData`):
 
 ```
 username: parent1   password: Parent@123

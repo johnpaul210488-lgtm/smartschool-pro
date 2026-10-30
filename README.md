@@ -11,8 +11,8 @@ Complete school management system: **WPF admin desktop app** (no browser, pure W
 | Backend API (layered) | ASP.NET Core 8, EF Core, SQL Server, JWT, SignalR, FluentValidation, Serilog | ✅ Phase 1 built |
 | Database schema | T-SQL scripts + EF migrations | ✅ Phase 1 built |
 | Admin Desktop App | C# .NET 8 WPF (MaterialDesign, MVVM, SignalR toasts+sound, live map) | ✅ DONE |
-| Driver App | Flutter (Android/iOS), background GPS, offline queue | ⏳ Phase 3 |
-| Parent App | Flutter (Android/iOS), FCM push + live child status | ⏳ Phase 4 |
+| Driver App | Flutter Android, persistent 1-second foreground GPS, offline event queue | ✅ Built |
+| Parent App | Flutter Android, FCM push + live child status/map | ✅ Built |
 
 ---
 
@@ -38,7 +38,7 @@ SmartSchool.sln
 │                                    #    students/fees/buses/drivers/reports, SignalR toasts+sound,
 │                                    #    GMap.NET live tracking, FlowDocument receipt printing
 ├── apps/driver_app                  # ✅ Phase 3 — Flutter driver app: trip/student list, pick-in/drop-out,
-│                                    #    15s background GPS, sqflite offline outbox + auto-sync, TTS
+│                                    #    1s persistent background GPS, sqflite offline outbox + auto-sync, TTS
 ├── apps/parent_app                  # ✅ Phase 5 — Flutter parent app: children cards + today status,
 │                                    #    live bus map, fees + PDF receipts, alerts/announcements, EN⇄UR
 ├── database/sqlserver/              # 001_schema.sql, 002_seed.sql, EF reference script
@@ -205,9 +205,10 @@ Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (dr
   consented transactional text alerts: no group/broadcast/marketing/contact-scraping API.
 - Its strict lane uses real randomized 6–10 second spacing, a 300/day cap, 12/recipient/hour cap and
   durable correlation-key receipts. Ambiguous outcomes fail closed rather than automatically duplicating.
-- Every provider uses the DB-first outbox (`WhatsAppLogs`), an atomic SQL handoff claim, bounded
-  10,000-item wake-up channel, restart sweep and persisted `NextAttemptAtUtc`: at most three total
-  attempts inside 120 seconds. Interrupted handoffs fail closed as `DeliveryUnknown`.
+- Every provider uses the DB-first outbox (`WhatsAppLogs`), linked to the exact pick/drop event,
+  an atomic SQL handoff claim, bounded 10,000-item wake-up channel, restart sweep and persisted
+  `NextAttemptAtUtc`: at most three total attempts inside 120 seconds. Interrupted handoffs fail closed
+  as `DeliveryUnknown`. Admin → WhatsApp Connection shows the latest recipient/status audit.
 - Staff must record the recipient’s explicit permission for the student’s current father/mother number;
   the worker revalidates it immediately before handoff. Parent `ReceiveWhatsApp` opt-out still wins.
 - **Linked-device mode is unofficial and cannot guarantee against account restrictions.** Read the complete
@@ -221,10 +222,11 @@ Client → server hub methods: `WatchBus`, `UnwatchBus`, `UpdateBusLocation` (dr
 
 `Enabled:false` = **dry-run; no push is delivered**. Pick-in/drop-out sends FCM to registered
 devices of explicitly linked parents; announcements target all parent devices. Token registration
-alone does not prove delivery. The release APK requires the matching Android Firebase app config,
-and the API needs service-account credentials from the same Firebase project. Staff can check and
-create parent-child links through `/api/parent-links`. Setup and diagnostics:
-**docs/deployment-guide.md → section 4**.
+alone does not prove delivery. The release APK contains the public Android client config, while the
+API needs a private Admin SDK service-account key from the same Firebase project. That private key is
+never committed or bundled: run **Queen School - Firebase Setup** on the server. Admin → WhatsApp
+Connection reports server readiness, linked parent accounts and registered phones; the safe API check
+is `GET /api/devices/push-status`. Setup and diagnostics: **docs/deployment-guide.md → section 4**.
 
 ## Test the critical real-time flow in Swagger (2 minutes)
 

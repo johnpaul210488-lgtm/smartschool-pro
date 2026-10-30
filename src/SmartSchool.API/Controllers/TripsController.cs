@@ -232,7 +232,7 @@ public sealed class TripsController : BaseApiController
             Latitude = request.Latitude,
             Longitude = request.Longitude,
             SpeedKmh = request.SpeedKmh,
-            TimePakistan = PkTime.NowPk.ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture)
+            TimePakistan = PkTime.NowPk.ToString("dd MMM yyyy hh:mm:ss tt", CultureInfo.InvariantCulture)
         };
         _live.Update(update);
         await _notify.SendBusLocationAsync(update, ct);

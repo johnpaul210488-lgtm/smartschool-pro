@@ -218,7 +218,9 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
             log.FailureCode = null;
             log.NextAttemptAtUtc = null;
 
-            if (job.BusAttendanceId is { } attendanceId)
+            // The event link is stored with the durable row, so a sweep/retry after
+            // an API restart updates the same attendance audit record as an immediate send.
+            if ((log.BusAttendanceId ?? job.BusAttendanceId) is { } attendanceId)
             {
                 var attendance = await db.BusAttendances.FindAsync(new object?[] { attendanceId }, ct);
                 if (attendance is not null) attendance.WhatsAppSent = true;
@@ -372,7 +374,7 @@ public sealed class WhatsAppQueueHostedService : BackgroundService
                     .OrderBy(l => l.CreatedAtUtc)
                     .Take(100)
                     .Select(l => new WhatsAppJob(
-                        l.CorrelationId, null, l.StudentId, l.ParentPhone, l.Message))
+                        l.CorrelationId, l.BusAttendanceId, l.StudentId, l.ParentPhone, l.Message))
                     .ToListAsync(ct);
 
                 foreach (var job in due)
