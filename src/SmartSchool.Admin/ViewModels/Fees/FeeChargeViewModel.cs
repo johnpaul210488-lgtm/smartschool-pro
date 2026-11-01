@@ -638,24 +638,20 @@ public partial class FeeChargeViewModel : ObservableObject
         {
             var path = FeeHistoryPdf.Create(History, FeeHistoryPdf.DefaultFolder);
             var number = FeeHistoryPdf.WhatsAppNumber(History.FatherPhone);
+            var caption = FeeHistoryPdf.BuildWhatsAppMessage(History);
 
-            // WhatsApp links cannot attach files, so: open the chat with the summary text,
-            // and open the folder with the PDF selected so it can be dragged into the chat.
-            if (number is not null)
-            {
-                var text = Uri.EscapeDataString(FeeHistoryPdf.BuildWhatsAppMessage(History));
-                Process.Start(new ProcessStartInfo($"https://wa.me/{number}?text={text}") { UseShellExecute = true });
-            }
-            Process.Start("explorer.exe", $"/select,\"{path}\"");
+            // Naya tareeqa: file clipboard par copy + WhatsApp khul jati hai —
+            // user Ctrl+V se PDF attach kar sakta hai (wa.me file attach nahi kar sakti).
+            var copied = WhatsAppShareService.Share(path, phone: number, caption: caption);
 
-            SetMessage(number is null
-                ? "Parent ka phone number sahi nahi hai. PDF folder khul gaya; WhatsApp par khud bhejein."
-                : "WhatsApp khul gaya. Folder mein se PDF ko chat mein drag karke bhejein.",
-                number is null);
+            SetMessage(copied
+                ? "PDF clipboard par copy ho gaya. WhatsApp khuli hai — chat mein Ctrl+V daba kar PDF attach karein."
+                : "PDF bana diya gaya lekin WhatsApp share nahi ho saka. Folder khul raha hai; PDF ko WhatsApp chat mein drag karein.",
+                !copied);
         }
         catch (Exception ex)
         {
-            SetMessage("WhatsApp kholne mein masla: " + ex.Message, true);
+            SetMessage("WhatsApp share mein masla: " + ex.Message, true);
         }
     }
 
