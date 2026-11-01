@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SmartSchool.Core.DTOs;
 using SmartSchool.Core.Interfaces;
 using SmartSchool.Core.Models;
@@ -10,6 +11,7 @@ using SmartSchool.Shared.Common;
 using SmartSchool.Shared.Constants;
 using SmartSchool.Shared.Enums;
 using SmartSchool.Shared.Helpers;
+using SmartSchool.API.Services;
 
 namespace SmartSchool.API.Controllers;
 
@@ -19,8 +21,12 @@ public sealed class FeesController : BaseApiController
 {
     private readonly IUnitOfWork _uow;
     private readonly SchoolDbContext _db; // <-- CHANGED: persist payment transactions with the fee balance.
+    private readonly ISchoolNotificationService _notify;
+    private readonly ILogger<FeesController> _logger;
 
-    public FeesController(IUnitOfWork uow, SchoolDbContext db) { _uow = uow; _db = db; }
+    public FeesController(IUnitOfWork uow, SchoolDbContext db, ISchoolNotificationService notify,
+                          ILogger<FeesController> logger)
+        { _uow = uow; _db = db; _notify = notify; _logger = logger; }
 
     private static string EffectiveStatus(FeeStatus status, DateOnly dueDate)
         => status == FeeStatus.Pending && dueDate < PkTime.TodayPk
@@ -155,6 +161,27 @@ public sealed class FeesController : BaseApiController
         await _uow.SaveChangesAsync(ct);
 
         fee.Student = student;
+
+        // Notify linked parents + admins that a new fee is due (SignalR + FCM).
+        try
+        {
+            await _notify.SendFeeDueAlertAsync(new FeeDueNotification
+            {
+                StudentId = student.Id,
+                StudentName = student.FullName,
+                ClassName = student.Class.Name + "-" + student.Class.Section,
+                Month = fee.Month,
+                Amount = fee.Amount,
+                Balance = fee.Amount,
+                DueDate = fee.DueDate.ToString("dd MMM yyyy"),
+                TimePakistan = PkTime.NowPk.ToString("dd MMM yyyy hh:mm tt"),
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Fee-due notification failed for student {StudentId}", student.Id);
+        }
+
         return CreatedEnvelope(ToDto(fee), "Fee created successfully.");
     }
 

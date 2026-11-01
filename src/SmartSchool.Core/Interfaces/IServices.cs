@@ -52,6 +52,9 @@ public interface ISchoolNotificationService
     Task SendAdminAlertAsync(AdminAlertNotification alert, CancellationToken ct = default);
     /// <summary>School announcement → every admin desktop + every connected parent app.</summary>
     Task SendAnnouncementAsync(AnnouncementNotification announcement, CancellationToken ct = default);
+
+    /// <summary>Fee due / overdue alert → linked parents of the student + admin desktops.</summary>
+    Task SendFeeDueAlertAsync(FeeDueNotification notification, CancellationToken ct = default);
 }
 
 // ============ Push notifications (FCM) ============

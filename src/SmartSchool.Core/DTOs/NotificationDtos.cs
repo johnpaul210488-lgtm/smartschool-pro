@@ -52,3 +52,16 @@ public sealed record AdminAlertNotification
     public required string Message { get; init; }
     public required string TimePakistan { get; init; }
 }
+
+/// <summary>SignalR + FCM payload pushed when a child's fee is created / overdue.</summary>
+public sealed record FeeDueNotification
+{
+    public required int StudentId { get; init; }
+    public required string StudentName { get; init; }
+    public required string ClassName { get; init; }
+    public required string Month { get; init; }
+    public required decimal Amount { get; init; }
+    public required decimal Balance { get; init; }
+    public required string DueDate { get; init; } // "dd MMM yyyy" in Pakistan time
+    public required string TimePakistan { get; init; }
+}

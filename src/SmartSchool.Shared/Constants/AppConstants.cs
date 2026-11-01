@@ -38,4 +38,5 @@ public static class HubEvents
     public const string SendTripUpdate = "SendTripUpdate";
     public const string SendAdminAlert = "SendAdminAlert";
     public const string ReceiveAnnouncement = "ReceiveAnnouncement";
+    public const string SendFeeDueAlert = "SendFeeDueAlert";
 }
