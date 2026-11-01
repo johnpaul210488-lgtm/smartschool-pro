@@ -12,7 +12,6 @@ using SmartSchool.Admin.ViewModels.Drivers;
 using SmartSchool.Admin.ViewModels.Fees;
 using SmartSchool.Admin.ViewModels.Reports;
 using SmartSchool.Admin.ViewModels.Students;
-using SmartSchool.Admin.Views;
 using SmartSchool.Admin.Views.Buses;
 using SmartSchool.Admin.Views.Drivers;
 using SmartSchool.Admin.Views.Fees;
@@ -81,8 +80,6 @@ public partial class MainViewModel : ObservableObject
         NavItems.Add(new NavItem { Title = "Bus Attendance", IconKind = "ClipboardList", CreateView = OpenAttendance });
         NavItems.Add(new NavItem { Title = "Drivers", IconKind = "CardAccountDetails", CreateView = OpenDrivers });
         NavItems.Add(new NavItem { Title = "Reports", IconKind = "ChartBar", CreateView = OpenReports });
-        if (UserRole is "Admin" or "SuperAdmin")
-            NavItems.Add(new NavItem { Title = "WhatsApp QR", IconKind = "Whatsapp", CreateView = OpenWhatsAppQrTest });
 
         SelectedNavItem = NavItems[0];
 
@@ -325,9 +322,6 @@ public partial class MainViewModel : ObservableObject
         => new() { DataContext = new DriverManagementViewModel() };
     private ReportView OpenReports()
         => new() { DataContext = new ReportViewModel() };
-    private WhatsAppQrTestView OpenWhatsAppQrTest()
-        => new() { DataContext = new WhatsAppQrTestViewModel() };
-
     // ---- Students flow: list → form / profile ----
     private StudentListView OpenStudentList()
     {
