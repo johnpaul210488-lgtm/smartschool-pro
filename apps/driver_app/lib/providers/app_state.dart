@@ -298,7 +298,7 @@ class AppState extends ChangeNotifier {
         sent = true;
       } on ApiException {
         // Offline / server down → queue karo, auto-sync sambhal lega.
-        await OfflineOutbox.instance.enqueue(evt);
+        await OfflineOutbox.instance.enqueueEvent(evt);
       }
 
       // UI turant update (optimistic)
@@ -326,25 +326,45 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Drains the outbox oldest-first; a failed item stays (counted attempts).
+  /// Drains the pick/drop outbox oldest-first; a failed item stays (counted attempts).
   Future<void> _flushOutbox() async {
-    final items = await OfflineOutbox.instance.pending();
-    if (items.isEmpty) return;
-    for (final e in items) {
-      try {
-        await _api.postBusEvent(e);
-        await OfflineOutbox.instance.remove(e.id!);
-      } on ApiException catch (ex) {
-        // 409 (already recorded server-side) → drop from outbox, sync finished
-        if (ex.toString().toLowerCase().contains('already') ||
-            ex.toString().toLowerCase().contains('duplicate')) {
-          await OfflineOutbox.instance.remove(e.id!);
-        } else {
-          await OfflineOutbox.instance.bumpAttempts(e.id!);
-          break; // network probably still down — next tick
+    // (1) Pick/drop events
+    final items = await OfflineOutbox.instance.pendingEvents();
+    if (items.isNotEmpty) {
+      for (final e in items) {
+        try {
+          await _api.postBusEvent(e);
+          await OfflineOutbox.instance.removeEvent(e.id!);
+        } on ApiException catch (ex) {
+          // 409 (already recorded server-side) → drop from outbox, sync finished
+          if (ex.toString().toLowerCase().contains('already') ||
+              ex.toString().toLowerCase().contains('duplicate')) {
+            await OfflineOutbox.instance.removeEvent(e.id!);
+          } else {
+            await OfflineOutbox.instance.bumpEventAttempts(e.id!);
+            break; // network probably still down — next tick
+          }
         }
       }
     }
+
+    // (2) GPS locations — replay oldest-first while online
+    final gpsRows = await OfflineOutbox.instance.pendingGps();
+    for (final row in gpsRows) {
+      try {
+        await _api.pushLocation(
+          row['tripId'] as int,
+          row['latitude'] as double,
+          row['longitude'] as double,
+          row['speedKmh'] as double?,
+        );
+        await OfflineOutbox.instance.removeGps(row['id'] as int);
+      } on ApiException catch (_) {
+        await OfflineOutbox.instance.bumpGpsAttempts(row['id'] as int);
+        break; // still offline — next tick
+      }
+    }
+
     await _refreshOutboxCount();
     await loadManifest(); // statuses reconcile
   }

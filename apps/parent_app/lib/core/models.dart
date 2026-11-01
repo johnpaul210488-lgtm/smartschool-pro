@@ -182,6 +182,22 @@ class AnnouncementItem {
   final String? createdByName;
   final String timePakistan;
 
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'body': body,
+        'createdByName': createdByName,
+        'timePakistan': timePakistan,
+      };
+
+  factory AnnouncementItem.fromMap(Map<String, dynamic> m) => AnnouncementItem(
+        id: m['id'] as int,
+        title: m['title'] as String? ?? '',
+        body: m['body'] as String? ?? '',
+        createdByName: m['createdByName'] as String?,
+        timePakistan: m['timePakistan'] as String? ?? '',
+      );
+
   factory AnnouncementItem.fromJson(Map<String, dynamic> j) => AnnouncementItem(
         id: j['id'] as int,
         title: j['title'] as String? ?? '',
@@ -196,6 +212,8 @@ class AlertItem {
     required this.id,
     required this.studentId,
     required this.studentName,
+    required this.className,
+    required this.busNumber,
     required this.eventType,
     required this.timePakistan,
     this.location,
@@ -204,16 +222,42 @@ class AlertItem {
   final int id;
   final int studentId;
   final String studentName;
+  final String className;
+  final String busNumber;
 
   /// PickIn | DropOut
   final String eventType;
   final String timePakistan;
   final String? location;
 
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'studentId': studentId,
+        'studentName': studentName,
+        'className': className,
+        'busNumber': busNumber,
+        'eventType': eventType,
+        'timePakistan': timePakistan,
+        'location': location,
+      };
+
+  factory AlertItem.fromMap(Map<String, dynamic> m) => AlertItem(
+        id: (m['id'] as num).toInt(),
+        studentId: m['studentId'] as int,
+        studentName: m['studentName'] as String? ?? '',
+        className: m['className'] as String? ?? '',
+        busNumber: m['busNumber'] as String? ?? '',
+        eventType: m['eventType'] as String? ?? '',
+        timePakistan: m['timePakistan'] as String? ?? '',
+        location: m['location'] as String?,
+      );
+
   factory AlertItem.fromJson(Map<String, dynamic> j) => AlertItem(
         id: (j['id'] as num).toInt(),
         studentId: j['studentId'] as int,
         studentName: j['studentName'] as String? ?? '',
+        className: j['className'] as String? ?? '',
+        busNumber: j['busNumber'] as String? ?? '',
         eventType: j['type'] as String? ?? '',
         timePakistan: j['timePakistan'] as String? ?? '',
         location: j['location'] as String?,

@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../config/app_config.dart';
+import '../services/offline_outbox.dart';
 import '../services/session_service.dart';
 
 /// Foreground service that pushes the bus GPS every
@@ -111,6 +112,19 @@ class BackgroundGpsService {
     return true;
   }
 
+  /// Queue a GPS location in the local outbox when the server is unreachable.
+  static Future<void> _queueGps(Position pos, String token) async {
+    try {
+      await OfflineOutbox.instance.enqueueGps(
+        tripId: 0, // filled by caller via closure below
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        speedKmh: pos.speed < 0 ? 0 : pos.speed * 3.6,
+        recordedAt: DateTime.now().toUtc().toIso8601String(),
+      );
+    } catch (_) {}
+  }
+
   @pragma('vm:entry-point')
   static void _onStart(ServiceInstance service) async {
     DartPluginRegistrant.ensureInitialized();
@@ -170,10 +184,32 @@ class BackgroundGpsService {
           await writeStatus('OK: server ko bheja');
         } else {
           await writeStatus('ERR: server ${res.statusCode}');
+          // Server reached but rejected — queue for retry.
+          await OfflineOutbox.instance.enqueueGps(
+            tripId: activeTripId!,
+            latitude: pos.latitude,
+            longitude: pos.longitude,
+            speedKmh: pos.speed < 0 ? 0 : pos.speed * 3.6,
+            recordedAt: DateTime.now().toUtc().toIso8601String(),
+          );
         }
       } catch (e) {
         // Background GPS push must be silent; error sirf status line mein dikhta hai.
         await writeStatus('ERR: ${e.toString().split('\n').first}');
+        // Queue for background sync when server comes back online.
+        try {
+          final pos2 = fixed ??
+              await Geolocator.getCurrentPosition(
+                locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+              );
+          await OfflineOutbox.instance.enqueueGps(
+            tripId: activeTripId!,
+            latitude: pos2.latitude,
+            longitude: pos2.longitude,
+            speedKmh: pos2.speed < 0 ? 0 : pos2.speed * 3.6,
+            recordedAt: DateTime.now().toUtc().toIso8601String(),
+          );
+        } catch (_) {}
       } finally {
         pushing = false;
       }
