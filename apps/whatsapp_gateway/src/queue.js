@@ -8,7 +8,15 @@
  *  - Retry: 2 attempts, 120s gap
  */
 
-export function createQueue({ db, sendText, sendMedia, getDailyCounter, incrementDailyCounter, logger }) {
+export function createQueue({
+  db,
+  sendText,
+  sendMedia,
+  getDailyCounter,
+  incrementDailyCounter,
+  logger,
+  onMessageStatus, // callback from client when message status changes
+}) {
   const MARKETING_DAILY_LIMIT = 300;
   const LOW_PRIORITY_GAP_MS = 4500;
   const HIGH_PRIORITY_BATCH = 5;
@@ -19,6 +27,7 @@ export function createQueue({ db, sendText, sendMedia, getDailyCounter, incremen
   let processorTimer = null;
   let lastLowSend = 0;
   let highBatchInFlight = 0;
+  let paused = false;
 
   const dateKey = () => new Date().toISOString().slice(0, 10);
 
@@ -76,8 +85,15 @@ export function createQueue({ db, sendText, sendMedia, getDailyCounter, incremen
     }
   }
 
+  // Handle message status updates from WhatsApp (sent/delivered/read)
+  function handleMessageStatus(update) {
+    // Map WhatsApp status to our outbox status if we can track by providerMessageId
+    // This is best-effort; the outbox item id is separate from WhatsApp message id
+    logger.debug({ update }, 'Message status update received');
+  }
+
   async function processBatch() {
-    if (running) return;
+    if (running || paused) return;
     running = true;
 
     try {
@@ -122,12 +138,23 @@ export function createQueue({ db, sendText, sendMedia, getDailyCounter, incremen
     }
   }
 
+  function pause() {
+    paused = true;
+  }
+
+  function resume() {
+    paused = false;
+    processBatch();
+  }
+
   function getStatus() {
     return {
       running,
+      paused,
       highBatchInFlight,
       lastLowSend,
       pendingCount: db.outboxCount({ status: 'pending' }),
+      sendingCount: db.outboxCount({ status: 'sending' }),
       sentCount: db.outboxCount({ status: 'sent' }),
       failedCount: db.outboxCount({ status: 'failed' }),
       marketingToday: getDailyCounter({ date: dateKey() }).marketing_count,
@@ -135,5 +162,5 @@ export function createQueue({ db, sendText, sendMedia, getDailyCounter, incremen
     };
   }
 
-  return { start, stop, getStatus, processBatch };
+  return { start, stop, pause, resume, getStatus, processBatch, handleMessageStatus };
 }

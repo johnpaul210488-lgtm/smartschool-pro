@@ -22,32 +22,37 @@ const db = createDb({ dir });
 
 const client = createClient({
   dir,
-  logger: console, // simple; replace with pino in production
+  logger: console,
   onStatusChange: (st) => {
     console.log(`[whatsapp] status: ${st.state}`);
   },
   onQr: (qrDataUrl) => {
     console.log('[whatsapp] QR ready (data URL available via /api/session/qr)');
   },
-  onMessage: async (msg) => {
-    console.log('[whatsapp] inbound message:', msg.key.remoteJid, msg.message?.conversation ?? '(media)');
+  onMessage: (msg) => {
+    console.log('[whatsapp] inbound message:', msg.from, msg.text ?? '(media)');
     // Store inbound message
     try {
       db.saveMessage({
-        id: msg.key.id,
-        wa_message_id: msg.key.id,
-        contact_jid: msg.key.remoteJid,
+        id: msg.id,
+        wa_message_id: msg.id,
+        contact_jid: msg.from,
         from_me: 0,
-        message_type: Object.keys(msg.message || {})[0] || 'text',
-        body: msg.message?.conversation ?? '',
-        raw_json: JSON.stringify(msg.message),
+        message_type: msg.type,
+        body: msg.text,
+        raw_json: JSON.stringify(msg.raw),
         status: 'received',
-        timestamp: new Date(msg.messageTimestamp * 1000).toISOString(),
+        timestamp: msg.timestamp,
         created_at: new Date().toISOString(),
       });
     } catch (e) {
       console.error('[whatsapp] failed to save inbound:', e.message);
     }
+  },
+  onMessageStatus: (update) => {
+    console.log('[whatsapp] message status:', update.id, update.status);
+    // Best-effort: mark outbox items as sent if we can match
+    queue.handleMessageStatus(update);
   },
 });
 
@@ -65,6 +70,9 @@ const queue = createQueue({
   getDailyCounter: (opts) => db.getDailyCounter(opts),
   incrementDailyCounter: (opts) => db.incrementDailyCounter(opts),
   logger: console,
+  onMessageStatus: (update) => {
+    console.log('[whatsapp-queue] status update:', update.id, update.status);
+  },
 });
 queue.start(1000);
 

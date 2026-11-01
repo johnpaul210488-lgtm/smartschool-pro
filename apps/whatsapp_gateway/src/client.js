@@ -2,10 +2,13 @@ import { makeWASocket, initAuthCreds, BufferJSON, proto, DisconnectReason, useMu
 import pino from 'pino';
 import QRCode from 'qrcode';
 import { createHash } from 'node:crypto';
+import { join } from 'node:path';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync } from 'node:fs';
 
 /**
  * Baileys WhatsApp client wrapper.
- * Handles QR pairing, connection lifecycle, message sending, and events.
+ * Handles QR pairing, connection lifecycle, message sending, presence/typing,
+ * and message status tracking (sent/delivered/read).
  */
 export function createClient({
   dir,
@@ -14,9 +17,11 @@ export function createClient({
   reconnectDelay = (attempt) => Math.min(60000, 1000 * 2 ** Math.min(attempt, 6)) + Math.floor(Math.random() * 500),
   sendTimeoutMs = 25000,
   pairingTimeoutMs = 5 * 60 * 1000,
+  typingDelayMs = 1200, // typing indicator duration before send
   onStatusChange,
   onQr,
   onMessage,
+  onMessageStatus,
 }) {
   let state = 'off';
   let qr = null;
@@ -64,8 +69,19 @@ export function createClient({
     pairingTimer = null;
   };
 
+  // ---------- presence / typing ----------
+
+  async function sendPresence(jid, type) {
+    if (!socket || state !== 'connected') return;
+    try {
+      await socket.presenceSubscribe(jid);
+      await socket.sendPresenceUpdate(type, jid);
+    } catch (_) {}
+  }
+
+  // ---------- connect ----------
+
   function connect(auth) {
-    currentAuth = auth;
     const myGeneration = ++generation;
     state = 'connecting';
     qr = null;
@@ -182,18 +198,44 @@ export function createClient({
     current.ev.on('messages.upsert', (event) => {
       for (const msg of event.messages) {
         if (msg.key.fromMe) continue;
-        onMessage?.(msg);
+        onMessage?.({
+          id: msg.key.id,
+          from: msg.key.remoteJid,
+          text: msg.message?.conversation ?? '',
+          type: Object.keys(msg.message || {})[0] || 'text',
+          timestamp: new Date((msg.messageTimestamp ?? 0) * 1000).toISOString(),
+          raw: msg.message,
+        });
+        // Mark incoming as read
+        try {
+          socket.readMessages([msg.key]);
+        } catch (_) {}
+      }
+    });
+
+    current.ev.on('messages.update', (updates) => {
+      for (const upd of updates) {
+        if (!upd.key.fromMe) continue;
+        onMessageStatus?.({
+          id: upd.key.id,
+          status: upd.update.status ?? 'sent',
+          timestamp: new Date().toISOString(),
+        });
       }
     });
 
     current.ev.on('contacts.update', (updates) => {
-      for (const u of updates) {
-        // contacts are saved by the caller via the REST API / store
-      }
+      // contacts are saved by the caller via the REST API / store
     });
   }
 
+  // ---------- public API ----------
+
   let currentAuth = null;
+
+  function setAuth(auth) {
+    currentAuth = auth;
+  }
 
   function start({ forceNew = false } = {}) {
     if (blocked && !forceNew) {
@@ -202,22 +244,11 @@ export function createClient({
     if (socket || retryTimer) {
       return { ok: true, ...status() };
     }
-    try {
-      // Create auth state using multi-file approach, then adapt to our DB
-      const { state: creds, saveCreds } = useMultiFileAuthState(dir);
-      const auth = {
-        state: { creds, keys: {} },
-        saveCreds: async () => {
-          await saveCreds();
-          // persist to our SQLite via the caller
-        },
-      };
-    } catch {
-      // fall through to createAuth below
+    if (!currentAuth) {
+      return { ok: false, error: 'No auth session configured. Call setAuth() first.' };
     }
 
-    // Use provided auth state from caller
-    const pairingUntilValue = isLinked(currentAuth?.state?.creds) ? 0 : Date.now() + pairingTimeoutMs;
+    const pairingUntilValue = isLinked(currentAuth.state.creds) ? 0 : Date.now() + pairingTimeoutMs;
     pairingUntil = pairingUntilValue;
 
     if (pairingUntil) {
@@ -237,17 +268,8 @@ export function createClient({
       pairingTimer.unref?.();
     }
 
-    // The actual auth object is set by setAuth() before start is called
-    if (!currentAuth) {
-      return { ok: false, error: 'No auth session configured. Call setAuth() first.' };
-    }
-
     connect(currentAuth);
     return { ok: true, ...status() };
-  }
-
-  function setAuth(auth) {
-    currentAuth = auth;
   }
 
   function restore(auth) {
@@ -310,10 +332,16 @@ export function createClient({
     if (inFlight) {
       return { ok: false, error: 'Another message is in progress.' };
     }
+    const jid = `${phone.substring(1)}@s.whatsapp.net`;
     inFlight = true;
     try {
+      // Vyapar-style typing indicator before send
+      await sendPresence(jid, 'composing');
+      await new Promise((r) => setTimeout(r, typingDelayMs));
+      await sendPresence(jid, 'paused');
+
       const response = await Promise.race([
-        socket.sendMessage(`${phone.substring(1)}@s.whatsapp.net`, { text }),
+        socket.sendMessage(jid, { text }),
         new Promise((_, reject) => {
           const t = setTimeout(() => reject(new Error('timeout')), sendTimeoutMs);
           t.unref?.();
@@ -335,14 +363,19 @@ export function createClient({
     if (inFlight) {
       return { ok: false, error: 'Another message is in progress.' };
     }
+    const jid = `${phone.substring(1)}@s.whatsapp.net`;
     inFlight = true;
     try {
+      await sendPresence(jid, 'composing');
+      await new Promise((r) => setTimeout(r, typingDelayMs));
+      await sendPresence(jid, 'paused');
+
       const message = {
         [type]: { url: path, fileName, caption },
         caption,
       };
       const response = await Promise.race([
-        socket.sendMessage(`${phone.substring(1)}@s.whatsapp.net`, message),
+        socket.sendMessage(jid, message),
         new Promise((_, reject) => {
           const t = setTimeout(() => reject(new Error('timeout')), sendTimeoutMs);
           t.unref?.();
@@ -396,8 +429,9 @@ export function createClient({
     sendMedia,
     pairingCode,
     stop,
-    onStatusChange: (cb) => { onStatusChange = cb; },
-    onQr: (cb) => { onQr = cb; },
-    onMessage: (cb) => { onMessage = cb; },
+    setOnStatusChange: (cb) => { onStatusChange = cb; },
+    setOnQr: (cb) => { onQr = cb; },
+    setOnMessage: (cb) => { onMessage = cb; },
+    setOnMessageStatus: (cb) => { onMessageStatus = cb; },
   };
 }
