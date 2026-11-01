@@ -5,6 +5,7 @@ using SmartSchool.Core.DTOs;
 using SmartSchool.Core.Interfaces;
 using SmartSchool.Shared.Constants;
 using SmartSchool.Shared.Enums;
+using SmartSchool.Shared.Helpers;
 
 namespace SmartSchool.API.Services;
 
@@ -18,16 +19,19 @@ public sealed class SchoolNotificationService : ISchoolNotificationService
     private readonly IHubContext<SchoolNotificationHub> _hub;
     private readonly IUnitOfWork _uow;
     private readonly IFcmSender _fcm;
+    private readonly IWhatsAppMessageService _whatsapp;
     private readonly ILogger<SchoolNotificationService> _logger;
 
     public SchoolNotificationService(IHubContext<SchoolNotificationHub> hub,
                                      IUnitOfWork uow,
                                      IFcmSender fcm,
+                                     IWhatsAppMessageService whatsapp,
                                      ILogger<SchoolNotificationService> logger)
     {
         _hub = hub;
         _uow = uow;
         _fcm = fcm;
+        _whatsapp = whatsapp;
         _logger = logger;
     }
 
@@ -56,7 +60,7 @@ public sealed class SchoolNotificationService : ISchoolNotificationService
         => _hub.Clients.Groups(HubGroups.AdminGroup, HubGroups.ParentsGroup)
               .SendAsync(HubEvents.ReceiveAnnouncement, a, ct);
 
-    /// <summary>Fee due / overdue alert → linked parents of the student (SignalR + FCM) + admin desktops.</summary>
+    /// <summary>Fee due / overdue alert → linked parents (SignalR + FCM + WhatsApp) + admin desktops.</summary>
     public async Task SendFeeDueAlertAsync(FeeDueNotification n, CancellationToken ct = default)
     {
         // (1) SignalR → admin desktops + the student's parent group
@@ -69,7 +73,7 @@ public sealed class SchoolNotificationService : ISchoolNotificationService
             var parents = await _uow.ParentStudents.Query()
                 .Where(ps => ps.StudentId == n.StudentId)
                 .Join(_uow.Users.Query(), ps => ps.ParentUserId, u => u.Id,
-                    (ps, u) => new { u.Id, u.PreferredLanguage, u.IsActive, u.Role })
+                    (ps, u) => new { u.Id, u.PreferredLanguage, u.IsActive, u.Role, u.Phone })
                 .ToListAsync(ct);
 
             var pushParents = parents.Where(p => p.IsActive && p.Role == UserRole.Parent).ToArray();
@@ -81,33 +85,52 @@ public sealed class SchoolNotificationService : ISchoolNotificationService
                 .Select(d => new { d.UserId, d.Token })
                 .ToListAsync(ct);
 
-            if (devices.Count == 0) return;
-
-            foreach (var grp in devices.GroupBy(d =>
-                         pushParents.First(p => p.Id == d.UserId).PreferredLanguage == "ur" ? "ur" : "en"))
+            if (devices.Count > 0)
             {
-                var (title, body) = grp.Key == "ur"
-                    ? ($"💰 Fee Baki: {n.StudentName}",
-                       $"{n.StudentName} ({n.ClassName}) ki {n.Month} ki fee Rs {n.Balance:N2} baki hai. Due: {n.DueDate:dd MMM yyyy}.")
-                    : ($"💰 Fee Due: {n.StudentName}",
-                       $"{n.StudentName} ({n.ClassName}) — {n.Month} fee balance Rs {n.Balance:N2}. Due: {n.DueDate:dd MMM yyyy}.");
+                foreach (var grp in devices.GroupBy(d =>
+                             pushParents.First(p => p.Id == d.UserId).PreferredLanguage == "ur" ? "ur" : "en"))
+                {
+                    var (title, body) = grp.Key == "ur"
+                        ? ($"💰 Fee Baki: {n.StudentName}",
+                           $"{n.StudentName} ({n.ClassName}) ki {n.Month} ki fee Rs {n.Balance:N2} baki hai. Due: {n.DueDate:dd MMM yyyy}.")
+                        : ($"💰 Fee Due: {n.StudentName}",
+                           $"{n.StudentName} ({n.ClassName}) — {n.Month} fee balance Rs {n.Balance:N2}. Due: {n.DueDate:dd MMM yyyy}.");
 
-                await _fcm.SendToDevicesAsync(
-                    grp.Select(d => d.Token).ToArray(),
-                    new FcmPush(title, body, new Dictionary<string, string>
-                    {
-                        ["type"] = "fee_due",
-                        ["studentId"] = n.StudentId.ToString(),
-                        ["amount"] = n.Amount.ToString(),
-                        ["balance"] = n.Balance.ToString(),
-                        ["month"] = n.Month,
-                    }), ct);
+                    await _fcm.SendToDevicesAsync(
+                        grp.Select(d => d.Token).ToArray(),
+                        new FcmPush(title, body, new Dictionary<string, string>
+                        {
+                            ["type"] = "fee_due",
+                            ["studentId"] = n.StudentId.ToString(),
+                            ["amount"] = n.Amount.ToString(),
+                            ["balance"] = n.Balance.ToString(),
+                            ["month"] = n.Month,
+                        }), ct);
+                }
+            }
+
+            // (3) WhatsApp to active linked parents who have a phone number and have not opted out
+            var whatsAppEnabled = await _whatsapp.IsEnabled();
+            if (whatsAppEnabled)
+            {
+                foreach (var p in pushParents)
+                {
+                    if (string.IsNullOrWhiteSpace(p.Phone)) continue;
+                    var phone = PhoneNormalizer.ToE164(p.Phone);
+                    if (phone is null) continue;
+
+                    var body = p.PreferredLanguage == "ur"
+                        ? $"Assalam o alaikum! {n.StudentName} ({n.ClassName}) ki {n.Month} ki fee Rs {n.Balance:N2} baki hai. Due: {n.DueDate:dd MMM yyyy}. Barah-e-karm ada farmayein."
+                        : $"Hello! {n.StudentName} ({n.ClassName}) — {n.Month} fee balance Rs {n.Balance:N2}. Due: {n.DueDate:dd MMM yyyy}. Please pay soon.";
+
+                    await _whatsapp.SendText(phone, body, priority: 10, ct);
+                }
             }
         }
         catch (Exception ex)
         {
-            // FCM glitch must never fail the fee flow — SignalR already delivered.
-            _logger.LogWarning(ex, "FCM fee-due push failed for student {StudentId}", n.StudentId);
+            // FCM/WhatsApp glitch must never fail the fee flow — SignalR already delivered.
+            _logger.LogWarning(ex, "Fee-due push notifications failed for student {StudentId}", n.StudentId);
         }
     }
 }

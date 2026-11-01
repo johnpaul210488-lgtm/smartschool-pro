@@ -181,6 +181,9 @@ try
     // Firebase Cloud Messaging: dry-run until Firebase:Enabled=true + credentials JSON path set.
     builder.Services.AddSingleton<IFcmSender, FirebaseFcmSender>();
 
+    // WhatsApp message service (Baileys Node.js gateway) — opt-in via SMARTSCHOOL_WHATSAPP_ENABLED=true.
+    builder.Services.AddSingleton<IWhatsAppMessageService, WhatsAppMessageService>();
+
     // Self-update feed: school server proxies GitHub Releases for WPF/APK auto-updates.
     builder.Services.AddHttpClient();
     builder.Services.AddSingleton<GitHubReleaseProvider>();
