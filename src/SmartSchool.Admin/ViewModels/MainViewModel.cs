@@ -12,6 +12,7 @@ using SmartSchool.Admin.ViewModels.Drivers;
 using SmartSchool.Admin.ViewModels.Fees;
 using SmartSchool.Admin.ViewModels.Reports;
 using SmartSchool.Admin.ViewModels.Students;
+using SmartSchool.Admin.Views;
 using SmartSchool.Admin.Views.Buses;
 using SmartSchool.Admin.Views.Drivers;
 using SmartSchool.Admin.Views.Fees;
