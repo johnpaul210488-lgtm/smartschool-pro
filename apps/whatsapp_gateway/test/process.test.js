@@ -15,8 +15,8 @@ test('real packaged entry point starts inert, loopback-only and authenticated', 
   const secret = 'standalone-test-secret-'.repeat(3);
   const child = spawn(process.execPath, [path.join(root, 'src', 'index.js')], {
     cwd: root, stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, SMARTSCHOOL_QR_SECRET: secret, SMARTSCHOOL_QR_STATE_DIR: dir,
-      SMARTSCHOOL_QR_PARENT_PID: String(process.pid) },
+    env: { ...process.env, SMARTSCHOOL_WHATSAPP_SECRET: secret, SMARTSCHOOL_WHATSAPP_STATE_DIR: dir,
+      SMARTSCHOOL_WHATSAPP_PARENT_PID: String(process.pid) },
   });
   t.after(async () => {
     if (child.exitCode === null && child.signalCode === null) { const exited = once(child, 'exit'); child.kill(); await exited; }
