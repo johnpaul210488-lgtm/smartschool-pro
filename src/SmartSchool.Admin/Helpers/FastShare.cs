@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace SmartSchool.Admin.Helpers   // <-- SmartSchool.Admin namespace
