@@ -4,6 +4,11 @@ import { createDb } from './db.js';
 import { createQueue } from './queue.js';
 import { createApi } from './api.js';
 
+process.on('uncaughtException', (err) => {
+  process.stdout.write(`FATAL_UNCAUGHT: ${err.message}\n`);
+  process.exit(1);
+});
+
 const dir = process.env.SMARTSCHOOL_WHATSAPP_STATE_DIR;
 const secret = process.env.SMARTSCHOOL_WHATSAPP_SECRET;
 const apiPort = Number(process.env.SMARTSCHOOL_WHATSAPP_API_PORT || 0);
