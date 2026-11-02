@@ -206,7 +206,7 @@ namespace SmartSchool.Admin.Services   // <-- SmartSchool.Admin namespace
         {
             try
             {
-                Process.Start(new ProcessStartInfo("explorer.exe", $\"/select,\\\"{path}\\\"")
+                Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"")
                 { UseShellExecute = true });
             }
             catch { }
