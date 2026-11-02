@@ -12,7 +12,7 @@ $version = (& $node --version).Trim()
 if ($LASTEXITCODE -ne 0 -or $version -ne 'v22.22.3') { throw 'Packaging requires Node v22.22.3.' }
 Push-Location $gateway
 try {
-    & $npm ci --ignore-scripts --omit=dev --no-audit --no-fund
+    & $npm ci --omit=dev --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw 'npm ci failed.' }
     & $npm test
     if ($LASTEXITCODE -ne 0) { throw 'QR gateway tests failed.' }
