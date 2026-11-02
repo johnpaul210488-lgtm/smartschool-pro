@@ -26,8 +26,11 @@ test('real packaged entry point starts inert, loopback-only and authenticated', 
     new Promise((_, reject) => { const t = setTimeout(() => reject(new Error('Startup timeout')), 10000); t.unref(); })]);
   assert.match(line, /^READY \d+$/);
   const port = Number(line.substring(6));
-  assert.equal((await fetch(`http://127.0.0.1:${port}/qr`)).status, 401);
-  const response = await fetch(`http://127.0.0.1:${port}/status`, { headers: { Authorization: `Bearer ${secret}` } });
-  assert.deepEqual(await response.json(), { ok: true, state: 'off', testOnly: true, accountFingerprint: null });
+  assert.equal((await fetch(`http://127.0.0.1:${port}/api/session/qr`)).status, 401);
+  const response = await fetch(`http://127.0.0.1:${port}/api/status`, { headers: { Authorization: `Bearer ${secret}` } });
+  const body = await response.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.state, 'off');
+  assert.equal(body.accountFingerprint, null);
   assert.equal(fs.existsSync(path.join(dir, 'auth')), false);
 });
