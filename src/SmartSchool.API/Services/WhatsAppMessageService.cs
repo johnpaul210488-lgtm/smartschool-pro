@@ -98,7 +98,7 @@ public sealed class WhatsAppMessageService : IWhatsAppMessageService
         }
     }
 
-    public async Task<JsonElement?> GetStatus(CancellationToken ct = default)
+    public async Task<dynamic?> GetStatus(CancellationToken ct = default)
     {
         if (!_enabled || _http is null) return null;
         try
