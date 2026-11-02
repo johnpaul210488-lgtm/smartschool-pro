@@ -14,7 +14,7 @@ namespace SmartSchool.API.Services;
 /// </summary>
 public sealed class WhatsAppMessageService : IWhatsAppMessageService
 {
-    private readonly HttpClient _http;
+    private readonly HttpClient? _http;
     private readonly ILogger<WhatsAppMessageService> _logger;
     private readonly string? _baseUrl;
     private readonly string? _secret;
