@@ -335,6 +335,27 @@ public sealed class SaveStudentFeePlanItemRequest
 // ============ Bus attendance / tracking ============
 public sealed class BusEventListItem
 {
+    public BusEventListItem(long id, int studentId, string studentName, string className,
+        int busId, string busNumber, string driverName, string type, string timePakistan,
+        double latitude, double longitude, string? location, bool whatsAppSent)
+    {
+        Id = id;
+        StudentId = studentId;
+        StudentName = studentName;
+        ClassName = className;
+        BusId = busId;
+        BusNumber = busNumber;
+        DriverName = driverName;
+        Type = type;
+        TimePakistan = timePakistan;
+        Latitude = latitude;
+        Longitude = longitude;
+        Location = location;
+        WhatsAppSent = whatsAppSent;
+    }
+
+    public BusEventListItem() { }
+
     [JsonPropertyName("id")] public long Id { get; set; }
     [JsonPropertyName("studentId")] public int StudentId { get; set; }
     [JsonPropertyName("studentName")] public string StudentName { get; set; } = string.Empty;

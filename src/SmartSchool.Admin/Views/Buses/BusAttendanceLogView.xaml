@@ -13,9 +13,15 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- Toolbar: filters + actions -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12" VerticalAlignment="Center">
-            <TextBlock Text="📋 Bus Attendance Log (Today)" FontSize="26" FontWeight="Bold"/>
-            <ComboBox Width="180" Margin="16,0,0,0" VerticalAlignment="Center"
+            <TextBlock Text="📋 Bus Attendance Log" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+
+            <DatePicker Width="130" Margin="16,0,8,0" VerticalAlignment="Center"
+                        materialDesign:HintAssist.Hint="Date"
+                        SelectedDate="{Binding SelectedDate, Mode=TwoWay}"/>
+
+            <ComboBox Width="170" Margin="16,0,8,0" VerticalAlignment="Center"
                       materialDesign:HintAssist.Hint="Bus"
                       ItemsSource="{Binding Buses}"
                       SelectedItem="{Binding SelectedBus, Mode=TwoWay}">
@@ -25,15 +31,32 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
-            <!-- CHANGED: consistent compact QIS button sizing and professional icon styling. -->
+
+            <TextBox Width="200" Margin="16,0,8,0" VerticalAlignment="Center"
+                     materialDesign:HintAssist.Hint="Search student / class / bus"
+                     Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+            <Button Command="{Binding ClearSearchCommand}" ToolTip="Clear search" VerticalAlignment="Center"
+                    Style="{StaticResource QisIconButton}" Margin="8,0,0,0">
+                <materialDesign:PackIcon Kind="Clear"/>
+            </Button>
+
             <Button Command="{Binding LoadCommand}" ToolTip="Refresh" VerticalAlignment="Center"
-                    Style="{StaticResource QisIconButton}">
+                    Style="{StaticResource QisIconButton}" Margin="16,0,0,0">
                 <materialDesign:PackIcon Kind="Refresh"/>
             </Button>
+
+            <Button Command="{Binding PrintCommand}" ToolTip="Print attendance log" VerticalAlignment="Center"
+                    Style="{StaticResource QisIconButton}" Margin="16,0,0,0">
+                <materialDesign:PackIcon Kind="Printer"/>
+            </Button>
+
+            <TextBlock Margin="16,0,0,0" VerticalAlignment="Center" FontWeight="Bold"
+                       Text="{Binding TotalCount, StringFormat='Total: {0} records'}"/>
         </StackPanel>
 
         <materialDesign:Card Grid.Row="1" Padding="10">
-            <DataGrid 
+            <DataGrid
                       helpers:GridLayoutHelper.IsPersistent="True" ItemsSource="{Binding Events}" AutoGenerateColumns="False"
                       IsReadOnly="True" CanUserAddRows="False"
                       GridLinesVisibility="Horizontal" RowHeaderWidth="0">
@@ -65,7 +88,7 @@
                     <DataGridTextColumn Header="Time (PKT)" Binding="{Binding TimePakistan}" Width="*"/>
                     <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="2*"/>
                     <DataGridTextColumn Header="Driver" Binding="{Binding DriverName}" Width="*"/>
-                    <DataGridTextColumn Header="WA delivery confirmed" Binding="{Binding WhatsAppSent}" Width="145"/>
+                    <DataGridTextColumn Header="WhatsApp Sent" Binding="{Binding WhatsAppSent}" Width="145"/>
                 </DataGrid.Columns>
             </DataGrid>
         </materialDesign:Card>
