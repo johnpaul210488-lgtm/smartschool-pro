@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SmartSchool.Admin.Models;
 using SmartSchool.Admin.Services;
+using SmartSchool.Core.DTOs;
 
 namespace SmartSchool.Admin.ViewModels;
 
