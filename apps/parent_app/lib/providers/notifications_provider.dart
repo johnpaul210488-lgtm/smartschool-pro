@@ -77,4 +77,23 @@ class NotificationsProvider extends ChangeNotifier {
     unseenCount = 0;
     notifyListeners();
   }
+
+  /// Cache a single incoming SignalR alert locally so it survives
+  /// server restarts and is visible offline immediately.
+  Future<void> cacheIncomingAlert(Map<String, dynamic> payload) async {
+    try {
+      await OfflineDb.instance.cacheAlerts([
+        {
+          'id': payload['id'] ?? 0,
+          'studentId': payload['studentId'] ?? 0,
+          'studentName': payload['studentName'] ?? '',
+          'className': payload['className'] ?? '',
+          'busNumber': payload['busNumber'] ?? '',
+          'eventType': payload['eventType'] ?? payload['type'] ?? '',
+          'timePakistan': payload['timePakistan'] ?? '',
+          'location': payload['location'],
+        },
+      ]);
+    } catch (_) {}
+  }
 }

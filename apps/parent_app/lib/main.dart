@@ -129,6 +129,9 @@ class _RootState extends State<_Root> with WidgetsBindingObserver {
     _signalR ??= SignalRService(
       onAlert: (eventType, payload) {
         children.onBusEvent();
+        // Cache the alert locally FIRST so it's visible offline immediately,
+        // even before the server re-fetch succeeds.
+        unawaited(notif.cacheIncomingAlert(payload));
         final id = payload['eventId']?.toString();
         final loc = context.read<LocaleProvider>();
         final label = loc.t(eventType == 'PickIn' ? 'pick_in' : 'drop_out');

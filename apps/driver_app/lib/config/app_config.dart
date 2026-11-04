@@ -47,7 +47,9 @@ class AppConfig {
   }
 
   /// GPS uplink interval while a trip is active.
-  static const Duration gpsPushInterval = Duration(seconds: 1);
+  /// 1 second is too aggressive for Android background (OS kills the service).
+  /// 10 seconds keeps the battery happy and the service alive when minimized.
+  static const Duration gpsPushInterval = Duration(seconds: 10);
 
   /// How often the offline outbox retries when the network is back.
   static const Duration syncInterval = Duration(seconds: 45);

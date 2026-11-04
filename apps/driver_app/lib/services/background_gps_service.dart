@@ -179,7 +179,7 @@ class BackgroundGpsService {
                 'speedKmh': pos.speed < 0 ? 0 : pos.speed * 3.6,
               }),
             )
-            .timeout(const Duration(seconds: 8));
+            .timeout(const Duration(seconds: 15));
         if (res.statusCode >= 200 && res.statusCode < 300) {
           await writeStatus('OK: server ko bheja');
         } else {
@@ -231,6 +231,7 @@ class BackgroundGpsService {
           accuracy: LocationAccuracy.high,
           distanceFilter: 0,
           intervalDuration: AppConfig.gpsPushInterval,
+          backgroundLocation: true,
           foregroundNotificationConfig: const ForegroundNotificationConfig(
             notificationTitle: 'Queen International School: Trip in progress',
             notificationText: 'Bus ki location server ko ja rahi hai',

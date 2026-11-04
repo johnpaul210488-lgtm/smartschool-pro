@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
+import '../core/fee_firestore_service.dart';
 import '../core/models.dart';
 import '../core/offline_db.dart';
 
@@ -34,9 +35,44 @@ class FeesProvider extends ChangeNotifier {
     error = null;
     _showingCache = false;
     notifyListeners();
+
+    // Strategy: cloud (Firestore) → school server API → local SQLite cache.
+    // This keeps fees visible even when the school server is off, because
+    // Firestore is a separate cloud service.
+    try {
+      rows = await FeeFirestoreService.instance.readAllFees();
+      if (rows.isNotEmpty) {
+        // Also mirror to SQLite for when Firestore is unreachable too.
+        await OfflineDb.instance.cacheFees(
+          rows.map((r) => {
+            'id': r.id,
+            'studentId': r.studentId,
+            'studentName': r.studentName,
+            'className': r.className,
+            'month': r.month,
+            'amount': r.amount,
+            'balance': r.balance,
+            'dueDate': r.dueDate,
+            'status': r.status,
+            'receiptNo': r.receiptNo,
+            'amountPaid': r.amountPaid,
+            'feeHeadName': r.feeHeadName,
+          }).toList(),
+        );
+        _showingCache = false;
+        loading = false;
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      // Firestore unavailable (no config / network) — fall through to API.
+      debugPrint('[Fees] Firestore read failed: $e');
+    }
+
+    // Try the school server API.
     try {
       rows = await api.getMyFees();
-      // Cache the fresh data for offline use.
+      // Cache to SQLite for offline use.
       await OfflineDb.instance.cacheFees(rows.map((r) => {
             'id': r.id,
             'studentId': r.studentId,
@@ -51,6 +87,8 @@ class FeesProvider extends ChangeNotifier {
             'amountPaid': r.amountPaid,
             'feeHeadName': r.feeHeadName,
           }).toList());
+      // Also push to Firestore so it's available from the cloud next time.
+      unawaited(FeeFirestoreService.instance.writeFees(rows));
       _showingCache = false;
     } on ApiException catch (e) {
       error = e.message;
@@ -59,7 +97,7 @@ class FeesProvider extends ChangeNotifier {
       if (cached.isNotEmpty) {
         rows = cached.map((m) => FeeRow.fromJson(_decodeMap(m))).toList();
         _showingCache = true;
-        error = '${error}\n(Server offline — dikhaya ja raha hai purana data)';
+        error = '${error}\\n(Server offline — dikhaya ja raha hai purana data)';
       } else {
         rows = [];
         _showingCache = false;

@@ -54,6 +54,23 @@ class OfflineDb {
           )
         ''');
 
+        // Cached parent children cards (so the home screen opens offline).
+        await db.execute('''
+          CREATE TABLE children_cache (
+            id INTEGER PRIMARY KEY,
+            studentId INTEGER NOT NULL,
+            fullName TEXT NOT NULL,
+            photoUrl TEXT,
+            className TEXT NOT NULL,
+            busId INTEGER,
+            busNumber TEXT,
+            todayStatus TEXT NOT NULL,
+            lastEventText TEXT,
+            lastEventTimePakistan TEXT,
+            updatedAt INTEGER NOT NULL
+          )
+        ''');
+
         // Cached school announcements.
         await db.execute('''
           CREATE TABLE announcements (
@@ -158,6 +175,34 @@ class OfflineDb {
   Future<List<Map<String, dynamic>>> getCachedAnnouncements() async {
     final db = await this.db;
     return await db.query('announcements', orderBy: 'id DESC');
+  }
+
+  // ---------- Children cache ----------
+
+  Future<void> cacheChildren(List<Map<String, dynamic>> rows) async {
+    final db = await this.db;
+    await db.delete('children_cache');
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final r in rows) {
+      await db.insert('children_cache', {
+        'id': r['id'],
+        'studentId': r['studentId'],
+        'fullName': r['fullName'],
+        'photoUrl': r['photoUrl'],
+        'className': r['className'],
+        'busId': r['busId'],
+        'busNumber': r['busNumber'],
+        'todayStatus': r['todayStatus'],
+        'lastEventText': r['lastEventText'],
+        'lastEventTimePakistan': r['lastEventTimePakistan'],
+        'updatedAt': now,
+      });
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCachedChildren() async {
+    final db = await this.db;
+    return await db.query('children_cache', orderBy: 'studentId');
   }
 
   // ---------- Outbox ----------
