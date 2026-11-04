@@ -231,7 +231,6 @@ class BackgroundGpsService {
           accuracy: LocationAccuracy.high,
           distanceFilter: 0,
           intervalDuration: AppConfig.gpsPushInterval,
-          backgroundLocation: true,
           foregroundNotificationConfig: const ForegroundNotificationConfig(
             notificationTitle: 'Queen International School: Trip in progress',
             notificationText: 'Bus ki location server ko ja rahi hai',
