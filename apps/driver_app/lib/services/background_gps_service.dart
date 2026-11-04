@@ -31,14 +31,16 @@ class BackgroundGpsService {
     _initialized = true;
 
     // Android 8+ needs an explicit notification channel for the foreground service.
+    // Importance.high + ongoing: notification stays visible even when app is
+    // minimized/closed, showing "GPS is on" until the driver logs out / ends trip.
     final plugin = FlutterLocalNotificationsPlugin();
     await plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(const AndroidNotificationChannel(
           AppConfig.notificationChannelId,
-          'Trip Tracking',
-          description: 'Shows while a trip is active with live GPS.',
-          importance: Importance.low,
+          'Trip Tracking — GPS Live',
+          description: 'Bus GPS tracking is active. Location is being sent to server.',
+          importance: Importance.high,
         ));
 
     await FlutterBackgroundService().configure(

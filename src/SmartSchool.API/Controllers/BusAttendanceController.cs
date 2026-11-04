@@ -333,7 +333,7 @@ public sealed class BusAttendanceController : BaseApiController
             return Forbid();
         }
 
-        return await QueryEvents(ct, studentId: studentId, page: page, pageSize: pageSize);
+        return await QueryEvents(ct, studentIds: new[] { studentId }, page: page, pageSize: pageSize);
     }
 
     /// <summary>Event feed for one bus. Staff/teachers, or the bus's own driver.</summary>
@@ -360,12 +360,14 @@ public sealed class BusAttendanceController : BaseApiController
         return await QueryEvents(ct, busId: busId, date: date, page: page, pageSize: pageSize);
     }
 
-    /// <summary>Everything that happened today (PST), optionally one bus. The admin live feed.</summary>
+    /// <summary>Everything that happened on a date (PST), optionally one bus + search. The admin live feed.</summary>
     [HttpGet("today")]
     [Authorize(Roles = AppRoles.StaffAndTeachers + "," + AppRoles.Driver)]
     public async Task<ActionResult<ApiResponse<PagedResult<BusEventListItem>>>> GetToday(
         [FromQuery] int? busId,
         [FromQuery] BusAttendanceType? type,
+        [FromQuery] string? date,
+        [FromQuery] string? search,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 100,
         CancellationToken ct = default)
@@ -382,14 +384,29 @@ public sealed class BusAttendanceController : BaseApiController
             busId = ownBusId;
         }
 
-        var today = PkTime.TodayPk;
-        return await QueryEvents(ct, busId: busId, type: type, date: today.ToString("yyyy-MM-dd"),
-            page: page, pageSize: pageSize);
+        var queryDate = date ?? PkTime.TodayPk.ToString("yyyy-MM-dd");
+
+        // Search by student name: resolve matching student IDs first.
+        int[]? studentIds = null;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            studentIds = await _uow.Students.Query(false)
+                .Where(s => s.IsActive &&
+                    (s.FullName.Contains(term) ||
+                     s.Class.Name.Contains(term) ||
+                     s.Class.Section.Contains(term)))
+                .Select(s => s.Id)
+                .ToListAsync(ct);
+        }
+
+        return await QueryEvents(ct, busId: busId, type: type, date: queryDate,
+            studentIds: studentIds, page: page, pageSize: pageSize);
     }
 
     private async Task<ActionResult<ApiResponse<PagedResult<BusEventListItem>>>> QueryEvents(
         CancellationToken ct,
-        int? studentId = null,
+        int[]? studentIds = null,
         int? busId = null,
         BusAttendanceType? type = null,
         string? date = null,
@@ -400,7 +417,8 @@ public sealed class BusAttendanceController : BaseApiController
         pageSize = Math.Clamp(pageSize, 1, 200);
 
         var query = _uow.BusAttendances.Query().AsQueryable();
-        if (studentId is not null) query = query.Where(e => e.StudentId == studentId);
+        if (studentIds is not null && studentIds.Length > 0)
+            query = query.Where(e => studentIds.Contains(e.StudentId));
         if (busId is not null) query = query.Where(e => e.BusId == busId);
         if (type is not null) query = query.Where(e => e.Type == type);
         if (!string.IsNullOrWhiteSpace(date)

@@ -344,11 +344,16 @@ public sealed class ApiClient
     public Task<(bool Ok, DuesSummaryResponse? Data, string Error, string Msg)> DuesAsync()
         => GetAsync<DuesSummaryResponse>("api/fees/dues");
 
-    public Task<(bool Ok, List<BusEventListItem>? Data, string Error, string Msg)> TodayAttendanceAsync(
-        int? busId = null)
+    public Task<(bool Ok, PagedResult<BusEventListItem>? Data, string Error, string Msg)> TodayAttendanceAsync(
+        int? busId = null,
+        string? date = null,
+        string? search = null)
     {
         var q = "api/bus-attendance/today";
-        if (busId is not null) q += $"?busId={busId}";
-        return GetAsync<List<BusEventListItem>>(q);
+        var sep = "?";
+        if (busId is not null) { q += $"{sep}busId={busId}"; sep = "&"; }
+        if (date is not null) { q += $"{sep}date={date}"; sep = "&"; }
+        if (search is not null) { q += $"{sep}search={search}"; }
+        return GetAsync<PagedResult<BusEventListItem>>(q);
     }
 }
