@@ -78,7 +78,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             var today = await todayTask;
             if (today.Ok && today.Data is not null)
             {
-                LiveAttendance.ReplaceAll(today.Data.OrderByDescending(e => e.Id));
+                LiveAttendance.ReplaceAll(today.Data.Items.OrderByDescending(e => e.Id));
             }
         }
         finally

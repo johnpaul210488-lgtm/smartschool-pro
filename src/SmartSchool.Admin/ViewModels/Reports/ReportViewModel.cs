@@ -48,8 +48,8 @@ public partial class ReportViewModel : ObservableObject
             var att = await _api.TodayAttendanceAsync();
             if (att.Ok && att.Data is not null)
             {
-                PickIns = att.Data.Count(e => e.Type == "PickIn");
-                DropOuts = att.Data.Count(e => e.Type == "DropOut");
+                PickIns = att.Data.Items.Count(e => e.Type == "PickIn");
+                DropOuts = att.Data.Items.Count(e => e.Type == "DropOut");
             }
         }
         finally
