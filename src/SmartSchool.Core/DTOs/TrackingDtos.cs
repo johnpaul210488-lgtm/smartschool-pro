@@ -43,7 +43,10 @@ public sealed record BusEventListItem(
     double Latitude,
     double Longitude,
     string? Location,
-    bool WhatsAppSent);
+    bool WhatsAppSent)
+{
+    public BusEventListItem() : this(0, 0, string.Empty, string.Empty, 0, string.Empty, string.Empty, string.Empty, string.Empty, 0, 0, null, false) { }
+}
 
 public sealed class TripStartRequest
 {
