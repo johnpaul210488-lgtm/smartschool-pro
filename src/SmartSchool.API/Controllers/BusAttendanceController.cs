@@ -379,7 +379,7 @@ public sealed class BusAttendanceController : BaseApiController
                 .Select(b => (int?)b.Id)
                 .FirstOrDefaultAsync(ct);
             if (ownBusId is null)
-                return OkEnvelope(PagedResult<BusEventListItem>.Create(
+                return OkEnvelope(new SmartSchool.Shared.Common.PagedResult<BusEventListItem>(
                     new List<BusEventListItem>(), page, pageSize, 0));
             busId = ownBusId;
         }
@@ -450,6 +450,7 @@ public sealed class BusAttendanceController : BaseApiController
             PkTime.ToPk(e.TimestampUtc).ToString("dd MMM yyyy hh:mm tt", CultureInfo.InvariantCulture),
             e.Latitude, e.Longitude, e.LocationLabel, e.WhatsAppSent)).ToList();
 
-        return OkEnvelope(PagedResult<BusEventListItem>.Create(items, page, pageSize, total));
+        return OkEnvelope(new SmartSchool.Shared.Common.PagedResult<BusEventListItem>(
+            items, page, pageSize, total));
     }
 }
