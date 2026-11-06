@@ -397,7 +397,7 @@ public sealed class BusAttendanceController : BaseApiController
                      s.Class.Name.Contains(term) ||
                      s.Class.Section.Contains(term)))
                 .Select(s => s.Id)
-                .ToListAsync(ct);
+                .ToArrayAsync(ct);
         }
 
         return await QueryEvents(ct, busId: busId, type: type, date: queryDate,
