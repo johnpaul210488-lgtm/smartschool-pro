@@ -59,6 +59,7 @@ class AppUpdater {
   }
 
   static Future<Map<String, dynamic>?> _fetchLatest() async {
+    // CI re-run to confirm pub get + analyze pass after the compile fix.
     final token = Session.token;
     final res = await http
         .get(
