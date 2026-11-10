@@ -106,7 +106,6 @@ class BackgroundGpsService {
 
   Future<void> stopTrip() async {
     _startToken++;
-    posSub?.cancel();
     FlutterBackgroundService().invoke('stop');
   }
 
