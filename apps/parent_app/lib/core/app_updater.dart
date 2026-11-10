@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -62,46 +63,99 @@ class AppUpdater {
     return env['data'] as Map<String, dynamic>?;
   }
 
+  /// Streams the APK straight to disk (no whole-file-in-RAM) with a live
+  /// progress dialog so the user knows it is still working on slow connections.
   static Future<void> _downloadAndInstall(BuildContext context) async {
+    final downloaded = ValueNotifier<int>(0);
+    var totalBytes = 0;
+    var dialogOpen = true;
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 18),
-            Expanded(child: Text('Update download ho rahi hai…\n(kuch minute lag sakte hain)')),
-          ],
-        ),
+      builder: (_) => ValueListenableBuilder<int>(
+        valueListenable: downloaded,
+        builder: (_, bytes, __) {
+          final pct = totalBytes > 0 ? (bytes * 100 ~/ totalBytes) : 0;
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text('Update download ho rahi hai… $pct%',
+                    style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 6),
+                Text(
+                  totalBytes > 0
+                      ? '${(bytes / 1048576).toStringAsFixed(1)} MB / ${(totalBytes / 1048576).toStringAsFixed(1)} MB'
+                      : '${(bytes / 1048576).toStringAsFixed(1)} MB download hui',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        },
       ),
-    );
+    ).then((_) => dialogOpen = false);
 
+    final client = http.Client();
     try {
-      final res = await http
-          .get(
-            Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download'),
-            headers: {if (Session.token != null) 'Authorization': 'Bearer ${Session.token}'},
-          )
-          .timeout(const Duration(minutes: 10));
-      if (res.statusCode != 200 || res.bodyBytes.length < 1000000) {
-        throw StateError('download failed (${res.statusCode})');
+      final token = Session.token;
+      final uri = Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download');
+
+      // Streamed request: download straight to disk, not into RAM.
+      final request = http.Request('GET', uri)
+        ..headers.addAll({if (token != null) 'Authorization': 'Bearer $token'});
+      final streamedResponse =
+          await client.send(request).timeout(const Duration(minutes: 20));
+
+      if (streamedResponse.statusCode != 200) {
+        throw StateError('download failed (${streamedResponse.statusCode})');
       }
+
+      totalBytes = streamedResponse.contentLength ?? 0;
 
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/smartschool-parent-update.apk');
-      await file.writeAsBytes(res.bodyBytes, flush: true);
+      final sink = file.openWrite(mode: FileMode.write);
+      var bytesSoFar = 0;
+      try {
+        await for (final bytes in streamedResponse.stream) {
+          await sink.add(bytes);
+          bytesSoFar += bytes.length;
+          downloaded.value = bytesSoFar;
+        }
+        await sink.flush();
+      } finally {
+        await sink.close();
+      }
 
-      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      if (context.mounted && dialogOpen) {
+        Navigator.of(context, rootNavigator: true).pop();
+        dialogOpen = false;
+      }
+
+      // Verify the file is complete before triggering the installer.
+      final stat = await file.stat();
+      if (stat.size < 1000000) {
+        throw StateError('download incomplete (${stat.size} bytes)');
+      }
+
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
+        if (dialogOpen) {
+          Navigator.of(context, rootNavigator: true).pop();
+          dialogOpen = false;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Update fail: $e')),
         );
       }
       _checkedThisSession = false; // allow retry on next open
+    } finally {
+      client.close();
     }
   }
 
