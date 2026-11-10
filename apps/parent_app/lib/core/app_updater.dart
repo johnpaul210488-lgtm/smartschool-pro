@@ -8,7 +8,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../config/app_config.dart';
+import 'config.dart';
 import 'session.dart';
 
 /// In-app self-update: asks the school server for the newest RELEASE version
