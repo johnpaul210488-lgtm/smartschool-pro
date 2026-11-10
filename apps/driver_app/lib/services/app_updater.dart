@@ -71,48 +71,29 @@ class AppUpdater {
     return env['data'] as Map<String, dynamic>?;
   }
 
-  /// Streams the APK straight to disk (no whole-file-in-RAM) with a live
-  /// progress dialog so the user knows it is still working on slow connections.
+  /// Streams the APK straight to disk (no whole-file-in-RAM) instead of
+  /// loading the whole APK into memory, which hung on large downloads.
   static Future<void> _downloadAndInstall(BuildContext context, ApiClient api) async {
-    final downloaded = ValueNotifier<int>(0);
-    var totalBytes = 0;
-    var dialogOpen = true;
-
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => ValueListenableBuilder<int>(
-        valueListenable: downloaded,
-        builder: (_, bytes, __) {
-          final pct = totalBytes > 0 ? (bytes * 100 ~/ totalBytes) : 0;
-          return AlertDialog(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 12),
-                Text('Update download ho rahi hai… $pct%',
-                    style: const TextStyle(fontSize: 19)),
-                const SizedBox(height: 6),
-                Text(
-                  totalBytes > 0
-                      ? '${(bytes / 1048576).toStringAsFixed(1)} MB / ${(totalBytes / 1048576).toStringAsFixed(1)} MB'
-                      : '${(bytes / 1048576).toStringAsFixed(1)} MB download hui',
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
-        },
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 18),
+            Expanded(
+                child: Text('Update download ho rahi hai…\nWi-Fi par karein',
+                    style: TextStyle(fontSize: 19))),
+          ],
+        ),
       ),
-    ).then((_) => dialogOpen = false);
+    );
 
     final client = http.Client();
     try {
       final token = api.currentLogin?.token;
       final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/app-updates/driver/download');
-
-      // Streamed request: download straight to disk, not into RAM.
       final request = http.Request('GET', uri)
         ..headers.addAll({if (token != null) 'Authorization': 'Bearer $token'});
       final streamedResponse =
@@ -122,27 +103,12 @@ class AppUpdater {
         throw StateError('download failed (${streamedResponse.statusCode})');
       }
 
-      totalBytes = streamedResponse.contentLength ?? 0;
-
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/smartschool-driver-update.apk');
       final sink = file.openWrite(mode: FileMode.write);
-      var bytesSoFar = 0;
-      try {
-        await for (final bytes in streamedResponse.stream) {
-          await sink.add(bytes);
-          bytesSoFar += bytes.length;
-          downloaded.value = bytesSoFar;
-        }
-        await sink.flush();
-      } finally {
-        await sink.close();
-      }
+      await streamedResponse.stream.pipe(sink);
 
-      if (context.mounted && dialogOpen) {
-        Navigator.of(context, rootNavigator: true).pop();
-        dialogOpen = false;
-      }
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
 
       // Verify the file is complete before triggering the installer.
       final stat = await file.stat();
@@ -153,10 +119,7 @@ class AppUpdater {
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
-        if (dialogOpen) {
-          Navigator.of(context, rootNavigator: true).pop();
-          dialogOpen = false;
-        }
+        Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Update fail: $e', style: const TextStyle(fontSize: 18))),
         );
