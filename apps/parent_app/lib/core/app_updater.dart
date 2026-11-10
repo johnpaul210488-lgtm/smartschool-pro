@@ -9,7 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../config/app_config.dart';
-import 'api_client.dart';
+import 'session.dart';
 
 /// In-app self-update: asks the school server for the newest RELEASE version
 /// (the server proxies GitHub Releases). If newer → 1-tap confirm → downloads
@@ -18,16 +18,16 @@ class AppUpdater {
   static bool _checkedThisSession = false;
 
   /// Call from the home screen. Safe to call every build — guarded to once per session.
-  static void promptIfUpdate(BuildContext context, ApiClient api) {
+  static void promptIfUpdate(BuildContext context) {
     if (_checkedThisSession) return;
     _checkedThisSession = true;
-    _run(context, api);
+    _run(context);
   }
 
-  static Future<void> _run(BuildContext context, ApiClient api) async {
+  static Future<void> _run(BuildContext context) async {
     try {
       final info = await PackageInfo.fromPlatform();
-      final latest = await _fetchLatest(api);
+      final latest = await _fetchLatest();
       if (latest == null) return;
       final latestVersion = latest['latestVersion'] as String?;
       if (latestVersion == null || !_isNewer(latestVersion, info.version)) return;
@@ -52,17 +52,17 @@ class AppUpdater {
         ),
       );
       if (go != true || !context.mounted) return;
-      await _downloadAndInstall(context, api);
+      await _downloadAndInstall(context);
     } catch (_) {
       // best-effort; ignore
     }
   }
 
-  static Future<Map<String, dynamic>?> _fetchLatest(ApiClient api) async {
-    final token = api.currentLogin?.token;
+  static Future<Map<String, dynamic>?> _fetchLatest() async {
+    final token = Session.token;
     final res = await http
         .get(
-          Uri.parse('${AppConfig.apiBaseUrl}/api/app-updates/driver'),
+          Uri.parse('${AppConfig.apiBase}/api/app-updates/parent'),
           headers: {if (token != null) 'Authorization': 'Bearer $token'},
         )
         .timeout(const Duration(seconds: 15));
@@ -74,7 +74,7 @@ class AppUpdater {
 
   /// Streams the APK straight to disk (no whole-file-in-RAM) with a progress
   /// dialog so the user knows it is still working on slow connections.
-  static Future<void> _downloadAndInstall(BuildContext context, ApiClient api) async {
+  static Future<void> _downloadAndInstall(BuildContext context) async {
     var downloaded = 0;
     var total = 0;
 
@@ -102,8 +102,8 @@ class AppUpdater {
     refreshDialog();
 
     try {
-      final token = api.currentLogin?.token;
-      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/app-updates/driver/download');
+      final token = Session.token;
+      final uri = Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download');
 
       // Streamed request: download directly to file, not into RAM.
       final request = http.Request('GET', uri)
