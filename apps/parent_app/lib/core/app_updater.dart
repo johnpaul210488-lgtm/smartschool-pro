@@ -66,20 +66,6 @@ class AppUpdater {
   /// Streams the APK straight to disk (no whole-file-in-RAM) with a progress
   /// dialog so the user knows it is still working on slow connections.
   static Future<void> _downloadAndInstall(BuildContext context) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 18),
-            Expanded(child: Text('Update download ho rahi hai…\\n(kuch minute lag sakte hain)')),
-          ],
-        ),
-      ),
-    );
-
     try {
       final token = Session.token;
       final uri = Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download');
@@ -106,18 +92,16 @@ class AppUpdater {
       await sink.flush();
       await sink.close();
 
-      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-
       // Verify file size before installing.
       final stat = await file.stat();
       if (stat.size < 1_000_000) {
         throw StateError('download incomplete (${stat.size} bytes)');
       }
 
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Update fail: $e')),
         );
