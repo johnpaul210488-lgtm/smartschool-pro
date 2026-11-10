@@ -1,10 +1,8 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart' show IOClient;
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -18,14 +16,10 @@ import 'session.dart';
 class AppUpdater {
   static bool _checkedThisSession = false;
 
-  /// Call from the home screen. Safe to call every build — guarded to once per session.
-  static void promptIfUpdate(BuildContext context) {
+  /// Call once after login (e.g. dashboard init). Never throws.
+  static Future<void> promptIfUpdate(BuildContext context) async {
     if (_checkedThisSession) return;
     _checkedThisSession = true;
-    _run(context);
-  }
-
-  static Future<void> _run(BuildContext context) async {
     try {
       final info = await PackageInfo.fromPlatform();
       final latest = await _fetchLatest();
@@ -38,34 +32,28 @@ class AppUpdater {
       final go = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.system_update_alt, size: 44),
-          title: const Text('UPDATE AVAILABLE', style: TextStyle(fontSize: 22)),
-          content: Text('Naya version $latestVersion ($size).\nAbhi install karein?',
-              style: const TextStyle(fontSize: 19)),
+          icon: const Icon(Icons.system_update_alt, size: 40),
+          title: const Text('Update Available'),
+          content: Text('Naya version $latestVersion aa gaya hai ($size).\n'
+              'Abhi update karein? (app band ho kar nayi app khul jayegi)'),
           actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('BAAD MEIN', style: TextStyle(fontSize: 18))),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('UPDATE NOW', style: TextStyle(fontSize: 18))),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Baad mein')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Update Now')),
           ],
         ),
       );
       if (go != true || !context.mounted) return;
       await _downloadAndInstall(context);
     } catch (_) {
-      // best-effort; ignore
+      // Update check is best-effort — app keeps working offline/old-server.
     }
   }
 
   static Future<Map<String, dynamic>?> _fetchLatest() async {
-    // CI re-run to confirm pub get + analyze pass after the compile fix.
-    final token = Session.token;
     final res = await http
         .get(
           Uri.parse('${AppConfig.apiBase}/api/app-updates/parent'),
-          headers: {if (token != null) 'Authorization': 'Bearer $token'},
+          headers: {if (Session.token != null) 'Authorization': 'Bearer ${Session.token}'},
         )
         .timeout(const Duration(seconds: 15));
     if (res.statusCode != 200) return null;
@@ -74,87 +62,50 @@ class AppUpdater {
     return env['data'] as Map<String, dynamic>?;
   }
 
-  /// Streams the APK straight to disk (no whole-file-in-RAM) with a progress
-  /// dialog so the user knows it is still working on slow connections.
   static Future<void> _downloadAndInstall(BuildContext context) async {
-    var downloaded = 0;
-    var total = 0;
-
-    void refreshDialog() {
-      final pct = total > 0 ? (downloaded * 100 ~/ total) : 0;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 12),
-              Text('Download ho rahi hai… $pct%',
-                  style: const TextStyle(fontSize: 16)),
-              Text('$downloaded / $total KB',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-          ),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 18),
+            Expanded(child: Text('Update download ho rahi hai…\n(kuch minute lag sakte hain)')),
+          ],
         ),
-      );
-    }
-
-    refreshDialog();
+      ),
+    );
 
     try {
-      final token = Session.token;
-      final uri = Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download');
-
-      // Streamed request: download directly to file, not into RAM.
-      final request = http.Request('GET', uri)
-        ..headers.addAll({if (token != null) 'Authorization': 'Bearer $token'});
-      final streamedResponse = await IOClient().send(request).timeout(
-        const Duration(minutes: 20),
-      );
-
-      if (streamedResponse.statusCode != 200) {
-        throw StateError('download failed (${streamedResponse.statusCode})');
+      final res = await http
+          .get(
+            Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download'),
+            headers: {if (Session.token != null) 'Authorization': 'Bearer ${Session.token}'},
+          )
+          .timeout(const Duration(minutes: 10));
+      if (res.statusCode != 200 || res.bodyBytes.length < 1000000) {
+        throw StateError('download failed (${res.statusCode})');
       }
-
-      final contentLength = streamedResponse.contentLength ?? 0;
-      total = (contentLength ~/ 1024);
 
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/smartschool-driver-update.apk');
-
-      var sink = file.openWrite(mode: FileMode.write);
-      await for (var bytes in streamedResponse.stream) {
-        await sink.add(bytes);
-        downloaded += bytes.length;
-        if (context.mounted) {
-          refreshDialog();
-        }
-      }
-      await sink.flush();
-      await sink.close();
+      final file = File('${dir.path}/smartschool-parent-update.apk');
+      await file.writeAsBytes(res.bodyBytes, flush: true);
 
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-
-      // Verify file size before installing.
-      final stat = await file.stat();
-      if (stat.size < 1_000_000) {
-        throw StateError('download incomplete (${stat.size} bytes)');
-      }
-
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Update fail: $e', style: const TextStyle(fontSize: 18))),
+          SnackBar(content: Text('Update fail: $e')),
         );
       }
-      _checkedThisSession = false;
+      _checkedThisSession = false; // allow retry on next open
     }
   }
 
+  /// Loose SemVer compare: 1.10 > 1.9.
   static bool _isNewer(String latest, String current) {
     List<int> parse(String v) => v
         .split('+').first
