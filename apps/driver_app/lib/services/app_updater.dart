@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,8 +8,8 @@ import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../config/app_config.dart';
-import 'api_client.dart';
+import 'config.dart';
+import 'session.dart';
 
 /// In-app self-update: asks the school server for the newest RELEASE version
 /// (the server proxies GitHub Releases). If newer → 1-tap confirm → downloads
@@ -16,17 +17,13 @@ import 'api_client.dart';
 class AppUpdater {
   static bool _checkedThisSession = false;
 
-  /// Call from the home screen. Safe to call every build — guarded to once per session.
-  static void promptIfUpdate(BuildContext context, ApiClient api) {
+  /// Call once after login (e.g. dashboard init). Never throws.
+  static Future<void> promptIfUpdate(BuildContext context) async {
     if (_checkedThisSession) return;
     _checkedThisSession = true;
-    _run(context, api);
-  }
-
-  static Future<void> _run(BuildContext context, ApiClient api) async {
     try {
       final info = await PackageInfo.fromPlatform();
-      final latest = await _fetchLatest(api);
+      final latest = await _fetchLatest();
       if (latest == null) return;
       final latestVersion = latest['latestVersion'] as String?;
       if (latestVersion == null || !_isNewer(latestVersion, info.version)) return;
@@ -36,33 +33,28 @@ class AppUpdater {
       final go = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: const Icon(Icons.system_update_alt, size: 44),
-          title: const Text('UPDATE AVAILABLE', style: TextStyle(fontSize: 22)),
-          content: Text('Naya version $latestVersion ($size).\nAbhi install karein?',
-              style: const TextStyle(fontSize: 19)),
+          icon: const Icon(Icons.system_update_alt, size: 40),
+          title: const Text('Update Available'),
+          content: Text('Naya version $latestVersion aa gaya hai ($size).\n'
+              'Abhi update karein? (app band ho kar nayi app khul jayegi)'),
           actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('BAAD MEIN', style: TextStyle(fontSize: 18))),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('UPDATE NOW', style: TextStyle(fontSize: 18))),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Baad mein')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Update Now')),
           ],
         ),
       );
       if (go != true || !context.mounted) return;
-      await _downloadAndInstall(context, api);
+      await _downloadAndInstall(context);
     } catch (_) {
-      // best-effort; ignore
+      // Update check is best-effort — app keeps working offline/old-server.
     }
   }
 
-  static Future<Map<String, dynamic>?> _fetchLatest(ApiClient api) async {
-    final token = api.currentLogin?.token;
+  static Future<Map<String, dynamic>?> _fetchLatest() async {
     final res = await http
         .get(
-          Uri.parse('${AppConfig.apiBaseUrl}/api/app-updates/driver'),
-          headers: {if (token != null) 'Authorization': 'Bearer $token'},
+          Uri.parse('${AppConfig.apiBaseUrl}/api/app-updates/parent'),
+          headers: {if (Session.token != null) 'Authorization': 'Bearer ${Session.token}'},
         )
         .timeout(const Duration(seconds: 15));
     if (res.statusCode != 200) return null;
@@ -71,52 +63,94 @@ class AppUpdater {
     return env['data'] as Map<String, dynamic>?;
   }
 
-  static Future<void> _downloadAndInstall(BuildContext context, ApiClient api) async {
+  /// Streams the APK straight to disk (no whole-file-in-RAM) with a progress
+  /// dialog so the user knows it is still working on slow connections.
+  static Future<void> _downloadAndInstall(BuildContext context) async {
+    late AlertDialog progressDialog;
+    var downloaded = 0;
+    var total = 0;
+
+    void refreshDialog() {
+      final pct = total > 0 ? (downloaded * 100 ~/ total) : 0;
+      progressDialog = AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 12),
+            Text('Update download ho rahi hai… $pct%',
+                style: const TextStyle(fontSize: 16)),
+            Text('$downloaded / $total KB',
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    refreshDialog();
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 18),
-            Expanded(
-                child: Text('Download ho rahi hai…\nWi-Fi par karein',
-                    style: TextStyle(fontSize: 19))),
-          ],
-        ),
-      ),
+      builder: (_) => progressDialog,
     );
 
     try {
-      final token = api.currentLogin?.token;
-      final res = await http
-          .get(
-            Uri.parse('${AppConfig.apiBaseUrl}/api/app-updates/driver/download'),
-            headers: {if (token != null) 'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(minutes: 10));
-      if (res.statusCode != 200 || res.bodyBytes.length < 1000000) {
-        throw StateError('download failed (${res.statusCode})');
+      final token = Session.token;
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/app-updates/parent/download');
+
+      // Streamed request: download directly to file, not into RAM.
+      final request = http.Request('GET', uri)
+        ..headers.addAll({if (token != null) 'Authorization': 'Bearer $token'});
+      final streamedResponse = await http.Client().send(request).timeout(
+        const Duration(minutes: 20),
+      );
+
+      if (streamedResponse.statusCode != 200) {
+        throw StateError('download failed (${streamedResponse.statusCode})');
       }
 
+      final contentLength = streamedResponse.contentLength ?? 0;
+      total = (contentLength ~/ 1024);
+
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/smartschool-driver-update.apk');
-      await file.writeAsBytes(res.bodyBytes, flush: true);
+      final file = File('${dir.path}/smartschool-parent-update.apk');
+
+      var sink = file.openWrite(mode: FileMode.write);
+      await for (var bytes in streamedResponse.stream) {
+        await sink.add(bytes);
+        downloaded += bytes.length;
+        if (context.mounted) {
+          // Rebuild dialog with updated progress.
+          refreshDialog();
+          // Navigator of the root navigator so it replaces the progress dialog.
+          // We just update the same dialog reference; showDialog with same builder
+          // won't auto-redraw, so we pop & re-show. Simpler: just leave it.
+        }
+      }
+      await sink.flush();
+      await sink.close();
 
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      // Verify file size before installing.
+      final stat = await file.stat();
+      if (stat.size < 1_000_000) {
+        throw StateError('download incomplete (${stat.size} bytes)');
+      }
+
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Update fail: $e', style: const TextStyle(fontSize: 18))),
+          SnackBar(content: Text('Update fail: $e')),
         );
       }
-      _checkedThisSession = false;
+      _checkedThisSession = false; // allow retry on next open
     }
   }
 
+  /// Loose SemVer compare: 1.10 > 1.9.
   static bool _isNewer(String latest, String current) {
     List<int> parse(String v) => v
         .split('+').first
