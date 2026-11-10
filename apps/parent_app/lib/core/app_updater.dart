@@ -63,40 +63,23 @@ class AppUpdater {
     return env['data'] as Map<String, dynamic>?;
   }
 
-  /// Streams the APK straight to disk (no whole-file-in-RAM) with a progress
-  /// dialog so the user knows it is still working on slow connections.
+  /// Download the APK and install it.
   static Future<void> _downloadAndInstall(BuildContext context) async {
     try {
       final token = Session.token;
-      final uri = Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download');
-
-      // Streamed request: download directly to file, not into RAM.
-      final request = http.Request('GET', uri)
-        ..headers.addAll({if (token != null) 'Authorization': 'Bearer $token'});
-      final streamedResponse = await IOClient().send(request).timeout(
-        const Duration(minutes: 20),
-      );
-
-      if (streamedResponse.statusCode != 200) {
-        throw StateError('download failed (${streamedResponse.statusCode})');
+      final res = await http
+          .get(
+            Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download'),
+            headers: {if (token != null) 'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(minutes: 20));
+      if (res.statusCode != 200 || res.bodyBytes.length < 1000000) {
+        throw StateError('download failed (${res.statusCode})');
       }
 
-      final contentLength = streamedResponse.contentLength ?? 0;
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/smartschool-parent-update.apk');
-
-      var sink = file.openWrite(mode: FileMode.write);
-      await for (var bytes in streamedResponse.stream) {
-        await sink.add(bytes);
-      }
-      await sink.flush();
-      await sink.close();
-
-      // Verify file size before installing.
-      final stat = await file.stat();
-      if (stat.size < 1_000_000) {
-        throw StateError('download incomplete (${stat.size} bytes)');
-      }
+      await file.writeAsBytes(res.bodyBytes, flush: true);
 
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
       await OpenFilex.open(file.path);
