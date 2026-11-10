@@ -71,6 +71,8 @@ class AppUpdater {
     return env['data'] as Map<String, dynamic>?;
   }
 
+  /// Streams the APK straight to disk (no whole-file-in-RAM) instead of
+  /// loading the whole APK into memory, which hung on large downloads.
   static Future<void> _downloadAndInstall(BuildContext context, ApiClient api) async {
     showDialog(
       context: context,
@@ -81,30 +83,39 @@ class AppUpdater {
             CircularProgressIndicator(),
             SizedBox(width: 18),
             Expanded(
-                child: Text('Download ho rahi hai…\nWi-Fi par karein',
+                child: Text('Update download ho rahi hai…\nWi-Fi par karein',
                     style: TextStyle(fontSize: 19))),
           ],
         ),
       ),
     );
 
+    final client = http.Client();
     try {
       final token = api.currentLogin?.token;
-      final res = await http
-          .get(
-            Uri.parse('${AppConfig.apiBaseUrl}/api/app-updates/driver/download'),
-            headers: {if (token != null) 'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(minutes: 10));
-      if (res.statusCode != 200 || res.bodyBytes.length < 1000000) {
-        throw StateError('download failed (${res.statusCode})');
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/api/app-updates/driver/download');
+      final request = http.Request('GET', uri)
+        ..headers.addAll({if (token != null) 'Authorization': 'Bearer $token'});
+      final streamedResponse =
+          await client.send(request).timeout(const Duration(minutes: 20));
+
+      if (streamedResponse.statusCode != 200) {
+        throw StateError('download failed (${streamedResponse.statusCode})');
       }
 
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/smartschool-driver-update.apk');
-      await file.writeAsBytes(res.bodyBytes, flush: true);
+      final sink = file.openWrite(mode: FileMode.write);
+      await streamedResponse.stream.pipe(sink);
 
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      // Verify the file is complete before triggering the installer.
+      final stat = await file.stat();
+      if (stat.size < 1000000) {
+        throw StateError('download incomplete (${stat.size} bytes)');
+      }
+
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
@@ -113,7 +124,9 @@ class AppUpdater {
           SnackBar(content: Text('Update fail: $e', style: const TextStyle(fontSize: 18))),
         );
       }
-      _checkedThisSession = false;
+      _checkedThisSession = false; // allow retry on next open
+    } finally {
+      client.close();
     }
   }
 
