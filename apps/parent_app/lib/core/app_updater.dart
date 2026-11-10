@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -62,28 +63,61 @@ class AppUpdater {
     return env['data'] as Map<String, dynamic>?;
   }
 
-  /// Download the APK and install it.
+  /// Streams the APK straight to disk (no whole-file-in-RAM) using dart:io's
+  /// HttpClient so the user sees a progress dialog on slow connections.
   static Future<void> _downloadAndInstall(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 18),
+            Expanded(child: Text('Update download ho rahi hai…\\n(kuch minute lag sakte hain)')),
+          ],
+        ),
+      ),
+    );
+
     try {
       final token = Session.token;
-      final res = await http
-          .get(
-            Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download'),
-            headers: {if (token != null) 'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(minutes: 20));
-      if (res.statusCode != 200 || res.bodyBytes.length < 1000000) {
-        throw StateError('download failed (${res.statusCode})');
+      final uri = Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download');
+
+      // Streamed request via dart:io HttpClient: download directly to file, not into RAM.
+      final httpClient = HttpClient();
+      final request = await httpClient.getUrl(uri);
+      request.headers.addAll({if (token != null) 'Authorization': 'Bearer $token'});
+      final response = await request.close();
+
+      if (response.statusCode != 200) {
+        throw StateError('download failed (${response.statusCode})');
       }
 
+      final contentLength = response.contentLength ?? 0;
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/smartschool-parent-update.apk');
-      await file.writeAsBytes(res.bodyBytes, flush: true);
+
+      var sink = file.openWrite(mode: FileMode.write);
+      await for (var data in response) {
+        await sink.add(data);
+      }
+      await sink.flush();
+      await sink.close();
+      httpClient.close();
 
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      // Verify file size before installing.
+      final stat = await file.stat();
+      if (stat.size < 1_000_000) {
+        throw StateError('download incomplete (${stat.size} bytes)');
+      }
+
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Update fail: $e')),
         );
