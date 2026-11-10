@@ -234,16 +234,18 @@ class BackgroundGpsService {
         ),
       ).listen(
         (pos) => pushGps(pos),
-        onError: (e) async {
+        onError: (e) {
           writeStatus('ERR: GPS stream: ${e.toString().split('\n').first}');
           // Stream error (timeout/background kill) par 5 second baad dobara shuru karein.
-          await Future.delayed(const Duration(seconds: 5));
-          if (activeTripId != null) startGpsStream();
+          Future.delayed(const Duration(seconds: 5), () {
+            if (activeTripId != null) startGpsStream();
+          });
         },
-        onDone: () async {
+        onDone: () {
           // Stream band ho gayi ho to dobara connect karein agar trip abhi chal rahi hai.
-          await Future.delayed(const Duration(seconds: 5));
-          if (activeTripId != null) startGpsStream();
+          Future.delayed(const Duration(seconds: 5), () {
+            if (activeTripId != null) startGpsStream();
+          });
         },
       );
     }
