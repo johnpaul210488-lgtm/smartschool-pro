@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart' show IOClient;
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -34,7 +35,7 @@ class AppUpdater {
         builder: (ctx) => AlertDialog(
           icon: const Icon(Icons.system_update_alt, size: 40),
           title: const Text('Update Available'),
-          content: Text('Naya version $latestVersion aa gaya hai ($size).\n'
+          content: Text('Naya version $latestVersion aa gaya hai ($size).\\n'
               'Abhi update karein? (app band ho kar nayi app khul jayegi)'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Baad mein')),
@@ -62,6 +63,8 @@ class AppUpdater {
     return env['data'] as Map<String, dynamic>?;
   }
 
+  /// Streams the APK straight to disk (no whole-file-in-RAM) with a progress
+  /// dialog so the user knows it is still working on slow connections.
   static Future<void> _downloadAndInstall(BuildContext context) async {
     showDialog(
       context: context,
@@ -71,28 +74,46 @@ class AppUpdater {
           children: [
             CircularProgressIndicator(),
             SizedBox(width: 18),
-            Expanded(child: Text('Update download ho rahi hai…\n(kuch minute lag sakte hain)')),
+            Expanded(child: Text('Update download ho rahi hai…\\n(kuch minute lag sakte hain)')),
           ],
         ),
       ),
     );
 
     try {
-      final res = await http
-          .get(
-            Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download'),
-            headers: {if (Session.token != null) 'Authorization': 'Bearer ${Session.token}'},
-          )
-          .timeout(const Duration(minutes: 10));
-      if (res.statusCode != 200 || res.bodyBytes.length < 1000000) {
-        throw StateError('download failed (${res.statusCode})');
+      final token = Session.token;
+      final uri = Uri.parse('${AppConfig.apiBase}/api/app-updates/parent/download');
+
+      // Streamed request: download directly to file, not into RAM.
+      final request = http.Request('GET', uri)
+        ..headers.addAll({if (token != null) 'Authorization': 'Bearer $token'});
+      final streamedResponse = await IOClient().send(request).timeout(
+        const Duration(minutes: 20),
+      );
+
+      if (streamedResponse.statusCode != 200) {
+        throw StateError('download failed (${streamedResponse.statusCode})');
       }
 
+      final contentLength = streamedResponse.contentLength ?? 0;
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/smartschool-parent-update.apk');
-      await file.writeAsBytes(res.bodyBytes, flush: true);
+
+      var sink = file.openWrite(mode: FileMode.write);
+      await for (var bytes in streamedResponse.stream) {
+        await sink.add(bytes);
+      }
+      await sink.flush();
+      await sink.close();
 
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      // Verify file size before installing.
+      final stat = await file.stat();
+      if (stat.size < 1_000_000) {
+        throw StateError('download incomplete (${stat.size} bytes)');
+      }
+
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
