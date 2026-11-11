@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_state.dart';
@@ -218,11 +219,110 @@ class HomeScreen extends StatelessWidget {
 
   Future<void> _startTrip(BuildContext context) async {
     final state = context.read<AppState>();
+
+    // Preflight: GPS band hai / permission nahi / sirf while-in-use — user ko
+    // EXACT reason dikhao aur seedha sahi settings page par le jao.
+    final canStart = await _preflightLocation(context);
+    if (!canStart || !context.mounted) return;
+
     final ok = await state.startTrip();
     if (!context.mounted) return;
     if (ok) {
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TripScreen()));
+    } else {
+      // Banner already shows the reason — SnackBar as a belt-and-braces cue.
+      final msg = state.error ?? 'Trip start nahi ho saka.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg, style: const TextStyle(fontSize: 16)),
+        backgroundColor: Colors.red.shade800,
+        duration: const Duration(seconds: 5),
+      ));
     }
+  }
+
+  /// Checks GPS + permissions BEFORE the trip-start call.
+  /// Returns true when the trip flow may proceed.
+  Future<bool> _preflightLocation(BuildContext context) async {
+    // 1) Phone ka GPS/location service on hai?
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      final open = await _confirmDialog(
+        context,
+        title: 'GPS band hai',
+        body: 'Trip track karne ke liye phone ki Location service ON honi zaroori hai.',
+        confirmLabel: 'SETTINGS KHOLEIN',
+      );
+      if (open == true) await Geolocator.openLocationSettings();
+      return false;
+    }
+
+    // 2) Permission: pehli dafa normal request
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      final permanent = permission == LocationPermission.deniedForever;
+      final open = await _confirmDialog(
+        context,
+        title: 'Location permission zaroori',
+        body: permanent
+            ? 'Location permission permanently blocked hai. Settings → Permissions → Location → Allow karein.'
+            : 'Trip GPS ke bina start nahi ho sakti. Location permission Allow karein.',
+        confirmLabel: 'SETTINGS KHOLEIN',
+      );
+      if (open == true) await Geolocator.openAppSettings();
+      return false;
+    }
+
+    // 3) Sirf "While in use"? Background tracking ke liye "Allow all the time"
+    //    chahiye — Android isko settings page se hi deta hai.
+    if (permission == LocationPermission.whileInUse) {
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Background GPS?'),
+          content: const Text(
+              'Trip ke dauran app minimize karne par bhi GPS chalta rahe, is ke liye "Allow all the time" permission chahiye.\n\n'
+              'Settings → Permissions → Location → "Allow all the time" select karein.\n\n'
+              'Trip abhi sirf app khuli hone tak sahi track hogi.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(c, 'trip'),
+                child: const Text('TRIP PHIR BHI CHALAYEN')),
+            FilledButton(
+                onPressed: () => Navigator.pop(c, 'settings'),
+                child: const Text('SETTINGS KHOLEIN')),
+          ],
+        ),
+      );
+      if (choice == 'settings') {
+        await Geolocator.openAppSettings();
+        return false; // user wapas aake dobara START tap karega
+      }
+      return true;
+    }
+
+    return true; // always granted
+  }
+
+  Future<bool?> _confirmDialog(
+    BuildContext context, {
+    required String title,
+    required String body,
+    required String confirmLabel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('REHNE DO')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(confirmLabel)),
+        ],
+      ),
+    );
   }
 
   Future<void> _endTrip(BuildContext context) async {

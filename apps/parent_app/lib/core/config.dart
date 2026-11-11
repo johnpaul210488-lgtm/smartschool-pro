@@ -1,14 +1,17 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Build-time config. Set the API address for YOUR network at build/run time:
-///   flutter run --dart-define=API_BASE=http://192.168.1.10:5000
-/// (use the LAN IP of the PC running SmartSchool.API for real phones).
-/// The Settings screen can also change it — that override persists and
-/// update-APKs (built with a generic default) never break a configured phone.
+/// Build-time config. The school server is BAKED INTO THE RELEASE APK — it is
+/// the Tailscale Funnel public HTTPS URL (port 443, Let's Encrypt), which
+/// works from any network (Wi-Fi / 4G) and survives PC restarts, ISP changes
+/// and phone reboots — no Tailscale app is needed on the phones. Phones no longer need
+/// (or see) any server setting. Stale per-phone overrides saved by older
+/// builds are ignored and cleaned up at boot.
+///
+/// (Can still be overridden at build time with --dart-define=API_BASE=...)
 class AppConfig {
   static const String _defaultBase = String.fromEnvironment(
     'API_BASE',
-    defaultValue: 'http://192.168.1.10:5000',
+    defaultValue: 'https://zia.tail758a5c.ts.net',
   );
 
   static const _kBaseOverride = 'api_base_override';
@@ -18,23 +21,17 @@ class AppConfig {
 
   static String get hubUrl => '$apiBase/hubs/notifications';
 
-  /// Load any saved override — call before the first network call (app boot).
+  /// Older builds let each phone override the server. Those stale overrides
+  /// are IGNORED now — the baked-in Tailscale address always wins — and the
+  /// stale key is cleaned up so phones self-heal on this update.
   static Future<void> loadServerOverride() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_kBaseOverride);
-    if (saved != null && saved.trim().isNotEmpty) apiBase = saved.trim();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kBaseOverride);
+    } catch (_) {}
   }
 
-  /// Change the server from the Settings screen; persists across update installs.
-  static Future<void> saveServerOverride(String baseUrl) async {
-    final prefs = await SharedPreferences.getInstance();
-    final value = baseUrl.trim();
-    if (value.isEmpty || value == _defaultBase) {
-      await prefs.remove(_kBaseOverride);
-      apiBase = _defaultBase;
-    } else {
-      await prefs.setString(_kBaseOverride, value);
-      apiBase = value;
-    }
-  }
+  /// No longer used — the server address is baked into the release build.
+  /// Kept as a no-op so older code paths still compile.
+  static Future<void> saveServerOverride(String baseUrl) async {}
 }
