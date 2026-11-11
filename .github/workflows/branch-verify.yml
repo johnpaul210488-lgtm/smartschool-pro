@@ -178,6 +178,21 @@ jobs:
           flutter pub get
           flutter analyze --no-fatal-infos
 
+  flutter-driver:
+    name: Driver app analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: pub get + analyze
+        working-directory: apps/driver_app
+        run: |
+          flutter pub get
+          flutter analyze --no-fatal-infos
+
   admin-exe:
     name: Admin exe (Windows, downloadable)
     runs-on: windows-latest
