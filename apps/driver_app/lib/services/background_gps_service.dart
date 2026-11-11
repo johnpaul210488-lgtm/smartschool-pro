@@ -29,9 +29,16 @@ class BackgroundGpsService {
 
     // Android 8+ needs an explicit notification channel for the foreground service.
     final plugin = FlutterLocalNotificationsPlugin();
-    await plugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(const AndroidNotificationChannel(
+    final androidPlugin =
+        plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    // Android 13+: foreground service ki persistent notification ke liye
+    // POST_NOTIFICATIONS runtime permission zaroori hai — manifest mein hone
+    // se kaam nahi chalta. Deny hone par bhi trip fail nahi karni chahiye,
+    // isliye intentionally ignore the result.
+    try {
+      await androidPlugin?.requestNotificationsPermission();
+    } catch (_) {}
+    await androidPlugin?.createNotificationChannel(const AndroidNotificationChannel(
           AppConfig.notificationChannelId,
           'Trip Tracking',
           description: 'Shows while a trip is active with live GPS.',
@@ -59,7 +66,19 @@ class BackgroundGpsService {
   Future<void> startTrip(int tripId) async {
     await initialize();
     final service = FlutterBackgroundService();
-    if (!(await service.isRunning())) await service.startService();
+    if (!(await service.isRunning())) {
+      await service.startService();
+      // Race fix: background isolate ko apna 'start' listener register karne ka
+      // waqt do. Pehle turant invoke hota tha jo kabhi-kabhi kho jata tha —
+      // trip active rehti thi lekin GPS push kabhi shuru nahi hota tha.
+      await Future.delayed(const Duration(seconds: 1));
+      service.invoke('start', {'tripId': tripId});
+      // Safety re-send (idempotent — timer reset + ek extra ping, harmless).
+      Future.delayed(const Duration(seconds: 2), () {
+        service.invoke('start', {'tripId': tripId});
+      });
+      return;
+    }
     service.invoke('start', {'tripId': tripId});
   }
 

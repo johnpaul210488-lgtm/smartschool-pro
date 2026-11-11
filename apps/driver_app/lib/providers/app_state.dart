@@ -34,6 +34,9 @@ class AppState extends ChangeNotifier {
   bool busy = false;
   String? error;
   String? lastFlash; // transient success message ("✅ Ahmed picked!")
+  /// True when location is only "while in use" — background GPS needs
+  /// "Allow all the time" from system settings.
+  bool backgroundLimited = false;
 
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   Timer? _syncTimer;
@@ -153,17 +156,25 @@ class AppState extends ChangeNotifier {
     try {
       // GPS permission zaroor — trip hi track hona hai
       await _gps.currentFix();
+      backgroundLimited = await _gps.isBackgroundLimited();
 
       activeTrip = await _api.startTrip(b.id);
       await BackgroundGpsService.instance.startTrip(activeTrip!.id);
       await loadManifest();
-      lastFlash = '🚌 Trip #${activeTrip!.id} started — tracking ON';
+      lastFlash = backgroundLimited
+          ? '🚌 Trip #${activeTrip!.id} started — lekin GPS sirf app khuli hone par kaam karegi. Settings se "Allow all the time" den.'
+          : '🚌 Trip #${activeTrip!.id} started — tracking ON';
       return true;
     } on StateError catch (e) {
       error = e.message;
       return false;
     } on ApiException catch (e) {
       error = e.toString();
+      return false;
+    } catch (e) {
+      // Background service start, GPS platform channel, etc. — kabhi bhi
+      // silent failure nahi: error banner dikhega.
+      error = 'Trip start nahi ho saka: $e';
       return false;
     } finally {
       busy = false;
@@ -174,6 +185,7 @@ class AppState extends ChangeNotifier {
   Future<void> endTrip({bool silent = false}) async {
     final t = activeTrip;
     activeTrip = null;
+    backgroundLimited = false;
     notifyListeners();
     await BackgroundGpsService.instance.stopTrip();
     if (t != null) {
@@ -276,6 +288,11 @@ class AppState extends ChangeNotifier {
 
   void clearFlash() {
     lastFlash = null;
+  }
+
+  void clearError() {
+    error = null;
+    notifyListeners();
   }
 
   @override
