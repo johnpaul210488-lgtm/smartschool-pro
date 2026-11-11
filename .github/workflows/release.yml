@@ -182,7 +182,9 @@ jobs:
           cp "release-files/admin-exe/SmartSchool.Admin.exe" dist/
           cp release-files/apks/*.apk dist/
           cp release-files/installer-exe/*.exe dist/
+          # <-- CHANGED: tag the commit that was built.
           gh release create "$RELEASE_TAG" dist/* \
+            --target "$GITHUB_SHA" \
             --title "Queen International School $RELEASE_TAG" \
             --generate-notes \
             --latest
