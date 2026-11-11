@@ -1,8 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// App-wide config. The school server is BAKED INTO THE RELEASE APK — it is
-/// the Tailscale MagicDNS name, which works from any network (Wi-Fi / 4G) and
-/// survives PC restarts, ISP changes and phone reboots. Phones no longer need
+/// the Tailscale Funnel public HTTPS URL (port 443, Let's Encrypt), which
+/// works from any network (Wi-Fi / 4G) and survives PC restarts, ISP changes
+/// and phone reboots — no Tailscale app is needed on the phones. Phones no longer need
 /// (or see) any server setting. Stale per-phone overrides saved by older
 /// builds are ignored and cleaned up at boot.
 ///
@@ -10,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppConfig {
   static const String _defaultBase = String.fromEnvironment(
     'API_BASE',
-    defaultValue: 'http://zia.tail758a5c.ts.net:5000',
+    defaultValue: 'https://zia.tail758a5c.ts.net',
   );
 
   static const _kBaseOverride = 'api_base_override';
