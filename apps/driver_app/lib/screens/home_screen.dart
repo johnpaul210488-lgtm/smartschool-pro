@@ -141,7 +141,7 @@ class HomeScreen extends StatelessWidget {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'TRIP #${trip.id} ACTIVE — GPS live',
+                                  'TRIP #${trip.id} ACTIVE — ${state.trackingActive ? "GPS service ON" : "GPS service band — refresh karein"}', // <-- CHANGED
                                   style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -275,35 +275,7 @@ class HomeScreen extends StatelessWidget {
       return false;
     }
 
-    // 3) Sirf "While in use"? Background tracking ke liye "Allow all the time"
-    //    chahiye — Android isko settings page se hi deta hai.
-    if (permission == LocationPermission.whileInUse) {
-      final choice = await showDialog<String>(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: const Text('Background GPS?'),
-          content: const Text(
-              'Trip ke dauran app minimize karne par bhi GPS chalta rahe, is ke liye "Allow all the time" permission chahiye.\n\n'
-              'Settings → Permissions → Location → "Allow all the time" select karein.\n\n'
-              'Trip abhi sirf app khuli hone tak sahi track hogi.'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(c, 'trip'),
-                child: const Text('TRIP PHIR BHI CHALAYEN')),
-            FilledButton(
-                onPressed: () => Navigator.pop(c, 'settings'),
-                child: const Text('SETTINGS KHOLEIN')),
-          ],
-        ),
-      );
-      if (choice == 'settings') {
-        await Geolocator.openAppSettings();
-        return false; // user wapas aake dobara START tap karega
-      }
-      return true;
-    }
-
-    return true; // always granted
+    return true; // <-- CHANGED: no repeated background-permission dialog
   }
 
   Future<bool?> _confirmDialog(

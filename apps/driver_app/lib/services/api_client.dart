@@ -61,7 +61,22 @@ class ApiClient {
     return env.data ?? [];
   }
 
+  Future<Trip?> activeTripForBus(int busId) async { // <-- CHANGED
+    final env = await _get<List<Trip>>(
+      'api/trips/active',
+      (d) => (d as List<dynamic>)
+          .map((e) => Trip.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+    for (final trip in env.data ?? <Trip>[]) {
+      if (trip.busId == busId) return trip;
+    }
+    return null;
+  }
+
   Future<Trip> startTrip(int busId, {int type = 1 /* ToSchool */}) async {
+    final existing = await activeTripForBus(busId); // <-- CHANGED
+    if (existing != null) return existing; // <-- CHANGED
     final env = await _post<Trip>(
       'api/trips/start',
       {'busId': busId, 'type': type},

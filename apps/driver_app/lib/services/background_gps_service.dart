@@ -25,7 +25,6 @@ class BackgroundGpsService {
 
   Future<void> initialize() async {
     if (_initialized) return;
-    _initialized = true;
 
     // Android 8+ needs an explicit notification channel for the foreground service.
     final plugin = FlutterLocalNotificationsPlugin();
@@ -36,7 +35,9 @@ class BackgroundGpsService {
     // se kaam nahi chalta. Deny hone par bhi trip fail nahi karni chahiye,
     // isliye intentionally ignore the result.
     try {
-      await androidPlugin?.requestNotificationsPermission();
+      if (androidPlugin != null && await SessionService().claimNotificationPrompt()) { // <-- CHANGED
+        await androidPlugin.requestNotificationsPermission();
+      }
     } catch (_) {}
     await androidPlugin?.createNotificationChannel(const AndroidNotificationChannel(
           AppConfig.notificationChannelId,
@@ -61,29 +62,44 @@ class BackgroundGpsService {
         onBackground: _onIosBackground,
       ),
     );
+    _initialized = true; // <-- CHANGED
   }
 
   Future<void> startTrip(int tripId) async {
     await initialize();
+    await SessionService().saveActiveTrip(tripId); // <-- CHANGED
     final service = FlutterBackgroundService();
-    if (!(await service.isRunning())) {
-      await service.startService();
-      // Race fix: background isolate ko apna 'start' listener register karne ka
-      // waqt do. Pehle turant invoke hota tha jo kabhi-kabhi kho jata tha —
-      // trip active rehti thi lekin GPS push kabhi shuru nahi hota tha.
-      await Future.delayed(const Duration(seconds: 1));
-      service.invoke('start', {'tripId': tripId});
-      // Safety re-send (idempotent — timer reset + ek extra ping, harmless).
-      Future.delayed(const Duration(seconds: 2), () {
-        service.invoke('start', {'tripId': tripId});
-      });
-      return;
+    final ready = service.on('ready').first; // <-- CHANGED
+    if (!(await service.isRunning()) && !await service.startService()) { // <-- CHANGED
+      throw StateError('Background GPS service start nahi ho saki.');
     }
+    final retry = Timer.periodic(const Duration(seconds: 1), (_) => service.invoke('ping')); // <-- CHANGED
+    try {
+      service.invoke('ping');
+      await ready.timeout(const Duration(seconds: 30));
+    } finally {
+      retry.cancel();
+    }
+    final started = service.on('started').firstWhere( // <-- CHANGED
+      (data) => (data?['tripId'] as num?)?.toInt() == tripId,
+    );
     service.invoke('start', {'tripId': tripId});
+    await started.timeout(const Duration(seconds: 30)); // <-- CHANGED
   }
 
   Future<void> stopTrip() async {
-    FlutterBackgroundService().invoke('stop');
+    await SessionService().saveActiveTrip(null); // <-- CHANGED
+    final service = FlutterBackgroundService(); // <-- CHANGED
+    if (!(await service.isRunning())) return;
+    final ready = service.on('ready').first;
+    final retry = Timer.periodic(const Duration(seconds: 1), (_) => service.invoke('ping'));
+    try {
+      service.invoke('ping');
+      await ready.timeout(const Duration(seconds: 30));
+    } finally {
+      retry.cancel();
+    }
+    service.invoke('stop');
   }
 
   bool _onIosBackground(ServiceInstance service) {
@@ -96,20 +112,23 @@ class BackgroundGpsService {
     DartPluginRegistrant.ensureInitialized();
 
     Timer? timer;
-    int? activeTripId;
+    int? activeTripId = await SessionService().loadActiveTrip(); // <-- CHANGED
+    bool sending = false; // <-- CHANGED
 
     Future<void> pushGps() async {
-      if (activeTripId == null) return;
+      final tripId = activeTripId; // <-- CHANGED
+      if (tripId == null || sending) return; // <-- CHANGED
+      sending = true; // <-- CHANGED
       try {
         final pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-        );
+        ).timeout(const Duration(seconds: 12)); // <-- CHANGED
         final login = await SessionService().load();
-        if (login == null) return;
+        if (login == null || activeTripId != tripId) return; // <-- CHANGED
 
         await http
             .post(
-              Uri.parse('${AppConfig.apiBaseUrl}/api/trips/$activeTripId/location'),
+              Uri.parse('${AppConfig.apiBaseUrl}/api/trips/$tripId/location'), // <-- CHANGED
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer ${login.token}',
@@ -124,6 +143,8 @@ class BackgroundGpsService {
       } catch (_) {
         // Background GPS push must be silent — offline = skip this tick;
         // admin map just shows the last known fix.
+      } finally {
+        sending = false; // <-- CHANGED
       }
     }
 
@@ -132,6 +153,7 @@ class BackgroundGpsService {
       timer?.cancel();
       pushGps(); // immediate first ping
       timer = Timer.periodic(AppConfig.gpsPushInterval, (_) => pushGps());
+      service.invoke('started', {'tripId': activeTripId}); // <-- CHANGED
     });
 
     service.on('stop').listen((_) {
@@ -139,5 +161,10 @@ class BackgroundGpsService {
       activeTripId = null;
       service.stopSelf();
     });
+    service.on('ping').listen((_) => service.invoke('ready')); // <-- CHANGED
+    if (activeTripId != null) { // <-- CHANGED
+      pushGps();
+      timer = Timer.periodic(AppConfig.gpsPushInterval, (_) => pushGps());
+    }
   }
 }

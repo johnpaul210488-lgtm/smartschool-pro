@@ -63,7 +63,7 @@ class StatusBanners extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                    'Background GPS ke liye "Allow all the time" chahiye — warna app minimize hone par tracking band ho jayegi.',
+                    'Background GPS kuch phones par restrict ho sakti hai. Zaroorat par Settings se "Allow all the time" dein.', // <-- CHANGED
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
               ),

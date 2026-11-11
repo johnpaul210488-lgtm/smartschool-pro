@@ -37,6 +37,7 @@ class AppState extends ChangeNotifier {
   /// True when location is only "while in use" — background GPS needs
   /// "Allow all the time" from system settings.
   bool backgroundLimited = false;
+  bool trackingActive = false; // <-- CHANGED
 
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   Timer? _syncTimer;
@@ -103,6 +104,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> doLogout() async {
     await endTrip(silent: true);
+    if (activeTrip != null) return; // <-- CHANGED
     await BackgroundGpsService.instance.stopTrip();
     await _api.logout();
     login = null;
@@ -120,9 +122,27 @@ class AppState extends ChangeNotifier {
       bus = await _api.myBus();
       error = null;
       await loadManifest();
+      final trip = await _api.activeTripForBus(bus!.id); // <-- CHANGED
+      if (trip != null) { // <-- CHANGED
+        activeTrip = trip;
+        trackingActive = false;
+        await _gps.currentFix();
+        backgroundLimited = await _gps.isBackgroundLimited();
+        await BackgroundGpsService.instance.startTrip(trip.id);
+        trackingActive = true;
+      } else {
+        await BackgroundGpsService.instance.stopTrip();
+        activeTrip = null;
+        backgroundLimited = false;
+        trackingActive = false;
+      }
     } on ApiException catch (e) {
       // Offline par manifest pehle se hai to chalne do; warna error dikhao.
-      if (students.isEmpty) error = e.toString();
+      if (students.isEmpty || activeTrip == null) error = e.toString(); // <-- CHANGED
+    } on StateError catch (e) { // <-- CHANGED
+      error = e.message;
+    } catch (e) { // <-- CHANGED
+      error = 'Trip tracking restore nahi ho saki: $e';
     }
     notifyListeners();
   }
@@ -159,10 +179,12 @@ class AppState extends ChangeNotifier {
       backgroundLimited = await _gps.isBackgroundLimited();
 
       activeTrip = await _api.startTrip(b.id);
+      trackingActive = false; // <-- CHANGED
       await BackgroundGpsService.instance.startTrip(activeTrip!.id);
+      trackingActive = true; // <-- CHANGED
       await loadManifest();
       lastFlash = backgroundLimited
-          ? '🚌 Trip #${activeTrip!.id} started — lekin GPS sirf app khuli hone par kaam karegi. Settings se "Allow all the time" den.'
+          ? '🚌 Trip #${activeTrip!.id} started — background GPS kuch phones par restrict ho sakti hai.' // <-- CHANGED
           : '🚌 Trip #${activeTrip!.id} started — tracking ON';
       return true;
     } on StateError catch (e) {
@@ -184,20 +206,34 @@ class AppState extends ChangeNotifier {
 
   Future<void> endTrip({bool silent = false}) async {
     final t = activeTrip;
-    activeTrip = null;
-    backgroundLimited = false;
+    if (t == null || busy) return; // <-- CHANGED
+    busy = true; // <-- CHANGED
+    error = null;
     notifyListeners();
-    await BackgroundGpsService.instance.stopTrip();
-    if (t != null) {
+    try { // <-- CHANGED
       try {
         await _api.endTrip(t.id);
-        if (!silent) lastFlash = '🏁 Trip khatam.';
-      } on ApiException {
-        // Trip end ka failure serious nahi — server par active reh bhi gayi to next
-        // start par conflict message bata dega.
+      } on ApiException catch (e) {
+        try {
+          final serverTrip = await _api.activeTripForBus(t.busId);
+          if (serverTrip?.id == t.id) {
+            error = e.toString();
+            return;
+          }
+        } on ApiException {
+          error = e.toString();
+          return;
+        }
       }
+      await BackgroundGpsService.instance.stopTrip();
+      activeTrip = null;
+      backgroundLimited = false;
+      trackingActive = false; // <-- CHANGED
+      if (!silent) lastFlash = '🏁 Trip khatam.';
+    } finally {
+      busy = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   // =============== pick / drop (offline-first) ===============
