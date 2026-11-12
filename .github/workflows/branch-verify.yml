@@ -227,11 +227,13 @@ jobs:
           arch: x86_64
           script: |
             cd apps/driver_app
-            adb install -r build/app/outputs/flutter-apk/app-debug.apk
-            adb shell pm grant com.smartschool.smartschool_driver android.permission.ACCESS_FINE_LOCATION
-            adb shell pm grant com.smartschool.smartschool_driver android.permission.ACCESS_COARSE_LOCATION
-            adb shell pm grant com.smartschool.smartschool_driver android.permission.POST_NOTIFICATIONS
-            flutter test integration_test/background_gps_test.dart --reporter expanded
+            echo '::notice::Android GPS test script started' # <-- CHANGED
+            adb install -r build/app/outputs/flutter-apk/app-debug.apk || { echo '::error::Android APK installation failed'; exit 1; }
+            adb shell pm grant com.smartschool.smartschool_driver android.permission.ACCESS_FINE_LOCATION || { echo '::error::Fine location grant failed'; exit 1; }
+            adb shell pm grant com.smartschool.smartschool_driver android.permission.ACCESS_COARSE_LOCATION || { echo '::error::Coarse location grant failed'; exit 1; }
+            adb shell pm grant com.smartschool.smartschool_driver android.permission.POST_NOTIFICATIONS || { echo '::error::Notification grant failed'; exit 1; }
+            flutter test integration_test/background_gps_test.dart --reporter expanded > gps-test.log 2>&1 || { cat gps-test.log; python3 -c "s=open('gps-test.log').read()[-4000:]; print('::error title=Android GPS test::'+s.replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))"; exit 1; }
+            cat gps-test.log
 
   admin-exe:
     name: Admin exe (Windows, downloadable)
