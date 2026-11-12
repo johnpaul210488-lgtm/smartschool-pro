@@ -215,7 +215,7 @@ jobs:
           G=android/app/build.gradle.kts; [ -f "$G" ] || G=android/app/build.gradle
           printf '\nandroid { compileOptions { isCoreLibraryDesugaringEnabled = true } }\ndependencies { coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4") }\n' >> "$G"
           flutter pub get
-          flutter build apk --debug
+          flutter build apk --debug --target integration_test/background_gps_test.dart # <-- CHANGED
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -232,7 +232,7 @@ jobs:
             adb shell pm grant com.smartschool.smartschool_driver android.permission.ACCESS_FINE_LOCATION || { echo '::error::Fine location grant failed'; exit 1; }
             adb shell pm grant com.smartschool.smartschool_driver android.permission.ACCESS_COARSE_LOCATION || { echo '::error::Coarse location grant failed'; exit 1; }
             adb shell pm grant com.smartschool.smartschool_driver android.permission.POST_NOTIFICATIONS || { echo '::error::Notification grant failed'; exit 1; }
-            cd apps/driver_app && timeout 300s flutter test integration_test/background_gps_test.dart --reporter expanded > gps-test.log 2>&1 || { adb logcat -d -s flutter:V > gps-device.log; cat gps-test.log; python3 -c "from pathlib import Path; s=Path('gps-test.log').read_text()[-2500:]+'\nDEVICE LOG:\n'+Path('gps-device.log').read_text()[-1500:]; print('::error title=Android GPS test::'+s.replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))"; exit 1; } # <-- CHANGED
+            cd apps/driver_app && timeout 300s flutter drive --driver test_driver/integration_test.dart --target integration_test/background_gps_test.dart --use-application-binary build/app/outputs/flutter-apk/app-debug.apk > gps-test.log 2>&1 || { adb logcat -d -s flutter:V > gps-device.log; cat gps-test.log; python3 -c "from pathlib import Path; s=Path('gps-test.log').read_text()[-2500:]+'\nDEVICE LOG:\n'+Path('gps-device.log').read_text()[-1500:]; print('::error title=Android GPS test::'+s.replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))"; exit 1; } # <-- CHANGED
             cat apps/driver_app/gps-test.log # <-- CHANGED
 
   admin-exe:
