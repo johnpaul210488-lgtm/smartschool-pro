@@ -12,6 +12,8 @@ void main() {
     await BackgroundGpsService.instance.startTrip(32);
     expect(await FlutterBackgroundService().isRunning(), isTrue);
     expect(await SessionService().loadActiveTrip(), 32);
+    await BackgroundGpsService.instance.startTrip(32); // <-- CHANGED
+    expect(await FlutterBackgroundService().isRunning(), isTrue);
     await BackgroundGpsService.instance.stopTrip();
     expect(await SessionService().loadActiveTrip(), isNull);
   });

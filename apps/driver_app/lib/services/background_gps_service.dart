@@ -83,8 +83,15 @@ class BackgroundGpsService {
     final started = service.on('started').firstWhere( // <-- CHANGED
       (data) => (data?['tripId'] as num?)?.toInt() == tripId,
     );
-    service.invoke('start', {'tripId': tripId});
-    await started.timeout(const Duration(seconds: 30)); // <-- CHANGED
+    final startRetry = Timer.periodic(const Duration(seconds: 1), (_) { // <-- CHANGED
+      service.invoke('start', {'tripId': tripId});
+    });
+    try {
+      service.invoke('start', {'tripId': tripId});
+      await started.timeout(const Duration(seconds: 30));
+    } finally {
+      startRetry.cancel();
+    }
   }
 
   Future<void> stopTrip() async {
@@ -112,7 +119,8 @@ class BackgroundGpsService {
     DartPluginRegistrant.ensureInitialized();
 
     Timer? timer;
-    int? activeTripId = await SessionService().loadActiveTrip(); // <-- CHANGED
+    int? activeTripId; // <-- CHANGED
+    bool commandReceived = false; // <-- CHANGED
     bool sending = false; // <-- CHANGED
 
     Future<void> pushGps() async {
@@ -149,22 +157,33 @@ class BackgroundGpsService {
     }
 
     service.on('start').listen((data) {
-      activeTripId = (data?['tripId'] as num?)?.toInt();
-      timer?.cancel();
-      pushGps(); // immediate first ping
-      timer = Timer.periodic(AppConfig.gpsPushInterval, (_) => pushGps());
+      commandReceived = true; // <-- CHANGED
+      final tripId = (data?['tripId'] as num?)?.toInt(); // <-- CHANGED
+      if (tripId != activeTripId || timer == null) { // <-- CHANGED
+        activeTripId = tripId;
+        timer?.cancel();
+        pushGps(); // immediate first ping
+        timer = Timer.periodic(AppConfig.gpsPushInterval, (_) => pushGps());
+      }
       service.invoke('started', {'tripId': activeTripId}); // <-- CHANGED
     });
 
     service.on('stop').listen((_) {
+      commandReceived = true; // <-- CHANGED
       timer?.cancel();
       activeTripId = null;
       service.stopSelf();
     });
     service.on('ping').listen((_) => service.invoke('ready')); // <-- CHANGED
-    if (activeTripId != null) { // <-- CHANGED
-      pushGps();
-      timer = Timer.periodic(AppConfig.gpsPushInterval, (_) => pushGps());
+    try { // <-- CHANGED
+      final restoredTripId = await SessionService().loadActiveTrip();
+      if (!commandReceived && restoredTripId != null) {
+        activeTripId = restoredTripId;
+        pushGps();
+        timer = Timer.periodic(AppConfig.gpsPushInterval, (_) => pushGps());
+      }
+    } catch (_) {
+      // The main isolate can still send the active trip even if restore fails.
     }
   }
 }
