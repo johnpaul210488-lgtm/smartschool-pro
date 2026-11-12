@@ -17,6 +17,7 @@ import '../services/session_service.dart';
 /// Protocol with the main isolate:
 /// - main → service:  'start' {tripId} | 'stop'
 /// - service → main:  (none — fire & forget into the API)
+@pragma('vm:entry-point') // <-- CHANGED
 class BackgroundGpsService {
   BackgroundGpsService._();
   static final BackgroundGpsService instance = BackgroundGpsService._();
@@ -116,9 +117,7 @@ class BackgroundGpsService {
 
   @pragma('vm:entry-point')
   static void _onStart(ServiceInstance service) async {
-    debugPrint('GPS_DIAG: background callback entered'); // <-- CHANGED
     DartPluginRegistrant.ensureInitialized();
-    debugPrint('GPS_DIAG: plugins initialized'); // <-- CHANGED
 
     Timer? timer;
     int? activeTripId; // <-- CHANGED
@@ -176,11 +175,7 @@ class BackgroundGpsService {
       activeTripId = null;
       service.stopSelf();
     });
-    service.on('ping').listen((_) { // <-- CHANGED
-      debugPrint('GPS_DIAG: ping received');
-      service.invoke('ready');
-    });
-    debugPrint('GPS_DIAG: listeners registered'); // <-- CHANGED
+    service.on('ping').listen((_) => service.invoke('ready')); // <-- CHANGED
     try { // <-- CHANGED
       final restoredTripId = await SessionService().loadActiveTrip();
       if (!commandReceived && restoredTripId != null) {
