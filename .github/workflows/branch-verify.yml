@@ -232,7 +232,7 @@ jobs:
             adb shell pm grant com.smartschool.smartschool_driver android.permission.ACCESS_FINE_LOCATION || { echo '::error::Fine location grant failed'; exit 1; }
             adb shell pm grant com.smartschool.smartschool_driver android.permission.ACCESS_COARSE_LOCATION || { echo '::error::Coarse location grant failed'; exit 1; }
             adb shell pm grant com.smartschool.smartschool_driver android.permission.POST_NOTIFICATIONS || { echo '::error::Notification grant failed'; exit 1; }
-            cd apps/driver_app && flutter test integration_test/background_gps_test.dart --reporter expanded > gps-test.log 2>&1 || { cat apps/driver_app/gps-test.log 2>/dev/null || cat gps-test.log; python3 -c "from pathlib import Path; p=Path('gps-test.log'); p=p if p.exists() else Path('apps/driver_app/gps-test.log'); s=p.read_text()[-4000:]; print('::error title=Android GPS test::'+s.replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))"; exit 1; } # <-- CHANGED
+            cd apps/driver_app && timeout 300s flutter test integration_test/background_gps_test.dart --reporter expanded > gps-test.log 2>&1 || { adb logcat -d -s flutter:V > gps-device.log; cat gps-test.log; python3 -c "from pathlib import Path; s=Path('gps-test.log').read_text()[-2500:]+'\nDEVICE LOG:\n'+Path('gps-device.log').read_text()[-1500:]; print('::error title=Android GPS test::'+s.replace('%','%25').replace(chr(13),'%0D').replace(chr(10),'%0A'))"; exit 1; } # <-- CHANGED
             cat apps/driver_app/gps-test.log # <-- CHANGED
 
   admin-exe:
